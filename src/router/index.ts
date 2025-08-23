@@ -3,7 +3,6 @@ import { supabase } from '../lib/supabase'
 import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
 import AdminView from '../views/AdminView.vue'
-import VillagePage from '../views/VillagePage.vue'
 
 const routes = [
   {

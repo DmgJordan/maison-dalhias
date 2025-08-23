@@ -19,14 +19,8 @@ import panorama from '@/assets/gallery/panorama.png'
 import salon from '@/assets/gallery/salon.png'
 import terasse from '@/assets/gallery/terasse.jpg'
 
-// Import des thumbnails
-import tbathroom from '@/assets/gallery/bathroom.png';
-import tbedroom1 from '@/assets/gallery/bedroom1.png';
-import tbedroom2 from '@/assets/gallery/bedroom2.png'
-import tcuisine from '@/assets/gallery/cuisine.png'
+// Import du thumbnail spécifique WebP
 import tdevanture from '@/assets/gallery/thumbnails/devanture.webp'
-import tpanorama from '@/assets/gallery/panorama.png'
-import tsalon from '@/assets/gallery/salon.png'
 
 const galleryImages = ref<GalleryImage[]>([
   {
@@ -43,13 +37,13 @@ const galleryImages = ref<GalleryImage[]>([
   },
   {
     src: panorama,
-    thumbnail: tpanorama,
+    thumbnail: panorama,
     alt: 'Vue panoramique depuis le logement',
     description: 'Vue extérieure depuis la propriété.'
   },
   {
     src: salon,
-    thumbnail: tsalon,
+    thumbnail: salon,
     alt: 'Salon du logement',
     description: 'Espace salon pour vous détendre pendant votre séjour.'
   },
@@ -67,25 +61,25 @@ const galleryImages = ref<GalleryImage[]>([
   },
   {
     src: cuisine,
-    thumbnail: tcuisine,
+    thumbnail: cuisine,
     alt: 'Cuisine du logement',
     description: 'Cuisine équipée avec tout le nécessaire pour préparer vos repas.'
   },
   {
     src: bedroom1,
-    thumbnail: tbedroom1,
+    thumbnail: bedroom1,
     alt: 'Première chambre du logement',
     description: 'Chambre principale avec lit confortable et rangements.'
   },
   {
     src: bedroom2,
-    thumbnail: tbedroom2,
+    thumbnail: bedroom2,
     alt: 'Deuxième chambre du logement',
     description: 'Seconde chambre adaptée pour votre séjour.'
   },
   {
     src: bathroom,
-    thumbnail: tbathroom,
+    thumbnail: bathroom,
     alt: 'Salle de bain du logement',
     description: 'Salle de bain équipée et fonctionnelle pour votre confort.'
   }

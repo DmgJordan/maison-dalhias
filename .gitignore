@@ -4,6 +4,7 @@ dist/
 .DS_Store
 
 # Envs locaux (ne jamais commit les secrets Supabase)
+.env
 .env.local
 .env.*.local
 

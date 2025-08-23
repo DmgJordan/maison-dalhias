@@ -155,9 +155,4 @@ const accommodationFeatures = [
   @apply text-3xl sm:text-4xl font-bold text-dark;
 }
 
-.btn-primary {
-  @apply bg-primary text-white px-6 py-3 rounded-lg font-medium 
-         hover:bg-primary/90 transition-all duration-200
-         focus:outline-none focus:ring-2 focus:ring-primary/50;
-}
 </style>

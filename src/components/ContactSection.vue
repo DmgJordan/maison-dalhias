@@ -275,11 +275,3 @@ onMounted(() => {
   </div>
 </template>
 
-<style scoped>
-.btn-primary {
-  @apply bg-primary text-white px-6 py-3 rounded-lg font-medium
-         hover:bg-primary/90 transition-all duration-200
-         focus:outline-none focus:ring-2 focus:ring-primary/50
-         disabled:opacity-50 disabled:cursor-not-allowed;
-}
-</style>
