@@ -60,7 +60,6 @@ Variables d'environnement requises :
 
 ## Special Notes
 
-- Le projet utilise localxpose avec URL personnalisée : https://jordan.eu.loclx.io/
 - Les images sont organisées avec thumbnails WebP pour l'optimisation
 - Build configuré avec chunking optimisé pour les assets (js, css, images)
 - Navigation avec scroll behavior smooth et hash support
