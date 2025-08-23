@@ -8,42 +8,44 @@ interface GalleryImage {
   description?: string;
 }
 
-// Import des images
-import bathroom from '@/assets/gallery/bathroom.png';
-import bedroom1 from '@/assets/gallery/bedroom1.png';
-import bedroom2 from '@/assets/gallery/bedroom2.png'
-import closedSofa from '@/assets/gallery/closed-sofa.jpg';
-import cuisine from '@/assets/gallery/cuisine.png'
-import openedSofa from '@/assets/gallery/opened-sofa.jpg'
-import panorama from '@/assets/gallery/panorama.png'
-import salon from '@/assets/gallery/salon.png'
-import terasse from '@/assets/gallery/terasse.jpg'
+// Import des images sources
+import bathroom from '@/assets/gallery/sources/bathroom.png';
+import bedroom1 from '@/assets/gallery/sources/bedroom1.png';
+import bedroom2 from '@/assets/gallery/sources/bedroom2.png'
+import closedSofa from '@/assets/gallery/sources/closed-sofa.jpg';
+import cuisine from '@/assets/gallery/sources/cuisine.png'
+import openedSofa from '@/assets/gallery/sources/opened-sofa.jpg'
+import panorama from '@/assets/gallery/sources/panorama.png'
+import salon from '@/assets/gallery/sources/salon.png'
+import terasse from '@/assets/gallery/sources/terasse.jpg'
+import devanture from '@/assets/gallery/sources/devanture.png'
 
-// Import du thumbnail spécifique WebP
-import tdevanture from '@/assets/gallery/thumbnails/devanture.webp'
+// Import des thumbnails WebP optimisés
+import bathroomThumb from '@/assets/gallery/thumbnails/bathroom.webp';
+import bedroom1Thumb from '@/assets/gallery/thumbnails/bedroom1.webp';
+import bedroom2Thumb from '@/assets/gallery/thumbnails/bedroom2.webp';
+import cuisineThumb from '@/assets/gallery/thumbnails/cuisine.webp';
+import panoramaThumb from '@/assets/gallery/thumbnails/panorama.webp';
+import salonThumb from '@/assets/gallery/thumbnails/salon.webp';
+import terasseThumb from '@/assets/gallery/thumbnails/terasse.webp';
+import devantureThumb from '@/assets/gallery/thumbnails/devanture.webp';
 
 const galleryImages = ref<GalleryImage[]>([
   {
-    src: tdevanture,
-    thumbnail: tdevanture,
+    src: devanture,
+    thumbnail: devantureThumb,
     alt: 'Façade du logement',
-    description: 'Vue extérieure de la propriété.'
-  },
-  {
-    src: terasse,
-    thumbnail: terasse,
-    alt: 'Terrasse du logement',
-    description: 'Espace extérieur aménagé pour profiter du plein air.'
+    description: 'Vue extérieure de la propriété depuis l\'entrée du domaine.'
   },
   {
     src: panorama,
-    thumbnail: panorama,
+    thumbnail: panoramaThumb,
     alt: 'Vue panoramique depuis le logement',
     description: 'Vue extérieure depuis la propriété.'
   },
   {
     src: salon,
-    thumbnail: salon,
+    thumbnail: salonThumb,
     alt: 'Salon du logement',
     description: 'Espace salon pour vous détendre pendant votre séjour.'
   },
@@ -61,28 +63,34 @@ const galleryImages = ref<GalleryImage[]>([
   },
   {
     src: cuisine,
-    thumbnail: cuisine,
+    thumbnail: cuisineThumb,
     alt: 'Cuisine du logement',
     description: 'Cuisine équipée avec tout le nécessaire pour préparer vos repas.'
   },
   {
     src: bedroom1,
-    thumbnail: bedroom1,
+    thumbnail: bedroom1Thumb,
     alt: 'Première chambre du logement',
     description: 'Chambre principale avec lit confortable et rangements.'
   },
   {
     src: bedroom2,
-    thumbnail: bedroom2,
+    thumbnail: bedroom2Thumb,
     alt: 'Deuxième chambre du logement',
     description: 'Seconde chambre adaptée pour votre séjour.'
   },
   {
     src: bathroom,
-    thumbnail: bathroom,
+    thumbnail: bathroomThumb,
     alt: 'Salle de bain du logement',
     description: 'Salle de bain équipée et fonctionnelle pour votre confort.'
-  }
+  },
+  {
+    src: terasse,
+    thumbnail: terasseThumb,
+    alt: 'Terrasse du logement',
+    description: 'Espace extérieur aménagé pour profiter du plein air.'
+  },
 ]);
 
 const selectedImageIndex = ref<number>(0);

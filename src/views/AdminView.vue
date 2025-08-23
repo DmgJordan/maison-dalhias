@@ -4,8 +4,8 @@ import { supabase } from '../lib/supabase'
 import { useRouter } from 'vue-router'
 import jsPDF from 'jspdf'
 import QRCode from 'qrcode'
-import homepageImage from '@/assets/homepage.png'
-import logoImage from '@/assets/pierre-vacance.png'
+import homepageImage from '@/assets/hero/homepage.png'
+import logoImage from '@/assets/branding/pierre-vacance.png'
 interface Booking {
   id: string;
   start_date: string;

@@ -4,8 +4,8 @@ import PricingSection from '../components/PricingSection.vue';
 import GallerySection from '../components/GallerySection.vue';
 import AvailabilitySection from '../components/AvailabilitySection.vue';
 import ContactSection from '../components/ContactSection.vue';
-import heroImage from '@/assets/homepage.webp';
-import ActivitySection from "@/components/ActivitySection.vue";
+import heroImage from '@/assets/hero/homepage.webp';
+import ActivitySection from '../components/ActivitySection.vue';
 
 const heroTitle = ref('Maison Dalhias 19');
 const heroSubtitle = ref('Location de vacances dans le Domaine du Rouret - Pierre & Vacances');
