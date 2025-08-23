@@ -58,6 +58,20 @@ Variables d'environnement requises :
 - `VITE_SUPABASE_URL` - URL du projet Supabase
 - `VITE_SUPABASE_ANON_KEY` - Clé anonyme Supabase
 
+## Supabase Integration
+
+Le projet dispose d'un accès complet aux fonctionnalités Supabase via le MCP (Model Context Protocol) configuré dans Claude Code.
+
+### Fonctionnalités Supabase disponibles :
+- **Gestion de projet** : Création, pause, restauration de projets
+- **Branches de développement** : Création, fusion, reset, rebase des branches
+- **Base de données** : Exécution de requêtes SQL, migrations, gestion des tables
+- **Authentification** : Gestion des utilisateurs et sessions
+- **Edge Functions** : Déploiement et gestion des fonctions
+- **Documentation** : Recherche dans la documentation Supabase
+- **Monitoring** : Logs, advisors de sécurité et performance
+- **Types TypeScript** : Génération automatique des types depuis le schéma DB
+
 ## Special Notes
 
 - Les images sont organisées avec thumbnails WebP pour l'optimisation
