@@ -72,6 +72,13 @@ const navigateTo = (route: string) => {
             {{ item.charAt(0).toUpperCase() + item.slice(1) }}
           </a>
 
+          <a
+              @click="navigateTo('/admin')"
+              class="px-3 py-2 border border-gray-300 rounded-md text-gray-600 hover:border-primary hover:text-primary transition-all duration-200 cursor-pointer bg-white hover:bg-gray-50"
+          >
+            🔐 Administration
+          </a>
+
           <button @click="scrollToSection('disponibilites')" class="btn-primary">
             Demande de reservation
           </button>
@@ -91,6 +98,13 @@ const navigateTo = (route: string) => {
               class="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-primary hover:bg-gray-50 cursor-pointer"
           >
             {{ item.charAt(0).toUpperCase() + item.slice(1) }}
+          </a>
+
+          <a
+              @click="navigateTo('/admin')"
+              class="block px-3 py-2 rounded-md text-base font-medium border border-gray-300 text-gray-600 hover:border-primary hover:text-primary hover:bg-gray-50 cursor-pointer transition-all duration-200"
+          >
+            🔐 Administration
           </a>
 
           <button @click="scrollToSection('disponibilites')" class="w-full btn-primary mt-4">

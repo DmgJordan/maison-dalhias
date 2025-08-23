@@ -57,7 +57,7 @@ const mainActivities = [
 ]
 
 // Référence pour la vidéo (à remplacer par votre ID de vidéo YouTube)
-const videoUrl = ref("https://player.vimeo.com/video/1060941273?autoplay=1")
+const videoUrl = ref("https://player.vimeo.com/video/1060941273?autoplay=1&muted=1")
 
 // État pour tracker si la section village est visible
 const showVillageSection = ref(false)
