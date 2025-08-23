@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #FF385C;
+  --color-secondary: #E9C46A;
+  --color-dark: #222222;
+  --color-accent: #E76F51;
+  --color-background: #F7F7F7;
+  --color-text: #484848;
+}
+
+@layer base {
+  html {
+    font-family: 'Circular', -apple-system, BlinkMacSystemFont, Roboto, Helvetica Neue, sans-serif;
+  }
+
+  body {
+    @apply bg-background text-text antialiased;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-primary text-white px-6 py-3 rounded-lg font-medium 
+           hover:bg-primary/90 transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-primary/50
+           transform hover:scale-[1.02] active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply bg-secondary text-white px-6 py-3 rounded-lg font-medium 
+           hover:bg-secondary/90 transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-secondary/50;
+  }
+
+  .container-custom {
+    @apply w-full max-w-7xl mx-auto px-6 sm:px-8 lg:px-10;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 rounded-lg border border-gray-300 
+           focus:ring-2 focus:ring-primary/20 focus:border-primary 
+           transition-colors duration-200;
+  }
+
+  .section-title {
+    @apply text-3xl sm:text-4xl font-bold text-dark;
+  }
+
+  .section-subtitle {
+    @apply text-lg text-text/80 mt-2;
+  }
+}
