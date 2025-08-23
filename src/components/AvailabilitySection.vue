@@ -28,12 +28,19 @@ const selectedEndDate = ref<Date | null>(null);
 const showSnackbar = ref(false);
 const snackbarMessage = ref('');
 const showPriceOnMobile = ref<number | null>(null);
+const isDesktop = ref(false);
 
 const togglePriceOnMobile = (dayIndex: number) => {
   if (showPriceOnMobile.value === dayIndex) {
     showPriceOnMobile.value = null;
   } else {
     showPriceOnMobile.value = dayIndex;
+  }
+};
+
+const checkScreenSize = () => {
+  if (typeof window !== 'undefined') {
+    isDesktop.value = window.innerWidth >= 640;
   }
 };
 
@@ -198,9 +205,9 @@ const isDateBooked = (date: Date): boolean => {
 };
 
 // Modification de la fonction handleDateClick pour vérifier les dates réservées
-const handleDateClick = (day: { date: Date, isBooked: boolean, isCurrentMonth: boolean, isAvailable: boolean }) => {
+const handleDateClick = (day: { date: Date | null, isBooked: boolean, isCurrentMonth: boolean, isAvailable: boolean }) => {
   // Vérifications existantes pour les dates non disponibles
-  if (!day.isCurrentMonth || day.isBooked || !day.isAvailable) {
+  if (!day.isCurrentMonth || day.isBooked || !day.isAvailable || !day.date) {
     if (!day.isAvailable) {
       showNotification("Cette date n'est pas disponible à la réservation");
     } else if (day.isBooked) {
@@ -420,6 +427,10 @@ const scrollToContact = () => {
 
 onMounted(() => {
   fetchBookings();
+  checkScreenSize();
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', checkScreenSize);
+  }
 });
 </script>
 
@@ -471,7 +482,7 @@ onMounted(() => {
                  :key="index"
                  class="aspect-square relative"
                  @click="() => {
-                   handleDateClick(day);
+                   if (day.date) handleDateClick(day);
                    togglePriceOnMobile(index);
                  }">
               <div
@@ -489,9 +500,9 @@ onMounted(() => {
                 <div class="flex flex-col items-center">
                   <span class="text-sm sm:text-base">{{ day.date ? day.date.getDate() : '' }}</span>
                   <span v-if="(day.isCurrentMonth && !day.isBooked && day.isAvailable) &&
-                            (showPriceOnMobile === index || $window?.innerWidth >= 640)"
+                            (showPriceOnMobile === index || isDesktop)"
                         class="text-[10px] sm:text-xs mt-0.5">
-            {{ selectedPeriod?.totalPrice ?? formatPrice(getPriceForDate(day.date)) }}€
+            {{ day.date ? (selectedPeriod?.totalPrice ?? formatPrice(getPriceForDate(day.date))) : '' }}€
 
                   </span>
                 </div>

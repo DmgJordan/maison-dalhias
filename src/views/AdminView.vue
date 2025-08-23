@@ -2,71 +2,24 @@
 import { ref, onMounted } from 'vue'
 import { supabase } from '../lib/supabase'
 import { useRouter } from 'vue-router'
+import { useBookingStore } from '../stores/booking'
+import BookingModal from '../components/modals/BookingModal.vue'
 import jsPDF from 'jspdf'
 import QRCode from 'qrcode'
 import homepageImage from '@/assets/hero/homepage.png'
 import logoImage from '@/assets/branding/pierre-vacance.png'
-interface Booking {
-  id: string;
-  start_date: string;
-  end_date: string;
-  status: string;
-  user_id: string;
-}
+import type { Booking, ContactForm } from '../types'
 
-interface ContactForm {
-  id: string;
-  name: string;
-  email: string;
-  subject: string;
-  message: string;
-  created_at: string;
-  status: string;
-}
 
 const router = useRouter()
+const bookingStore = useBookingStore()
 const bookings = ref<Booking[]>([])
 const contactForms = ref<ContactForm[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 const activeTab = ref('bookings')
-const newBooking = ref({
-  startDate: '',
-  endDate: ''
-})
+const showBookingModal = ref(false)
 
-const pricingPeriods = [
-  {
-    name: 'Basse Saison',
-    dates: 'Du 05 Avril au 03 Mai / Du 30 Août au 27 Septembre',
-    price: 320,
-    pricePerNight: 60
-  },
-  {
-    name: 'Moyenne Saison',
-    dates: 'Du 03 Mai au 28 Juin',
-    price: 400,
-    pricePerNight: 80
-  },
-  {
-    name: 'Haute Saison',
-    dates: 'Du 28 Juin au 13 Juillet',
-    price: 650,
-    pricePerNight: 120
-  },
-  {
-    name: 'Très Haute Saison',
-    dates: 'Du 13 Juillet au 26 Juillet',
-    price: 750,
-    pricePerNight: 150
-  },
-  {
-    name: 'Pleine Saison',
-    dates: 'Du 26 Juillet au 23 Août',
-    price: 950,
-    pricePerNight: 180
-  }
-]
 
 const amenities = [
   'Cuisine équipée',
@@ -256,16 +209,8 @@ const goToHome = () => {
 const fetchBookings = async () => {
   try {
     loading.value = true
-    const { data, error: err } = await supabase
-      .from('bookings')
-      .select('*')
-      .order('start_date', { ascending: true })
-    
-    if (err) throw err
-    
-    if (data) {
-      bookings.value = data
-    }
+    await bookingStore.fetchBookings()
+    bookings.value = bookingStore.bookings
   } catch (err) {
     console.error('Error fetching bookings:', err)
     error.value = err instanceof Error ? err.message : 'Une erreur est survenue'
@@ -295,44 +240,22 @@ const fetchContactForms = async () => {
   }
 }
 
-const addBooking = async () => {
-  try {
-    loading.value = true
-    const { data: userData } = await supabase.auth.getUser()
-    
-    if (!userData.user) {
-      throw new Error('Utilisateur non connecté')
-    }
+const openBookingModal = () => {
+  showBookingModal.value = true
+}
 
-    const { error: err } = await supabase
-      .from('bookings')
-      .insert([
-        {
-          start_date: newBooking.value.startDate,
-          end_date: newBooking.value.endDate,
-          user_id: userData.user.id
-        }
-      ])
-    
-    if (err) throw err
-    
-    await fetchBookings()
-    newBooking.value = { startDate: '', endDate: '' }
-  } catch (err) {
-    console.error('Error adding booking:', err)
-    error.value = err instanceof Error ? err.message : 'Une erreur est survenue'
-  } finally {
-    loading.value = false
-  }
+const closeBookingModal = () => {
+  showBookingModal.value = false
+}
+
+const onBookingAdded = async () => {
+  await fetchBookings()
 }
 
 const confirmBooking = async (id: string) => {
   try {
     loading.value = true
-    const { error: err } = await supabase
-      .rpc('confirm_booking', { booking_id: id })
-    
-    if (err) throw err
+    await bookingStore.confirmBooking(id)
     await fetchBookings()
   } catch (err) {
     console.error('Error confirming booking:', err)
@@ -345,12 +268,7 @@ const confirmBooking = async (id: string) => {
 const deleteBooking = async (id: string) => {
   try {
     loading.value = true
-    const { error: err } = await supabase
-      .from('bookings')
-      .delete()
-      .eq('id', id)
-    
-    if (err) throw err
+    await bookingStore.deleteBooking(id)
     await fetchBookings()
   } catch (err) {
     console.error('Error deleting booking:', err)
@@ -444,38 +362,11 @@ onMounted(() => {
 
         <!-- Bookings Tab -->
         <div v-if="activeTab === 'bookings'">
-          <!-- Formulaire d'ajout -->
-          <div class="mb-8 bg-gray-50 p-6 rounded-lg">
-            <h2 class="text-xl font-semibold mb-4">Ajouter une réservation</h2>
-            <form @submit.prevent="addBooking" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Date de début
-                </label>
-                <input
-                  type="date"
-                  v-model="newBooking.startDate"
-                  class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  required
-                >
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">
-                  Date de fin
-                </label>
-                <input
-                  type="date"
-                  v-model="newBooking.endDate"
-                  class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-                  required
-                >
-              </div>
-              <div class="md:col-span-2">
-                <button type="submit" class="btn-primary w-full" :disabled="loading">
-                  {{ loading ? 'Ajout en cours...' : 'Ajouter la réservation' }}
-                </button>
-              </div>
-            </form>
+          <!-- Bouton d'ajout -->
+          <div class="mb-6">
+            <button @click="openBookingModal" class="btn-primary">
+              Ajouter une réservation
+            </button>
           </div>
 
           <!-- Liste des réservations -->
@@ -483,45 +374,81 @@ onMounted(() => {
             <table class="w-full">
               <thead>
                 <tr class="bg-gray-50">
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date de début
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Dates
                   </th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date de fin
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Client principal
                   </th>
-                  <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Téléphone
+                  </th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Occupants
+                  </th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Prix
+                  </th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Services
+                  </th>
+                  <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Statut
                   </th>
-                  <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody class="bg-white divide-y divide-gray-200">
                 <tr v-for="booking in bookings" :key="booking.id">
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    {{ new Date(booking.start_date).toLocaleDateString() }}
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm">
+                      <div>{{ new Date(booking.start_date).toLocaleDateString() }}</div>
+                      <div class="text-gray-500">au {{ new Date(booking.end_date).toLocaleDateString() }}</div>
+                    </div>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
-                    {{ new Date(booking.end_date).toLocaleDateString() }}
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900" v-if="booking.primary_client">
+                      {{ booking.primary_client.first_name }} {{ booking.primary_client.last_name }}
+                    </div>
+                    <div class="text-sm text-gray-500" v-if="booking.primary_client">
+                      {{ booking.primary_client.city }}
+                    </div>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap">
+                  <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {{ booking.primary_client?.phone || '-' }}
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {{ booking.occupants_count }} pers.
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {{ booking.rental_price }}€
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
+                    <div class="text-xs text-gray-500">
+                      <div v-if="booking.tourist_tax_included" class="text-green-600">✓ Taxe séjour</div>
+                      <div v-if="booking.cleaning_included" class="text-green-600">✓ Ménage</div>
+                      <div v-if="booking.linen_included" class="text-green-600">✓ Linge</div>
+                    </div>
+                  </td>
+                  <td class="px-4 py-4 whitespace-nowrap">
                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
                           :class="{
                             'bg-green-100 text-green-800': booking.status === 'confirmed',
                             'bg-yellow-100 text-yellow-800': booking.status === 'pending'
                           }">
-                      {{ booking.status }}
+                      {{ booking.status === 'confirmed' ? 'Confirmée' : 'En attente' }}
                     </span>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-right space-x-2">
+                  <td class="px-4 py-4 whitespace-nowrap text-right space-x-2">
                     <button v-if="booking.status === 'pending'"
                             @click="confirmBooking(booking.id)" 
-                            class="text-green-600 hover:text-green-900">
+                            class="text-green-600 hover:text-green-900 text-sm">
                       Confirmer
                     </button>
                     <button @click="deleteBooking(booking.id)" 
-                            class="text-red-600 hover:text-red-900">
+                            class="text-red-600 hover:text-red-900 text-sm">
                       Supprimer
                     </button>
                   </td>
@@ -597,6 +524,13 @@ onMounted(() => {
         </div>
       </div>
     </div>
+    
+    <!-- Modale de réservation -->
+    <BookingModal 
+      :is-open="showBookingModal" 
+      @close="closeBookingModal" 
+      @booking-added="onBookingAdded" 
+    />
   </div>
 </template>
 

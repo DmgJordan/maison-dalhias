@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 
 // Définition du type pour les images de la galerie
 interface GalleryImage {
@@ -59,14 +59,6 @@ const mainActivities = [
 // Référence pour la vidéo (à remplacer par votre ID de vidéo YouTube)
 const videoUrl = ref("https://player.vimeo.com/video/1060941273?autoplay=1&muted=1")
 
-// État pour tracker si la section village est visible
-const showVillageSection = ref(false)
-
-// Fonction pour basculer vers la page complète du village
-const goToVillagePage = () => {
-  // Redirection vers la page du village (à adapter selon votre routeur)
-  window.location.href = 'https://www.pierreetvacances.com/fr-fr/fp_RUL_location-village-le-rouret'
-}
 </script>
 
 <template>

@@ -5,7 +5,7 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const loading = ref(false)
-const error = ref(null)
+const error = ref<string | null>(null)
 const email = ref('')
 const password = ref('')
 
@@ -20,7 +20,7 @@ const handleLogin = async () => {
     if (err) throw err
     router.push('/admin')
   } catch (err) {
-    error.value = (err as Error).message
+    error.value = err instanceof Error ? err.message : 'Une erreur est survenue'
   } finally {
     loading.value = false
   }
