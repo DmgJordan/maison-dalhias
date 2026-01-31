@@ -1,32 +1,52 @@
 {
   "name": "maison-dalhias",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "vue-tsc -b && vite build",
-    "preview": "vite preview"
+    "dev": "npm run dev:web",
+    "dev:web": "npm run dev -w @maison-dalhias/web",
+    "dev:api": "npm run start:dev -w @maison-dalhias/api",
+    "build": "npm run build -w @maison-dalhias/web && npm run build -w @maison-dalhias/api",
+    "build:web": "npm run build -w @maison-dalhias/web",
+    "build:api": "npm run build -w @maison-dalhias/api",
+    "preview": "npm run preview -w @maison-dalhias/web",
+    "db:generate": "npm run prisma:generate -w @maison-dalhias/api",
+    "db:migrate": "npm run prisma:migrate -w @maison-dalhias/api",
+    "db:push": "npm run prisma:push -w @maison-dalhias/api",
+    "db:studio": "npm run prisma:studio -w @maison-dalhias/api",
+    "lint": "eslint apps/",
+    "lint:fix": "eslint apps/ --fix",
+    "format": "prettier --write \"apps/**/*.{ts,vue,js,json}\"",
+    "format:check": "prettier --check \"apps/**/*.{ts,vue,js,json}\"",
+    "typecheck": "npm run typecheck:web && npm run typecheck:api",
+    "typecheck:web": "vue-tsc -b --noEmit -p apps/web/tsconfig.app.json",
+    "typecheck:api": "tsc --noEmit -p apps/api/tsconfig.json",
+    "prepare": "husky"
   },
-  "dependencies": {
-    "vue": "^3.4.38",
-    "vue-router": "^4.2.5",
-    "pinia": "^2.1.7",
-    "@supabase/supabase-js": "^2.39.0",
-    "@vueuse/core": "^10.7.0",
-    "jspdf": "^2.5.1",
-    "qrcode": "^1.5.3"
+  "lint-staged": {
+    "apps/**/*.{ts,vue}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "apps/**/*.{js,json}": [
+      "prettier --write"
+    ]
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.10.0",
-    "@types/qrcode": "^1.5.5",
-    "@vitejs/plugin-vue": "^5.1.3",
-    "autoprefixer": "^10.4.16",
-    "postcss": "^8.4.31",
-    "sharp": "^0.33.2",
-    "tailwindcss": "^3.3.5",
-    "typescript": "^5.5.3",
-    "vite": "^5.4.2",
-    "vue-tsc": "^2.1.4"
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.7.0",
+    "globals": "^17.2.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.8.1",
+    "typescript-eslint": "^8.54.0"
   }
 }

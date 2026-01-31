@@ -1,12 +1,16 @@
-# Node / Vue de base
+# Node / Build
 node_modules/
 dist/
 .DS_Store
 
-# Envs locaux (ne jamais commit les secrets Supabase)
+# Envs locaux (ne jamais commit les secrets)
 .env
 .env.local
 .env.*.local
+apps/web/.env
+apps/web/.env.local
+apps/api/.env
+apps/api/.env.local
 
 # Logs
 npm-debug.log*
@@ -16,3 +20,15 @@ pnpm-debug.log*
 # IDE
 .idea/
 .vscode/
+*.swp
+*.swo
+
+# Test coverage
+coverage/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Prisma
+apps/api/prisma/*.db
+apps/api/prisma/*.db-journal
