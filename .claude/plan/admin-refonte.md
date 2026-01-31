@@ -112,29 +112,29 @@ Refondre l'interface admin de Maison Dalhias pour qu'elle soit **user-friendly p
 
 ### Phase 1 : Layout et navigation
 
-- [ ] 1.1 Créer le composant `AdminLayout.vue` avec navigation bottom-tab mobile
-- [ ] 1.2 Définir 3 onglets : "Réservations", "Messages", "Nouveau"
-- [ ] 1.3 Ajouter header avec titre de page et bouton retour si nécessaire
-- [ ] 1.4 Implémenter la navigation entre onglets
-- [ ] 1.5 Adapter pour tablette/desktop (sidebar au lieu de bottom-tab)
+- [x] 1.1 Créer le composant `AdminLayout.vue` avec navigation bottom-tab mobile
+- [x] 1.2 Définir 3 onglets : "Réservations", "Messages", "Nouveau"
+- [x] 1.3 Ajouter header avec titre de page et bouton retour si nécessaire
+- [x] 1.4 Implémenter la navigation entre onglets
+- [x] 1.5 Adapter pour tablette/desktop (sidebar au lieu de bottom-tab)
 
 ### Phase 2 : Onglet Réservations
 
-- [ ] 2.1 Créer le composant `BookingCard.vue` (carte visuelle pour une réservation)
-- [ ] 2.2 Afficher : dates, nom client, statut (badge coloré), montant
-- [ ] 2.3 Créer la liste scrollable des réservations avec filtres simples (À venir / Passées)
+- [x] 2.1 Créer le composant `BookingCard.vue` (carte visuelle pour une réservation)
+- [x] 2.2 Afficher : dates, nom client, statut (badge coloré), montant
+- [x] 2.3 Créer la liste scrollable des réservations avec filtres simples (À venir / Passées)
 - [ ] 2.4 Implémenter l'écran de détail d'une réservation
-- [ ] 2.5 Ajouter boutons d'action : "Confirmer", "Annuler", "Générer PDF"
-- [ ] 2.6 Implémenter la modal de confirmation pour actions destructives
-- [ ] 2.7 Ajouter feedback visuel après chaque action
+- [x] 2.5 Ajouter boutons d'action : "Confirmer", "Annuler", "Générer PDF"
+- [x] 2.6 Implémenter la modal de confirmation pour actions destructives
+- [x] 2.7 Ajouter feedback visuel après chaque action
 
 ### Phase 3 : Onglet Messages
 
-- [ ] 3.1 Créer le composant `MessageCard.vue` (carte pour un message)
-- [ ] 3.2 Afficher : nom expéditeur, sujet, date, indicateur non-lu
-- [ ] 3.3 Créer la liste avec séparation Non-lus / Lus
-- [ ] 3.4 Implémenter l'écran de lecture d'un message
-- [ ] 3.5 Ajouter bouton "Marquer comme lu" avec feedback
+- [x] 3.1 Créer le composant `MessageCard.vue` (carte pour un message)
+- [x] 3.2 Afficher : nom expéditeur, sujet, date, indicateur non-lu
+- [x] 3.3 Créer la liste avec séparation Non-lus / Lus
+- [x] 3.4 Implémenter l'écran de lecture d'un message (intégré dans la carte extensible)
+- [x] 3.5 Ajouter bouton "Marquer comme lu" avec feedback
 - [ ] 3.6 Afficher badge de compteur non-lus sur l'onglet
 
 ### Phase 4 : Onglet Nouvelle réservation

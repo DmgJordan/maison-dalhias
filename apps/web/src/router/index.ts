@@ -2,7 +2,10 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { authApi } from '../lib/api';
 import HomeView from '../views/HomeView.vue';
 import LoginView from '../views/LoginView.vue';
-import AdminView from '../views/AdminView.vue';
+import AdminLayout from '../views/admin/AdminLayout.vue';
+import BookingsView from '../views/admin/BookingsView.vue';
+import MessagesView from '../views/admin/MessagesView.vue';
+import NewBookingView from '../views/admin/NewBookingView.vue';
 
 const routes = [
   {
@@ -17,9 +20,29 @@ const routes = [
   },
   {
     path: '/admin',
-    name: 'Admin',
-    component: AdminView,
+    component: AdminLayout,
     meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        redirect: '/admin/reservations',
+      },
+      {
+        path: 'reservations',
+        name: 'AdminBookings',
+        component: BookingsView,
+      },
+      {
+        path: 'messages',
+        name: 'AdminMessages',
+        component: MessagesView,
+      },
+      {
+        path: 'nouveau',
+        name: 'AdminNewBooking',
+        component: NewBookingView,
+      },
+    ],
   },
   {
     path: '/:pathMatch(.*)*',
