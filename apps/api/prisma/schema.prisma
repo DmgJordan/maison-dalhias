@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String
+  role      Role      @default(USER)
+  createdAt DateTime  @default(now()) @map("created_at")
+  bookings  Booking[]
+
+  @@map("users")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model Booking {
+  id                   String   @id @default(uuid())
+  startDate            DateTime @map("start_date")
+  endDate              DateTime @map("end_date")
+  status               Status   @default(PENDING)
+  userId               String   @map("user_id")
+  user                 User     @relation(fields: [userId], references: [id])
+  primaryClientId      String?  @map("primary_client_id")
+  primaryClient        Client?  @relation("PrimaryClient", fields: [primaryClientId], references: [id])
+  secondaryClientId    String?  @map("secondary_client_id")
+  secondaryClient      Client?  @relation("SecondaryClient", fields: [secondaryClientId], references: [id])
+  occupantsCount       Int      @default(1) @map("occupants_count")
+  rentalPrice          Decimal  @default(0) @map("rental_price") @db.Decimal(10, 2)
+  touristTaxIncluded   Boolean  @default(false) @map("tourist_tax_included")
+  cleaningIncluded     Boolean  @default(false) @map("cleaning_included")
+  linenIncluded        Boolean  @default(false) @map("linen_included")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  @@map("bookings")
+}
+
+enum Status {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model Client {
+  id                String    @id @default(uuid())
+  firstName         String    @map("first_name")
+  lastName          String    @map("last_name")
+  address           String
+  city              String
+  postalCode        String    @map("postal_code")
+  country           String    @default("France")
+  phone             String
+  createdAt         DateTime  @default(now()) @map("created_at")
+  primaryBookings   Booking[] @relation("PrimaryClient")
+  secondaryBookings Booking[] @relation("SecondaryClient")
+
+  @@map("clients")
+}
+
+model ContactForm {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  status    String   @default("pending")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("contact_forms")
+}
