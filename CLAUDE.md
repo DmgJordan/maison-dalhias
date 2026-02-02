@@ -36,8 +36,7 @@ maison-dalhias/
 │       └── package.json
 │
 ├── docker-compose.yml          # PostgreSQL + pgAdmin
-├── package.json                # Root workspaces
-└── supabase/                   # Ancien backend (deprecated)
+└── package.json                # Root workspaces
 ```
 
 ## Commandes de développement
