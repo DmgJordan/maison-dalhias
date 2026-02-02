@@ -339,234 +339,245 @@ onMounted(() => {
         <p class="detail-subtitle">{{ nightsCount }} nuit{{ nightsCount > 1 ? 's' : '' }}</p>
       </div>
 
-      <!-- Section Dates -->
-      <section class="detail-section">
-        <h2 class="section-title">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="section-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-          Dates du sejour
-        </h2>
-        <div class="dates-grid">
-          <div class="date-card">
-            <span class="date-label">Arrivee</span>
-            <span class="date-value">{{ formatDate(booking.startDate) }}</span>
-            <span class="date-time">A partir de 16h00</span>
-          </div>
-          <div class="date-card">
-            <span class="date-label">Depart</span>
-            <span class="date-value">{{ formatDate(booking.endDate) }}</span>
-            <span class="date-time">Avant 11h00</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- Section Client -->
-      <section class="detail-section">
-        <h2 class="section-title">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="section-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-          Client
-        </h2>
-        <div class="client-card">
-          <div class="client-name">{{ formatClientName(booking.primaryClient) }}</div>
-          <div v-if="booking.primaryClient" class="client-details">
-            <p class="client-address">{{ formatClientAddress(booking.primaryClient) }}</p>
-            <div class="client-contacts">
-              <a
-                v-if="booking.primaryClient.phone"
-                :href="`tel:${booking.primaryClient.phone}`"
-                class="contact-link"
+      <!-- Layout 2 colonnes desktop -->
+      <div class="detail-columns">
+        <!-- Colonne gauche : Séjour + Client -->
+        <div class="detail-column detail-column--left">
+          <!-- Section Dates -->
+          <section class="detail-section">
+            <h2 class="section-title">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="section-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
               >
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              Dates du sejour
+            </h2>
+            <div class="dates-grid">
+              <div class="date-card">
+                <span class="date-label">Arrivee</span>
+                <span class="date-value">{{ formatDate(booking.startDate) }}</span>
+                <span class="date-time">A partir de 16h00</span>
+              </div>
+              <div class="date-card">
+                <span class="date-label">Depart</span>
+                <span class="date-value">{{ formatDate(booking.endDate) }}</span>
+                <span class="date-time">Avant 11h00</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Section Client -->
+          <section class="detail-section">
+            <h2 class="section-title">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="section-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              Client
+            </h2>
+            <div class="client-card">
+              <div class="client-name">{{ formatClientName(booking.primaryClient) }}</div>
+              <div v-if="booking.primaryClient" class="client-details">
+                <p class="client-address">{{ formatClientAddress(booking.primaryClient) }}</p>
+                <div class="client-contacts">
+                  <a
+                    v-if="booking.primaryClient.phone"
+                    :href="`tel:${booking.primaryClient.phone}`"
+                    class="contact-link"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="contact-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"
+                      />
+                    </svg>
+                    {{ booking.primaryClient.phone }}
+                  </a>
+                </div>
+              </div>
+              <div v-if="booking.secondaryClient" class="secondary-client">
+                <span class="secondary-label">Accompagne de :</span>
+                <span class="secondary-name">{{ formatClientName(booking.secondaryClient) }}</span>
+              </div>
+              <div class="occupants-info">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  class="contact-icon"
+                  class="occupants-icon"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2"
                 >
-                  <path
-                    d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"
-                  />
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                 </svg>
-                {{ booking.primaryClient.phone }}
-              </a>
+                <span
+                  >{{ booking.occupantsCount }} personne{{
+                    booking.occupantsCount > 1 ? 's' : ''
+                  }}</span
+                >
+              </div>
             </div>
-          </div>
-          <div v-if="booking.secondaryClient" class="secondary-client">
-            <span class="secondary-label">Accompagne de :</span>
-            <span class="secondary-name">{{ formatClientName(booking.secondaryClient) }}</span>
-          </div>
-          <div class="occupants-info">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="occupants-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-            <span
-              >{{ booking.occupantsCount }} personne{{
-                booking.occupantsCount > 1 ? 's' : ''
-              }}</span
-            >
-          </div>
-        </div>
-      </section>
-
-      <!-- Section Tarifs -->
-      <section class="detail-section">
-        <h2 class="section-title">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="section-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <line x1="12" y1="1" x2="12" y2="23" />
-            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-          </svg>
-          Tarifs
-        </h2>
-        <div class="price-card">
-          <div class="price-line">
-            <span class="price-label">Location ({{ nightsCount }} nuits)</span>
-            <span class="price-value">{{ formatPrice(booking.rentalPrice) }}</span>
-          </div>
-          <div v-if="booking.cleaningIncluded" class="price-line">
-            <span class="price-label">Menage fin de sejour</span>
-            <span class="price-value">{{ formatPrice(cleaningPrice) }}</span>
-          </div>
-          <div v-if="booking.linenIncluded" class="price-line">
-            <span class="price-label">Linge de maison ({{ booking.occupantsCount }} pers.)</span>
-            <span class="price-value">{{ formatPrice(linenPrice) }}</span>
-          </div>
-          <div v-if="booking.touristTaxIncluded" class="price-line">
-            <span class="price-label">Taxe de sejour</span>
-            <span class="price-value">{{ formatPrice(touristTaxPrice) }}</span>
-          </div>
-          <div class="price-line price-line--total">
-            <span class="price-label">Total</span>
-            <span class="price-value">{{ formatPrice(totalPrice) }}</span>
-          </div>
+          </section>
         </div>
 
-        <!-- Echeances -->
-        <div class="payment-schedule">
-          <h3 class="schedule-title">Echeances de paiement</h3>
-          <div class="schedule-item">
-            <span class="schedule-label">Acompte (30%)</span>
-            <span class="schedule-value">{{ formatPrice(depositAmount) }}</span>
-          </div>
-          <div class="schedule-item">
-            <span class="schedule-label">Solde (15 jours avant)</span>
-            <span class="schedule-value">{{ formatPrice(balanceAmount) }}</span>
-          </div>
-          <div class="schedule-item schedule-item--deposit">
-            <span class="schedule-label">Depot de garantie</span>
-            <span class="schedule-value">500 EUR (cheque non encaisse)</span>
-          </div>
-        </div>
-      </section>
+        <!-- Colonne droite : Tarifs + Documents -->
+        <div class="detail-column detail-column--right">
+          <!-- Section Tarifs -->
+          <section class="detail-section">
+            <h2 class="section-title">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="section-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="12" y1="1" x2="12" y2="23" />
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+              Tarifs
+            </h2>
+            <div class="price-card">
+              <div class="price-line">
+                <span class="price-label">Location ({{ nightsCount }} nuits)</span>
+                <span class="price-value">{{ formatPrice(booking.rentalPrice) }}</span>
+              </div>
+              <div v-if="booking.cleaningIncluded" class="price-line">
+                <span class="price-label">Menage fin de sejour</span>
+                <span class="price-value">{{ formatPrice(cleaningPrice) }}</span>
+              </div>
+              <div v-if="booking.linenIncluded" class="price-line">
+                <span class="price-label"
+                  >Linge de maison ({{ booking.occupantsCount }} pers.)</span
+                >
+                <span class="price-value">{{ formatPrice(linenPrice) }}</span>
+              </div>
+              <div v-if="booking.touristTaxIncluded" class="price-line">
+                <span class="price-label">Taxe de sejour</span>
+                <span class="price-value">{{ formatPrice(touristTaxPrice) }}</span>
+              </div>
+              <div class="price-line price-line--total">
+                <span class="price-label">Total</span>
+                <span class="price-value">{{ formatPrice(totalPrice) }}</span>
+              </div>
+            </div>
 
-      <!-- Section Documents PDF -->
-      <section class="detail-section">
-        <h2 class="section-title">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="section-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-            <polyline points="10 9 9 9 8 9" />
-          </svg>
-          Documents
-        </h2>
-        <div class="documents-grid">
-          <button
-            class="document-btn document-btn--active"
-            :disabled="generatingContract"
-            @click="handleGenerateContract"
-          >
-            <svg
-              v-if="!generatingContract"
-              xmlns="http://www.w3.org/2000/svg"
-              class="document-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            <div v-else class="document-spinner"></div>
-            <span class="document-label">Contrat de location</span>
-            <span class="document-status document-status--ready">
-              {{ generatingContract ? 'Generation...' : 'Telecharger' }}
-            </span>
-          </button>
-          <button
-            class="document-btn document-btn--active"
-            :disabled="generatingInvoice"
-            @click="handleGenerateInvoice"
-          >
-            <svg
-              v-if="!generatingInvoice"
-              xmlns="http://www.w3.org/2000/svg"
-              class="document-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            <div v-else class="document-spinner"></div>
-            <span class="document-label">Facture</span>
-            <span class="document-status document-status--ready">
-              {{ generatingInvoice ? 'Generation...' : 'Telecharger' }}
-            </span>
-          </button>
+            <!-- Echeances -->
+            <div class="payment-schedule">
+              <h3 class="schedule-title">Echeances de paiement</h3>
+              <div class="schedule-item">
+                <span class="schedule-label">Acompte (30%)</span>
+                <span class="schedule-value">{{ formatPrice(depositAmount) }}</span>
+              </div>
+              <div class="schedule-item">
+                <span class="schedule-label">Solde (15 jours avant)</span>
+                <span class="schedule-value">{{ formatPrice(balanceAmount) }}</span>
+              </div>
+              <div class="schedule-item schedule-item--deposit">
+                <span class="schedule-label">Depot de garantie</span>
+                <span class="schedule-value">500 EUR (cheque non encaisse)</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Section Documents PDF -->
+          <section class="detail-section">
+            <h2 class="section-title">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="section-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+                <polyline points="10 9 9 9 8 9" />
+              </svg>
+              Documents
+            </h2>
+            <div class="documents-grid">
+              <button
+                class="document-btn document-btn--active"
+                :disabled="generatingContract"
+                @click="handleGenerateContract"
+              >
+                <svg
+                  v-if="!generatingContract"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="document-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                <div v-else class="document-spinner"></div>
+                <span class="document-label">Contrat de location</span>
+                <span class="document-status document-status--ready">
+                  {{ generatingContract ? 'Generation...' : 'Telecharger' }}
+                </span>
+              </button>
+              <button
+                class="document-btn document-btn--active"
+                :disabled="generatingInvoice"
+                @click="handleGenerateInvoice"
+              >
+                <svg
+                  v-if="!generatingInvoice"
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="document-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                <div v-else class="document-spinner"></div>
+                <span class="document-label">Facture</span>
+                <span class="document-status document-status--ready">
+                  {{ generatingInvoice ? 'Generation...' : 'Telecharger' }}
+                </span>
+              </button>
+            </div>
+          </section>
         </div>
-      </section>
+      </div>
 
       <!-- Actions -->
       <section v-if="booking.status !== 'CANCELLED'" class="detail-actions">
@@ -1328,6 +1339,52 @@ onMounted(() => {
 
   .action-btn {
     flex: 1;
+  }
+}
+
+/* Desktop: Layout 2 colonnes */
+@media (min-width: 1024px) {
+  .booking-detail {
+    max-width: 100%;
+  }
+
+  .detail-header {
+    max-width: 100%;
+  }
+
+  .detail-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  .detail-column {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .detail-section {
+    margin-bottom: 0;
+  }
+
+  /* Actions sticky en bas */
+  .detail-actions {
+    position: sticky;
+    bottom: 20px;
+    background-color: white;
+    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+    margin-top: 24px;
+  }
+}
+
+/* Desktop: Large */
+@media (min-width: 1200px) {
+  .detail-columns {
+    gap: 32px;
   }
 }
 </style>

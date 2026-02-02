@@ -109,6 +109,11 @@ const formatPrice = (price: number | string | undefined): string => {
     minimumFractionDigits: 0,
   }).format(numPrice);
 };
+
+const clientName = computed((): string => {
+  if (!props.booking.primaryClient) return '';
+  return `${props.booking.primaryClient.firstName} ${props.booking.primaryClient.lastName}`;
+});
 </script>
 
 <template>
@@ -143,6 +148,22 @@ const formatPrice = (price: number | string | undefined): string => {
         <span class="date-label">Départ</span>
         <span class="date-value">{{ formatDate(booking.endDate) }}</span>
       </div>
+    </div>
+
+    <!-- Nom client (desktop only) -->
+    <div v-if="clientName" class="client-name-desktop">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="client-icon"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+      <span>{{ clientName }}</span>
     </div>
 
     <!-- Informations -->
@@ -621,5 +642,34 @@ const formatPrice = (price: number | string | undefined): string => {
 
 .modal-leave-to .modal-content {
   transform: scale(0.95);
+}
+
+/* Nom client - masqué sur mobile */
+.client-name-desktop {
+  display: none;
+}
+
+/* Desktop enhancements */
+@media (min-width: 768px) {
+  .client-name-desktop {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 0;
+    font-size: 15px;
+    font-weight: 500;
+    color: #222222;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .client-icon {
+    width: 18px;
+    height: 18px;
+    color: #717171;
+  }
+
+  .info-item--price {
+    font-size: 15px;
+  }
 }
 </style>
