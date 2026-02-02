@@ -32,3 +32,8 @@ coverage/
 # Prisma
 apps/api/prisma/*.db
 apps/api/prisma/*.db-journal
+
+# Claude Code (configuration locale)
+.claude/settings.json
+.claude/skills/
+.plans/
