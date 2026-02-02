@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import type { Booking } from '../../lib/api';
 import signatureImage from '../../../assets/templates/signature.png';
+import { BAILLEUR, LOGEMENT, TARIFS } from '../../constants/property';
 
 function loadImage(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -20,35 +21,6 @@ function loadImage(url: string): Promise<string> {
     img.src = url;
   });
 }
-
-// Donnees fixes du bailleur
-const BAILLEUR = {
-  nom: 'Dominguez Alvarez Christelle',
-  adresse: '12 rue du grand clos, Villers la Montagne 54920',
-  dateNaissance: '22/07/1969',
-  telephone: '+33 7 87 86 43 58',
-  email: 'dominguez-juan@orange.fr',
-  iban: 'FR76 1027 8043 1300 0477 8024 032',
-  bic: 'CMCIFR2A',
-};
-
-// Donnees fixes du logement
-const LOGEMENT = {
-  type: 'Maison mitoyenne de 3 pieces en duplex avec terrasse',
-  adresse: 'Village Le Rouret en Ardeche, 675 route du chateau du rouret 07120 Grospierres',
-  pieces: 3,
-  chambres: 2,
-  surface: '39m2',
-  site: 'https://maison-dalhias.fr',
-};
-
-// Tarifs fixes
-const TARIFS = {
-  menage: 80,
-  linge: 15,
-  taxeSejour: 1,
-  caution: 500,
-};
 
 interface ContractData {
   booking: Booking;
@@ -256,7 +228,7 @@ Le Bailleur pourra justifier de la propriete de son bien en fournissant les just
     5
   );
   y += 2;
-  y = addWrappedText(doc, `situe a ${LOGEMENT.adresse}`, margin, y, contentWidth, 5);
+  y = addWrappedText(doc, `situe a ${LOGEMENT.adresseContrat}`, margin, y, contentWidth, 5);
   y += 5;
   doc.text(`- Nombre de pieces principales : ${String(LOGEMENT.pieces)}`, margin, y);
   y += 5;

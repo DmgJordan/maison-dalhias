@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { bookingsApi } from '../lib/api';
+import { PRICING_PERIODS, BOOKING_CONSTANTS, type PricingPeriod } from '@/constants/property';
 
 interface BookedDate {
   start: Date;
@@ -9,14 +10,7 @@ interface BookedDate {
   status: string;
 }
 
-interface PricingPeriod {
-  name: string;
-  dates: string;
-  price: number;
-  pricePerNight: number;
-}
-
-const MIN_STAY_DAYS = 3;
+const MIN_STAY_DAYS = BOOKING_CONSTANTS.minStayDays;
 const bookedDates = ref<BookedDate[]>([]);
 const currentMonth = ref(new Date().getMonth());
 const currentYear = ref(new Date().getFullYear());
@@ -31,7 +25,7 @@ const showSnackbar = ref(false);
 const snackbarMessage = ref('');
 const showPriceOnMobile = ref<number | null>(null);
 
-const togglePriceOnMobile = (dayIndex: number) => {
+const togglePriceOnMobile = (dayIndex: number): void => {
   if (showPriceOnMobile.value === dayIndex) {
     showPriceOnMobile.value = null;
   } else {
@@ -39,32 +33,7 @@ const togglePriceOnMobile = (dayIndex: number) => {
   }
 };
 
-const pricingPeriods = ref<PricingPeriod[]>([
-  {
-    name: 'Hors Saison',
-    dates: 'Du 1 Mai au 28 Juin / Du 30 Août au 27 Septembre',
-    price: 400,
-    pricePerNight: 80,
-  },
-  {
-    name: "Début et Fin d'Été",
-    dates: 'Du 28 Juin au 13 Juillet / Du 23 Août au 30 Août',
-    price: 650,
-    pricePerNight: 120,
-  },
-  {
-    name: 'Période Estivale',
-    dates: 'Du 13 Juillet au 26 Juillet',
-    price: 750,
-    pricePerNight: 150,
-  },
-  {
-    name: "Cœur de l'Été",
-    dates: 'Du 26 Juillet au 23 Août',
-    price: 950,
-    pricePerNight: 180,
-  },
-]);
+const pricingPeriods = ref<PricingPeriod[]>(PRICING_PERIODS);
 
 const monthNames = [
   'Janvier',
