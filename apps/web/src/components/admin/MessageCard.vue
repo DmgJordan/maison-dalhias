@@ -29,8 +29,22 @@ const formatDateTime = (dateString: string): string => {
   });
 };
 
+// Détecte si on est en desktop (fenêtre >= 768px)
+const isDesktop = ref(false);
+
+const updateIsDesktop = (): void => {
+  isDesktop.value = window.innerWidth >= 768;
+};
+
+// Initialiser et écouter les changements de taille
+if (typeof window !== 'undefined') {
+  updateIsDesktop();
+  window.addEventListener('resize', updateIsDesktop);
+}
+
 const truncatedMessage = computed((): string => {
-  const maxLength = 100;
+  // 200 caractères sur desktop, 100 sur mobile
+  const maxLength = isDesktop.value ? 200 : 100;
   if (props.message.message.length <= maxLength) {
     return props.message.message;
   }
@@ -355,5 +369,21 @@ const toggleExpand = (): void => {
 .expand-enter-to,
 .expand-leave-from {
   max-height: 500px;
+}
+
+/* Desktop enhancements */
+@media (min-width: 768px) {
+  .message-preview {
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .message-subject {
+    font-size: 17px;
+  }
+
+  .sender-name {
+    font-size: 16px;
+  }
 }
 </style>

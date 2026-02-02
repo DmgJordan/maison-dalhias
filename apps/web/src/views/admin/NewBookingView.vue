@@ -1388,12 +1388,90 @@ onMounted(() => {
     top: 32px;
   }
 
+  .new-booking-view {
+    max-width: 600px;
+  }
+
   .progress-bar {
     padding: 0;
+    background-color: white;
+    border-radius: 12px;
+    padding: 16px 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e5e5e5;
+    margin-bottom: 24px;
+  }
+
+  .progress-step {
+    position: relative;
+  }
+
+  /* Ligne de connexion entre les étapes */
+  .progress-step::after {
+    content: '';
+    position: absolute;
+    top: 16px;
+    left: calc(50% + 20px);
+    width: calc(100% - 40px);
+    height: 2px;
+    background-color: #e5e5e5;
+  }
+
+  .progress-step:last-child::after {
+    display: none;
+  }
+
+  .progress-step--completed::after {
+    background-color: #10b981;
+  }
+
+  .step-circle {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+    position: relative;
+    z-index: 1;
   }
 
   .step-label {
     font-size: 12px;
+    max-width: 80px;
+  }
+}
+
+/* Desktop: Large */
+@media (min-width: 1024px) {
+  .new-booking-view {
+    max-width: 700px;
+  }
+
+  .step-content {
+    padding: 32px;
+  }
+
+  .step-panel {
+    min-height: 350px;
+  }
+
+  .step-title {
+    font-size: 24px;
+  }
+
+  .step-circle {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  .step-label {
+    font-size: 13px;
+  }
+}
+
+/* Desktop: Extra large */
+@media (min-width: 1200px) {
+  .new-booking-view {
+    max-width: 800px;
   }
 }
 </style>

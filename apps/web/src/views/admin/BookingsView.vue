@@ -35,6 +35,22 @@ const sortedBookings = computed((): Booking[] => {
   });
 });
 
+// Statistiques pour le header desktop
+const stats = computed(() => {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  const upcoming = bookings.value.filter((b) => new Date(b.endDate) >= now);
+  const pending = upcoming.filter((b) => b.status === 'PENDING');
+  const confirmed = upcoming.filter((b) => b.status === 'CONFIRMED');
+
+  return {
+    total: upcoming.length,
+    pending: pending.length,
+    confirmed: confirmed.length,
+  };
+});
+
 const fetchBookings = async (): Promise<void> => {
   try {
     loading.value = true;
@@ -158,6 +174,22 @@ onMounted(() => {
       </div>
     </Transition>
 
+    <!-- Header statistiques desktop -->
+    <div class="stats-header">
+      <div class="stat-card stat-card--total">
+        <span class="stat-value">{{ stats.total }}</span>
+        <span class="stat-label">À venir</span>
+      </div>
+      <div class="stat-card stat-card--pending">
+        <span class="stat-value">{{ stats.pending }}</span>
+        <span class="stat-label">En attente</span>
+      </div>
+      <div class="stat-card stat-card--confirmed">
+        <span class="stat-value">{{ stats.confirmed }}</span>
+        <span class="stat-label">Confirmées</span>
+      </div>
+    </div>
+
     <!-- Filtres -->
     <div class="filter-bar">
       <button
@@ -165,7 +197,8 @@ onMounted(() => {
         :class="{ 'filter-btn--active': filter === 'upcoming' }"
         @click="filter = 'upcoming'"
       >
-        A venir
+        À venir
+        <span class="filter-count">{{ stats.total }}</span>
       </button>
       <button
         class="filter-btn"
@@ -173,6 +206,7 @@ onMounted(() => {
         @click="filter = 'past'"
       >
         Passées
+        <span class="filter-count">{{ bookings.length - stats.total }}</span>
       </button>
     </div>
 
@@ -229,6 +263,11 @@ onMounted(() => {
 .bookings-view {
   max-width: 600px;
   margin: 0 auto;
+}
+
+/* Header statistiques - masqué sur mobile */
+.stats-header {
+  display: none;
 }
 
 /* Toast de succès */
@@ -305,6 +344,10 @@ onMounted(() => {
 
 .filter-btn {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   padding: 14px 20px;
   border: 2px solid #e5e5e5;
   border-radius: 12px;
@@ -316,10 +359,28 @@ onMounted(() => {
   transition: all 0.2s;
 }
 
+.filter-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 12px;
+  background-color: #e5e5e5;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .filter-btn--active {
   border-color: #ff385c;
   background-color: #fff0f3;
   color: #ff385c;
+}
+
+.filter-btn--active .filter-count {
+  background-color: #ff385c;
+  color: white;
 }
 
 .filter-btn:not(.filter-btn--active):hover {
@@ -397,9 +458,86 @@ onMounted(() => {
   opacity: 0;
 }
 
+/* Desktop: Tablet */
 @media (min-width: 768px) {
+  .bookings-view {
+    max-width: 100%;
+  }
+
   .success-toast {
     top: 32px;
+  }
+
+  /* Header statistiques visible */
+  .stats-header {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    background-color: white;
+    border-radius: 12px;
+    border: 1px solid #e5e5e5;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 13px;
+    color: #717171;
+    margin-top: 4px;
+  }
+
+  .stat-card--total .stat-value {
+    color: #484848;
+  }
+
+  .stat-card--pending .stat-value {
+    color: #f59e0b;
+  }
+
+  .stat-card--confirmed .stat-value {
+    color: #10b981;
+  }
+
+  /* Filtres plus larges */
+  .filter-bar {
+    max-width: 400px;
+  }
+
+  .filter-btn {
+    flex: none;
+    padding: 12px 24px;
+  }
+
+  /* Grille 2 colonnes */
+  .bookings-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+}
+
+/* Desktop: Large */
+@media (min-width: 1200px) {
+  .stats-header {
+    max-width: 600px;
+  }
+
+  /* Grille 3 colonnes */
+  .bookings-list {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
   }
 }
 </style>

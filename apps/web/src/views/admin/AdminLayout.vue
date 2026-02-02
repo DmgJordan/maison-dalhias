@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { authApi, contactsApi } from '../../lib/api';
+import { authApi, contactsApi, bookingsApi, type Booking } from '../../lib/api';
 import { generatePromotionalPoster } from '../../services/pdf';
 
 const router = useRouter();
@@ -9,6 +9,8 @@ const route = useRoute();
 const isLoggingOut = ref(false);
 const isGeneratingPoster = ref(false);
 const unreadCount = ref(0);
+const upcomingBookingsCount = ref(0);
+const nextArrival = ref<Booking | null>(null);
 
 interface Tab {
   id: string;
@@ -34,8 +36,43 @@ const fetchUnreadCount = async (): Promise<void> => {
   }
 };
 
+const fetchBookingsStats = async (): Promise<void> => {
+  try {
+    const bookings = await bookingsApi.getAll();
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    // Filtrer les réservations à venir (confirmées ou en attente)
+    const upcoming = bookings.filter((b) => {
+      const endDate = new Date(b.endDate);
+      return endDate >= now && b.status !== 'CANCELLED';
+    });
+
+    upcomingBookingsCount.value = upcoming.length;
+
+    // Trouver la prochaine arrivée
+    const futureArrivals = upcoming
+      .filter((b) => new Date(b.startDate) >= now)
+      .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+
+    nextArrival.value = futureArrivals.length > 0 ? futureArrivals[0] : null;
+  } catch (err) {
+    console.error('Erreur lors du chargement des réservations:', err);
+  }
+};
+
+const formatNextArrivalDate = computed((): string => {
+  if (!nextArrival.value) return '';
+  const date = new Date(nextArrival.value.startDate);
+  return date.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+  });
+});
+
 onMounted(() => {
   void fetchUnreadCount();
+  void fetchBookingsStats();
 });
 
 const activeTab = computed((): string => {
@@ -164,6 +201,41 @@ const signOut = async (): Promise<void> => {
         <h2 class="sidebar-title">Maison Dalhias</h2>
         <p class="sidebar-subtitle">Administration</p>
       </div>
+
+      <!-- Aperçu rapide (visible uniquement sur grands écrans) -->
+      <div class="sidebar-stats">
+        <h3 class="stats-title">Aperçu rapide</h3>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <span class="stat-number">{{ upcomingBookingsCount }}</span>
+            <span class="stat-text">À venir</span>
+          </div>
+          <div class="stat-item stat-item--unread">
+            <span class="stat-number">{{ unreadCount }}</span>
+            <span class="stat-text">Non lus</span>
+          </div>
+        </div>
+        <div v-if="nextArrival" class="next-arrival">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="arrival-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+          <div class="arrival-info">
+            <span class="arrival-label">Prochaine arrivée</span>
+            <span class="arrival-date">{{ formatNextArrivalDate }}</span>
+          </div>
+        </div>
+      </div>
+
       <nav class="sidebar-nav">
         <button
           v-for="tab in tabs"
@@ -726,5 +798,106 @@ const signOut = async (): Promise<void> => {
   .admin-content {
     padding: 40px 48px;
   }
+}
+
+/* Très grand écran - sidebar élargie */
+@media (min-width: 1200px) {
+  .admin-sidebar {
+    width: 280px;
+  }
+
+  .admin-content {
+    margin-left: 280px;
+    max-width: calc(100% - 280px);
+  }
+
+  /* Section Aperçu rapide */
+  .sidebar-stats {
+    display: block;
+    padding: 16px 16px;
+    margin: 0 12px;
+    background-color: #f9f9f9;
+    border-radius: 12px;
+    margin-bottom: 8px;
+  }
+
+  .stats-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #717171;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 0 0 12px 0;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px;
+    background-color: white;
+    border-radius: 8px;
+  }
+
+  .stat-number {
+    font-size: 24px;
+    font-weight: 700;
+    color: #222222;
+    line-height: 1;
+  }
+
+  .stat-text {
+    font-size: 11px;
+    color: #717171;
+    margin-top: 2px;
+  }
+
+  .stat-item--unread .stat-number {
+    color: #ff385c;
+  }
+
+  .next-arrival {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background-color: #fff8e6;
+    border-radius: 8px;
+  }
+
+  .arrival-icon {
+    width: 20px;
+    height: 20px;
+    color: #92400e;
+    flex-shrink: 0;
+  }
+
+  .arrival-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .arrival-label {
+    font-size: 11px;
+    color: #92400e;
+  }
+
+  .arrival-date {
+    font-size: 14px;
+    font-weight: 600;
+    color: #78350f;
+  }
+}
+
+/* Masquer stats sur petits écrans */
+.sidebar-stats {
+  display: none;
 }
 </style>

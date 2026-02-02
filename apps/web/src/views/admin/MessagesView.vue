@@ -335,9 +335,41 @@ onMounted(() => {
   opacity: 0;
 }
 
+/* Desktop: Tablet */
 @media (min-width: 768px) {
+  .messages-view {
+    max-width: 100%;
+  }
+
   .success-toast {
     top: 32px;
+  }
+
+  /* Titres de sections améliorés */
+  .section-title {
+    font-size: 18px;
+    padding-bottom: 16px;
+    margin-bottom: 20px;
+  }
+
+  .unread-badge {
+    min-width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+
+  /* Grille 2 colonnes */
+  .messages-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+/* Desktop: Large */
+@media (min-width: 1200px) {
+  .messages-list {
+    gap: 20px;
   }
 }
 </style>
