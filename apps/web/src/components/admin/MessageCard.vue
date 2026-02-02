@@ -123,7 +123,9 @@ const toggleExpand = (): void => {
         <!-- Action -->
         <div v-if="!read" class="card-action">
           <button class="mark-read-btn" :disabled="loading" @click.stop="handleMarkAsRead">
+            <span v-if="loading" class="btn-spinner"></span>
             <svg
+              v-else
               xmlns="http://www.w3.org/2000/svg"
               class="btn-icon"
               viewBox="0 0 24 24"
@@ -133,7 +135,7 @@ const toggleExpand = (): void => {
             >
               <polyline points="20 6 9 17 4 12" />
             </svg>
-            Marquer comme lu
+            {{ loading ? 'Traitement...' : 'Marquer comme lu' }}
           </button>
         </div>
       </div>
@@ -311,13 +313,28 @@ const toggleExpand = (): void => {
 }
 
 .mark-read-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.7;
   cursor: not-allowed;
 }
 
 .btn-icon {
   width: 18px;
   height: 18px;
+}
+
+.btn-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Transition expand */

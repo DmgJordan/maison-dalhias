@@ -123,7 +123,7 @@ Refondre l'interface admin de Maison Dalhias pour qu'elle soit **user-friendly p
 - [x] 2.1 Créer le composant `BookingCard.vue` (carte visuelle pour une réservation)
 - [x] 2.2 Afficher : dates, nom client, statut (badge coloré), montant
 - [x] 2.3 Créer la liste scrollable des réservations avec filtres simples (À venir / Passées)
-- [ ] 2.4 Implémenter l'écran de détail d'une réservation
+- [x] 2.4 Implémenter l'écran de détail d'une réservation
 - [x] 2.5 Ajouter boutons d'action : "Confirmer", "Annuler", "Générer PDF"
 - [x] 2.6 Implémenter la modal de confirmation pour actions destructives
 - [x] 2.7 Ajouter feedback visuel après chaque action
@@ -135,39 +135,39 @@ Refondre l'interface admin de Maison Dalhias pour qu'elle soit **user-friendly p
 - [x] 3.3 Créer la liste avec séparation Non-lus / Lus
 - [x] 3.4 Implémenter l'écran de lecture d'un message (intégré dans la carte extensible)
 - [x] 3.5 Ajouter bouton "Marquer comme lu" avec feedback
-- [ ] 3.6 Afficher badge de compteur non-lus sur l'onglet
+- [x] 3.6 Afficher badge de compteur non-lus sur l'onglet
 
 ### Phase 4 : Onglet Nouvelle réservation
 
-- [ ] 4.1 Créer le formulaire multi-étapes (wizard)
-- [ ] 4.2 **Étape 1 - Dates** : Sélection dates début/fin avec calendrier visuel
-- [ ] 4.3 **Étape 2 - Client** : Formulaire preneur (nom, adresse, téléphone, email)
-- [ ] 4.4 **Étape 3 - Détails** : Nombre d'occupants, adultes/mineurs
-- [ ] 4.5 **Étape 4 - Options** : Checkboxes pour ménage, linge
-- [ ] 4.6 **Étape 5 - Tarif** : Prix de base (suggéré selon période), calcul automatique total
-- [ ] 4.7 **Étape 6 - Récapitulatif** : Résumé complet avant validation
-- [ ] 4.8 Implémenter la navigation entre étapes (précédent/suivant)
-- [ ] 4.9 Ajouter indicateur de progression visuel
-- [ ] 4.10 Validation des champs à chaque étape
-- [ ] 4.11 Créer la réservation en BDD après confirmation
-- [ ] 4.12 Bloquer automatiquement les dates dans le calendrier public
+- [x] 4.1 Créer le formulaire multi-étapes (wizard)
+- [x] 4.2 **Étape 1 - Dates** : Sélection dates début/fin avec calendrier visuel
+- [x] 4.3 **Étape 2 - Client** : Formulaire preneur (nom, adresse, téléphone, email)
+- [x] 4.4 **Étape 3 - Détails** : Nombre d'occupants, adultes/mineurs
+- [x] 4.5 **Étape 4 - Options** : Checkboxes pour ménage, linge
+- [x] 4.6 **Étape 5 - Tarif** : Prix de base (suggéré selon période), calcul automatique total
+- [x] 4.7 **Étape 6 - Récapitulatif** : Résumé complet avant validation
+- [x] 4.8 Implémenter la navigation entre étapes (précédent/suivant)
+- [x] 4.9 Ajouter indicateur de progression visuel
+- [x] 4.10 Validation des champs à chaque étape
+- [x] 4.11 Créer la réservation en BDD après confirmation
+- [x] 4.12 Bloquer automatiquement les dates dans le calendrier public
 
 ### Phase 5 : Génération PDF
 
-- [ ] 5.1 Créer le service de génération de contrat PDF
-- [ ] 5.2 Implémenter le template contrat avec données dynamiques
-- [ ] 5.3 Créer le service de génération de facture PDF
-- [ ] 5.4 Implémenter le template facture avec numérotation auto
-- [ ] 5.5 Ajouter boutons "Télécharger contrat" et "Télécharger facture" dans le détail réservation
+- [x] 5.1 Créer le service de génération de contrat PDF
+- [x] 5.2 Implémenter le template contrat avec données dynamiques
+- [x] 5.3 Créer le service de génération de facture PDF
+- [x] 5.4 Implémenter le template facture avec numérotation auto
+- [x] 5.5 Ajouter boutons "Télécharger contrat" et "Télécharger facture" dans le détail réservation
 - [ ] 5.6 Tester le rendu sur mobile (téléchargement/aperçu)
 
 ### Phase 6 : Finitions
 
-- [ ] 6.1 Ajouter les états de chargement (spinners)
-- [ ] 6.2 Ajouter les messages d'erreur explicites
-- [ ] 6.3 Tester l'accessibilité (taille des zones cliquables, contrastes)
+- [x] 6.1 Ajouter les états de chargement (spinners)
+- [x] 6.2 Ajouter les messages d'erreur explicites
+- [x] 6.3 Tester l'accessibilité (taille des zones cliquables, contrastes)
 - [ ] 6.4 Tester sur différents appareils mobiles
-- [ ] 6.5 Optimiser les performances (lazy loading si nécessaire)
+- [x] 6.5 Optimiser les performances (lazy loading si nécessaire)
 
 ---
 

@@ -8,6 +8,8 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
 const filter = ref<'upcoming' | 'past'>('upcoming');
+const loadingBookingId = ref<string | null>(null);
+const loadingAction = ref<'confirm' | 'cancel' | 'delete' | null>(null);
 
 const filteredBookings = computed((): Booking[] => {
   const now = new Date();
@@ -57,45 +59,57 @@ const showSuccess = (message: string): void => {
 const handleConfirm = async (id: string): Promise<void> => {
   try {
     loading.value = true;
+    loadingBookingId.value = id;
+    loadingAction.value = 'confirm';
     error.value = null;
     await bookingsApi.confirm(id);
     await fetchBookings();
-    showSuccess('Réservation confirmée !');
+    showSuccess('Reservation confirmee !');
   } catch (err) {
     console.error('Erreur lors de la confirmation:', err);
-    error.value = 'Impossible de confirmer la réservation. Veuillez réessayer.';
+    error.value = 'Impossible de confirmer la reservation. Veuillez reessayer.';
   } finally {
     loading.value = false;
+    loadingBookingId.value = null;
+    loadingAction.value = null;
   }
 };
 
 const handleCancel = async (id: string): Promise<void> => {
   try {
     loading.value = true;
+    loadingBookingId.value = id;
+    loadingAction.value = 'cancel';
     error.value = null;
     await bookingsApi.cancel(id);
     await fetchBookings();
-    showSuccess('Réservation annulée.');
+    showSuccess('Reservation annulee.');
   } catch (err) {
     console.error("Erreur lors de l'annulation:", err);
-    error.value = "Impossible d'annuler la réservation. Veuillez réessayer.";
+    error.value = "Impossible d'annuler la reservation. Veuillez reessayer.";
   } finally {
     loading.value = false;
+    loadingBookingId.value = null;
+    loadingAction.value = null;
   }
 };
 
 const handleDelete = async (id: string): Promise<void> => {
   try {
     loading.value = true;
+    loadingBookingId.value = id;
+    loadingAction.value = 'delete';
     error.value = null;
     await bookingsApi.delete(id);
     await fetchBookings();
-    showSuccess('Réservation supprimée.');
+    showSuccess('Reservation supprimee.');
   } catch (err) {
     console.error('Erreur lors de la suppression:', err);
-    error.value = 'Impossible de supprimer la réservation. Veuillez réessayer.';
+    error.value = 'Impossible de supprimer la reservation. Veuillez reessayer.';
   } finally {
     loading.value = false;
+    loadingBookingId.value = null;
+    loadingAction.value = null;
   }
 };
 
@@ -195,13 +209,14 @@ onMounted(() => {
       </p>
     </div>
 
-    <!-- Liste des réservations -->
+    <!-- Liste des reservations -->
     <div v-else class="bookings-list">
       <BookingCard
         v-for="booking in sortedBookings"
         :key="booking.id"
         :booking="booking"
-        :loading="loading"
+        :loading="loading && loadingBookingId === booking.id"
+        :loading-action="loadingBookingId === booking.id ? loadingAction : null"
         @confirm="handleConfirm"
         @cancel="handleCancel"
         @delete="handleDelete"

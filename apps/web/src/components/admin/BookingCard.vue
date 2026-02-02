@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import type { Booking } from '../../lib/api';
 
 interface Props {
   booking: Booking;
   loading?: boolean;
+  loadingAction?: 'confirm' | 'cancel' | 'delete' | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   loading: false,
+  loadingAction: null,
 });
 
 const emit = defineEmits<{
@@ -17,7 +20,12 @@ const emit = defineEmits<{
   delete: [id: string];
 }>();
 
+const router = useRouter();
 const showDeleteConfirm = ref(false);
+
+const goToDetail = (): void => {
+  router.push(`/admin/reservations/${props.booking.id}`);
+};
 
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
@@ -173,6 +181,21 @@ const formatPrice = (price: number | string | undefined): string => {
       </div>
     </div>
 
+    <!-- Bouton voir details -->
+    <button class="detail-btn" @click="goToDetail">
+      <span>Voir les details</span>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="detail-icon"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
+    </button>
+
     <!-- Actions -->
     <div v-if="booking.status !== 'CANCELLED'" class="card-actions">
       <button
@@ -181,7 +204,9 @@ const formatPrice = (price: number | string | undefined): string => {
         :disabled="loading"
         @click="handleConfirm"
       >
+        <span v-if="loadingAction === 'confirm'" class="btn-spinner btn-spinner--light"></span>
         <svg
+          v-else
           xmlns="http://www.w3.org/2000/svg"
           class="btn-icon"
           viewBox="0 0 24 24"
@@ -191,7 +216,7 @@ const formatPrice = (price: number | string | undefined): string => {
         >
           <polyline points="20 6 9 17 4 12" />
         </svg>
-        Confirmer
+        {{ loadingAction === 'confirm' ? 'Confirmation...' : 'Confirmer' }}
       </button>
 
       <button
@@ -200,7 +225,9 @@ const formatPrice = (price: number | string | undefined): string => {
         :disabled="loading"
         @click="handleCancel"
       >
+        <span v-if="loadingAction === 'cancel'" class="btn-spinner btn-spinner--light"></span>
         <svg
+          v-else
           xmlns="http://www.w3.org/2000/svg"
           class="btn-icon"
           viewBox="0 0 24 24"
@@ -211,7 +238,7 @@ const formatPrice = (price: number | string | undefined): string => {
           <line x1="18" y1="6" x2="6" y2="18" />
           <line x1="6" y1="6" x2="18" y2="18" />
         </svg>
-        Annuler
+        {{ loadingAction === 'cancel' ? 'Annulation...' : 'Annuler' }}
       </button>
 
       <button
@@ -219,7 +246,9 @@ const formatPrice = (price: number | string | undefined): string => {
         :disabled="loading"
         @click="showDeleteConfirm = true"
       >
+        <span v-if="loadingAction === 'delete'" class="btn-spinner"></span>
         <svg
+          v-else
           xmlns="http://www.w3.org/2000/svg"
           class="btn-icon"
           viewBox="0 0 24 24"
@@ -232,7 +261,7 @@ const formatPrice = (price: number | string | undefined): string => {
             d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
           />
         </svg>
-        Supprimer
+        {{ loadingAction === 'delete' ? 'Suppression...' : 'Supprimer' }}
       </button>
     </div>
 
@@ -299,7 +328,7 @@ const formatPrice = (price: number | string | undefined): string => {
 
 .status--pending {
   background-color: #fef3c7;
-  color: #d97706;
+  color: #92400e; /* Darker for better contrast */
 }
 
 .status--cancelled {
@@ -378,6 +407,34 @@ const formatPrice = (price: number | string | undefined): string => {
   color: #222222;
 }
 
+/* Bouton details */
+.detail-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 14px 16px;
+  margin-top: 16px;
+  background-color: #f7f7f7;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #484848;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.detail-btn:hover {
+  background-color: #fff0f3;
+  color: #ff385c;
+}
+
+.detail-icon {
+  width: 18px;
+  height: 18px;
+}
+
 /* Actions */
 .card-actions {
   display: flex;
@@ -405,13 +462,34 @@ const formatPrice = (price: number | string | undefined): string => {
 }
 
 .action-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.6;
   cursor: not-allowed;
+  filter: grayscale(30%);
 }
 
 .btn-icon {
   width: 18px;
   height: 18px;
+}
+
+.btn-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #d1d5db;
+  border-top-color: #6b7280;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.btn-spinner--light {
+  border-color: rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .action-btn--confirm {
