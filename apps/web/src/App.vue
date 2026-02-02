@@ -1,10 +1,18 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+import { useRoute } from 'vue-router';
 import NavBar from './components/NavBar.vue';
+
+const route = useRoute();
+
+const isAdminRoute = computed((): boolean => {
+  return route.path.startsWith('/admin');
+});
 </script>
 
 <template>
-  <NavBar />
-  <main class="pt-16">
+  <NavBar v-if="!isAdminRoute" />
+  <main :class="{ 'pt-16': !isAdminRoute }">
     <router-view v-slot="{ Component }">
       <transition name="fade" mode="out-in">
         <component :is="Component" />

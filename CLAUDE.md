@@ -273,3 +273,50 @@ Domaine du Rouret - Pierre & Vacances
 Tél: +33 7 87 86 43 58
 Email: dominguez-juan@orange.fr
 ```
+
+## Admin Dashboard - Refonte
+
+### Plan de développement
+
+Le plan détaillé de la refonte du dashboard admin est disponible dans :
+**`.claude/plan/admin-refonte.md`**
+
+### Objectif
+
+Créer une interface **mobile-first** et **user-friendly** pour des utilisateurs seniors (60+ ans).
+
+### Données métier clés
+
+#### Bailleur (fixe)
+- **Nom** : Dominguez Alvarez Christelle
+- **Adresse** : 12 rue du grand clos, 54920 Villers la Montagne
+- **IBAN** : FR76 1027 8043 1300 0477 8024 032 / BIC: CMCIFR2A
+
+#### Logement (fixe)
+- **Type** : Maison mitoyenne 3 pièces duplex avec terrasse (39 m²)
+- **Adresse** : Village Le Rouret, 675 route du château du rouret, 07120 Grospierres
+- **Capacité** : 6 personnes max, 2 chambres
+
+#### Tarifs options
+| Option | Tarif |
+|--------|-------|
+| Ménage fin de séjour | 80 € |
+| Linge de maison | 15 €/personne |
+| Taxe de séjour | 1 €/jour/adulte |
+| Dépôt de garantie | 500 € (fixe) |
+| Acompte | 30% du total |
+| Solde | 15 jours avant arrivée |
+
+### Principes UI/UX
+
+1. Gros boutons (min 48px) avec texte explicite
+2. Navigation 3 onglets max
+3. Cartes visuelles (pas de tableaux)
+4. Feedback clair après chaque action
+5. Maximum 2 actions principales par écran
+
+### Templates PDF
+
+Les modèles de contrat et facture sont dans :
+- `apps/web/assets/templates/model_contrat_location.pdf`
+- `apps/web/assets/templates/model_faccture.pdf`
