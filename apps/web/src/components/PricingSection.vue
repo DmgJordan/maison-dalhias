@@ -1,47 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { PRICING_PERIODS, INCLUDED_SERVICES, TARIFS, LOGEMENT } from '@/constants/property';
 
-interface PricingPeriod {
-  name: string;
-  dates: string;
-  price: number;
-  pricePerNight: number;
-}
-
-const pricingPeriods = ref<PricingPeriod[]>([
-  {
-    name: 'Hors Saison',
-    dates: 'Du 1 Mai au 28 Juin / Du 30 Août au 27 Septembre',
-    price: 400,
-    pricePerNight: 80,
-  },
-  {
-    name: "Début et Fin d'Été",
-    dates: 'Du 28 Juin au 13 Juillet / Du 23 Août au 30 Août',
-    price: 650,
-    pricePerNight: 120,
-  },
-  {
-    name: 'Période Estivale',
-    dates: 'Du 13 Juillet au 26 Juillet',
-    price: 750,
-    pricePerNight: 150,
-  },
-  {
-    name: "Cœur de l'Été",
-    dates: 'Du 26 Juillet au 23 Août',
-    price: 950,
-    pricePerNight: 180,
-  },
-]);
-
-const includedServices = [
-  'Accès aux installations du domaine',
-  'Accès piscine (01 Avril - 30 Septembre)',
-  'Parking gratuit',
-  'WiFi inclus',
-  'Animations quotidiennes (selon saison)',
-];
+const pricingPeriods = PRICING_PERIODS;
+const includedServices = INCLUDED_SERVICES;
 </script>
 <template>
   <div class="min-h-screen py-16 bg-background">
@@ -148,7 +109,9 @@ const includedServices = [
                 d="M12 6v6m0 0v6m0-6h6m-6 0H6"
               />
             </svg>
-            <span>Forfait ménage: <strong>80€</strong></span>
+            <span
+              >Forfait ménage: <strong>{{ TARIFS.menage }}€</strong></span
+            >
           </div>
           <div class="flex items-center">
             <svg
@@ -164,7 +127,9 @@ const includedServices = [
                 d="M12 6v6m0 0v6m0-6h6m-6 0H6"
               />
             </svg>
-            <span>Draps + Serviettes: <strong>15€</strong> par personne</span>
+            <span
+              >Draps + Serviettes: <strong>{{ TARIFS.linge }}€</strong> par personne</span
+            >
           </div>
           <div class="flex items-center">
             <svg
@@ -180,13 +145,16 @@ const includedServices = [
                 d="M12 6v6m0 0v6m0-6h6m-6 0H6"
               />
             </svg>
-            <span>Taxe de séjour: <strong>1€</strong> par personne et par jour</span>
+            <span
+              >Taxe de séjour: <strong>{{ TARIFS.taxeSejour }}€</strong> par personne et par
+              jour</span
+            >
           </div>
         </div>
 
         <p class="text-center mt-8 text-text/80">
-          Location de la Maison Dalhia 19 située dans le Domaine du Rouret - Pierre & Vacances<br />
-          07120 GROSPIERRES, Ardèche
+          Location de {{ LOGEMENT.nom }} située dans le {{ LOGEMENT.adresse }}<br />
+          {{ LOGEMENT.codePostal }} {{ LOGEMENT.ville.toUpperCase() }}, Ardèche
         </p>
       </div>
     </div>

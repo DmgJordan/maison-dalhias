@@ -111,18 +111,6 @@ export const authApi = {
     return data;
   },
 
-  async register(email: string, password: string): Promise<LoginResponse> {
-    const { data } = await api.post<LoginResponse>('/auth/register', { email, password });
-    localStorage.setItem('accessToken', data.accessToken);
-    localStorage.setItem('user', JSON.stringify(data.user));
-    return data;
-  },
-
-  async me(): Promise<User> {
-    const { data } = await api.get<User>('/auth/me');
-    return data;
-  },
-
   async logout(): Promise<void> {
     try {
       await api.post('/auth/logout');

@@ -2,10 +2,12 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { authApi, contactsApi } from '../../lib/api';
+import { generatePromotionalPoster } from '../../services/pdf';
 
 const router = useRouter();
 const route = useRoute();
 const isLoggingOut = ref(false);
+const isGeneratingPoster = ref(false);
 const unreadCount = ref(0);
 
 interface Tab {
@@ -62,6 +64,17 @@ const goToHome = (): void => {
   window.location.href = '/';
 };
 
+const handleGeneratePoster = async (): Promise<void> => {
+  try {
+    isGeneratingPoster.value = true;
+    await generatePromotionalPoster();
+  } catch (err) {
+    console.error("Erreur lors de la génération de l'affiche:", err);
+  } finally {
+    isGeneratingPoster.value = false;
+  }
+};
+
 const signOut = async (): Promise<void> => {
   try {
     isLoggingOut.value = true;
@@ -82,6 +95,29 @@ const signOut = async (): Promise<void> => {
       <div class="header-content">
         <h1 class="header-title">{{ pageTitle }}</h1>
         <div class="header-actions">
+          <button
+            class="header-btn"
+            title="Générer l'affiche PDF"
+            :disabled="isGeneratingPoster"
+            @click="handleGeneratePoster"
+          >
+            <span v-if="isGeneratingPoster" class="btn-spinner btn-spinner--dark"></span>
+            <svg
+              v-else
+              xmlns="http://www.w3.org/2000/svg"
+              class="icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="12" y1="18" x2="12" y2="12" />
+              <polyline points="9 15 12 18 15 15" />
+            </svg>
+            <span class="btn-label">{{ isGeneratingPoster ? 'Génération...' : 'Affiche' }}</span>
+          </button>
           <button class="header-btn" title="Retour au site" @click="goToHome">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -189,6 +225,24 @@ const signOut = async (): Promise<void> => {
         </button>
       </nav>
       <div class="sidebar-footer">
+        <button class="sidebar-btn" :disabled="isGeneratingPoster" @click="handleGeneratePoster">
+          <span v-if="isGeneratingPoster" class="sidebar-spinner"></span>
+          <svg
+            v-else
+            xmlns="http://www.w3.org/2000/svg"
+            class="tab-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="12" y1="18" x2="12" y2="12" />
+            <polyline points="9 15 12 18 15 15" />
+          </svg>
+          <span>{{ isGeneratingPoster ? 'Génération...' : "Générer l'affiche" }}</span>
+        </button>
         <button class="sidebar-btn" @click="goToHome">
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -378,6 +432,11 @@ const signOut = async (): Promise<void> => {
   border-top-color: white;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+
+.btn-spinner--dark {
+  border-color: rgba(72, 72, 72, 0.3);
+  border-top-color: #484848;
 }
 
 @keyframes spin {

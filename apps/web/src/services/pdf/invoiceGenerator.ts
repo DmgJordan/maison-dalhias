@@ -1,30 +1,7 @@
 import jsPDF from 'jspdf';
 import type { Booking } from '../../lib/api';
 import { configurePdfWithFrenchFont } from './fontLoader';
-
-// Données fixes du bailleur
-const BAILLEUR = {
-  nom: 'Dominguez Alvarez Juan',
-  adresse1: '12 rue du grand clos',
-  adresse2: '54920 Villers la Montagne',
-};
-
-// Tarifs fixes
-const TARIFS = {
-  menage: 80,
-  linge: 15,
-  taxeSejour: 1,
-  caution: 500,
-};
-
-// Couleurs du design
-const COLORS = {
-  primary: { r: 34, g: 34, b: 34 }, // Noir profond
-  secondary: { r: 100, g: 100, b: 100 }, // Gris moyen
-  light: { r: 245, g: 245, b: 245 }, // Gris très clair
-  border: { r: 200, g: 200, b: 200 }, // Gris bordure
-  accent: { r: 255, g: 56, b: 92 }, // Rouge accent (couleur primaire du site)
-};
+import { BAILLEUR, TARIFS, PDF_COLORS as COLORS } from '../../constants/property';
 
 export interface InvoiceData {
   booking: Booking;
