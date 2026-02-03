@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
-import { bookingsApi } from '../lib/api';
-import { PRICING_PERIODS, BOOKING_CONSTANTS, type PricingPeriod } from '@/constants/property';
+import { ref, onMounted, computed, watch } from 'vue';
+import {
+  bookingsApi,
+  datePeriodsApi,
+  pricingApi,
+  type DatePeriod,
+  type PriceCalculation,
+} from '../lib/api';
+import { BOOKING_CONSTANTS } from '@/constants/property';
 
 interface BookedDate {
   start: Date;
@@ -15,7 +21,13 @@ const bookedDates = ref<BookedDate[]>([]);
 const currentMonth = ref(new Date().getMonth());
 const currentYear = ref(new Date().getFullYear());
 const calendarDays = ref<
-  Array<{ date: Date; isCurrentMonth: boolean; isBooked: boolean; isAvailable: boolean }>
+  Array<{
+    date: Date;
+    isCurrentMonth: boolean;
+    isBooked: boolean;
+    isAvailable: boolean;
+    pricePerNight: number;
+  }>
 >([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -25,6 +37,14 @@ const showSnackbar = ref(false);
 const snackbarMessage = ref('');
 const showPriceOnMobile = ref<number | null>(null);
 
+// Plages de dates dynamiques chargées depuis l'API
+const datePeriods = ref<DatePeriod[]>([]);
+const loadingPeriods = ref(false);
+
+// Calcul de prix dynamique
+const priceCalculation = ref<PriceCalculation | null>(null);
+const calculatingPrice = ref(false);
+
 const togglePriceOnMobile = (dayIndex: number): void => {
   if (showPriceOnMobile.value === dayIndex) {
     showPriceOnMobile.value = null;
@@ -32,8 +52,6 @@ const togglePriceOnMobile = (dayIndex: number): void => {
     showPriceOnMobile.value = dayIndex;
   }
 };
-
-const pricingPeriods = ref<PricingPeriod[]>(PRICING_PERIODS);
 
 const monthNames = [
   'Janvier',
@@ -62,6 +80,42 @@ const showNotification = (message: string) => {
   }, 3000);
 };
 
+// Charger les plages de dates pour une année donnée
+const fetchDatePeriods = async (year: number): Promise<void> => {
+  try {
+    loadingPeriods.value = true;
+    const periods = await datePeriodsApi.getByYear(year);
+    // Fusionner avec les périodes existantes (pour gérer plusieurs années)
+    const existingYears = datePeriods.value.filter(
+      (p) => new Date(p.startDate).getFullYear() !== year
+    );
+    datePeriods.value = [...existingYears, ...periods];
+  } catch (error: unknown) {
+    console.error('Erreur lors du chargement des périodes tarifaires:', error);
+  } finally {
+    loadingPeriods.value = false;
+  }
+};
+
+// Trouver le prix pour une date donnée depuis les plages dynamiques
+const getPriceForDateFromPeriods = (date: Date): number => {
+  const dateNormalized = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  for (const period of datePeriods.value) {
+    const startDate = new Date(period.startDate);
+    const endDate = new Date(period.endDate);
+    startDate.setHours(0, 0, 0, 0);
+    endDate.setHours(0, 0, 0, 0);
+
+    if (dateNormalized >= startDate && dateNormalized < endDate) {
+      return period.season.pricePerNight;
+    }
+  }
+
+  return 0; // Pas de tarif configuré pour cette date
+};
+
+// Vérifier si une date est disponible (a un tarif configuré et n'est pas dans le passé)
 const isDateAvailable = (date: Date): boolean => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -70,27 +124,25 @@ const isDateAvailable = (date: Date): boolean => {
     return false;
   }
 
-  const month = date.getMonth();
-  const day = date.getDate();
-
-  return (
-    (month === 4 && day >= 1) ||
-    (month === 5 && day <= 28) ||
-    (month === 7 && day >= 30) ||
-    (month === 8 && day <= 27) ||
-    (month === 5 && day >= 28) ||
-    (month === 6 && day <= 13) ||
-    (month === 7 && day >= 23 && day <= 30) ||
-    (month === 6 && day > 13 && day <= 26) ||
-    (month === 6 && day > 26) ||
-    (month === 7 && day <= 23)
-  );
+  // Une date est disponible si elle a un tarif configuré dans les plages
+  return getPriceForDateFromPeriods(date) > 0;
 };
 
-const fetchBookings = async () => {
+const fetchBookings = async (): Promise<void> => {
   try {
     loading.value = true;
-    const bookings = await bookingsApi.getAll();
+
+    // Charger les plages de dates pour l'année en cours et l'année suivante
+    const yearsToLoad = [currentYear.value];
+    if (currentMonth.value >= 10) {
+      yearsToLoad.push(currentYear.value + 1);
+    }
+
+    // Charger les réservations et les plages de dates en parallèle
+    const [bookings] = await Promise.all([
+      bookingsApi.getAll(),
+      ...yearsToLoad.map((year) => fetchDatePeriods(year)),
+    ]);
 
     bookedDates.value = bookings
       .filter((booking) => booking.status !== 'CANCELLED')
@@ -107,7 +159,7 @@ const fetchBookings = async () => {
       });
 
     generateCalendar();
-  } catch (err) {
+  } catch (err: unknown) {
     console.error('Erreur lors de la récupération des réservations:', err);
     error.value = (err as Error).message;
   } finally {
@@ -115,27 +167,36 @@ const fetchBookings = async () => {
   }
 };
 
-const generateCalendar = () => {
+const generateCalendar = (): void => {
   const firstDayOfMonth = new Date(currentYear.value, currentMonth.value, 1);
   const lastDayOfMonth = new Date(currentYear.value, currentMonth.value + 1, 0);
 
   const startDay = new Date(firstDayOfMonth);
   startDay.setDate(startDay.getDate() - (startDay.getDay() === 0 ? 6 : startDay.getDay() - 1));
 
-  const days = [];
+  const days: Array<{
+    date: Date;
+    isCurrentMonth: boolean;
+    isBooked: boolean;
+    isAvailable: boolean;
+    pricePerNight: number;
+  }> = [];
 
   for (let i = 0; i < 42; i++) {
     const currentDate = new Date(startDay);
     currentDate.setDate(startDay.getDate() + i);
 
     const isBooked = isDateBooked(currentDate);
-    const isAvailable = isDateAvailable(currentDate);
+    const pricePerNight = getPriceForDateFromPeriods(currentDate);
+    const isAvailable =
+      !isBooked && pricePerNight > 0 && currentDate >= new Date(new Date().setHours(0, 0, 0, 0));
 
     days.push({
       date: currentDate,
       isCurrentMonth: currentDate.getMonth() === currentMonth.value,
       isBooked,
       isAvailable,
+      pricePerNight,
     });
 
     if (currentDate > lastDayOfMonth && i >= 35) break;
@@ -231,22 +292,34 @@ const handleDateClick = (day: {
   }
 };
 
-const previousMonth = () => {
+const previousMonth = async (): Promise<void> => {
+  const oldYear = currentYear.value;
   if (currentMonth.value === 0) {
     currentMonth.value = 11;
     currentYear.value--;
   } else {
     currentMonth.value--;
   }
+
+  // Charger les plages de la nouvelle année si nécessaire
+  if (currentYear.value !== oldYear) {
+    await fetchDatePeriods(currentYear.value);
+  }
   generateCalendar();
 };
 
-const nextMonth = () => {
+const nextMonth = async (): Promise<void> => {
+  const oldYear = currentYear.value;
   if (currentMonth.value === 11) {
     currentMonth.value = 0;
     currentYear.value++;
   } else {
     currentMonth.value++;
+  }
+
+  // Charger les plages de la nouvelle année si nécessaire
+  if (currentYear.value !== oldYear) {
+    await fetchDatePeriods(currentYear.value);
   }
   generateCalendar();
 };
@@ -261,99 +334,40 @@ const isDateSelected = (date: Date) => {
   return date.getTime() === selectedStartDate.value.getTime();
 };
 
-const getPriceForDate = (date: Date): number => {
-  if (!isDateAvailable(date)) return 0;
-
-  const month = date.getMonth();
-  const day = date.getDate();
-
-  if (
-    (month === 4 && day >= 1) ||
-    (month === 5 && day <= 28) ||
-    (month === 7 && day >= 30) ||
-    (month === 8 && day <= 27)
-  ) {
-    return 80;
-  } else if (
-    (month === 5 && day >= 28) ||
-    (month === 6 && day <= 13) ||
-    (month === 7 && day >= 23 && day <= 30)
-  ) {
-    return 120;
-  } else if (month === 6 && day > 13 && day <= 26) {
-    return 150;
-  } else if ((month === 6 && day > 26) || (month === 7 && day <= 23)) {
-    return 180;
+// Calculer le prix total via l'API quand les dates changent
+const calculatePriceFromApi = async (): Promise<void> => {
+  if (!selectedStartDate.value || !selectedEndDate.value) {
+    priceCalculation.value = null;
+    return;
   }
 
-  return 0;
+  try {
+    calculatingPrice.value = true;
+    const startDateStr = selectedStartDate.value.toISOString().split('T')[0];
+    const endDateStr = selectedEndDate.value.toISOString().split('T')[0];
+    priceCalculation.value = await pricingApi.calculate(startDateStr, endDateStr);
+  } catch (error: unknown) {
+    console.error('Erreur lors du calcul du prix:', error);
+    priceCalculation.value = null;
+  } finally {
+    calculatingPrice.value = false;
+  }
 };
 
-const getWeeklyRate = (startDate: Date, endDate: Date): number => {
-  const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-  let highestWeeklyRate = 0;
-
-  const currentDate = new Date(startDate);
-  while (currentDate <= endDate) {
-    const period = pricingPeriods.value.find((p) => {
-      const month = currentDate.getMonth();
-      const day = currentDate.getDate();
-
-      if (
-        (month === 4 && day >= 1) ||
-        (month === 5 && day <= 28) ||
-        (month === 7 && day >= 30) ||
-        (month === 8 && day <= 27)
-      ) {
-        return p.name === 'Hors Saison';
-      } else if (
-        (month === 5 && day >= 28) ||
-        (month === 6 && day <= 13) ||
-        (month === 7 && day >= 23 && day <= 30)
-      ) {
-        return p.name === "Début et Fin d'Été";
-      } else if (month === 6 && day > 13 && day <= 26) {
-        return p.name === 'Période Estivale';
-      } else if ((month === 6 && day > 26) || (month === 7 && day <= 23)) {
-        return p.name === "Cœur de l'Été";
-      }
-      return false;
-    });
-
-    if (period && period.price > highestWeeklyRate) {
-      highestWeeklyRate = period.price;
+// Watcher pour recalculer le prix quand les dates changent
+watch(
+  () => [selectedStartDate.value, selectedEndDate.value],
+  async () => {
+    if (selectedStartDate.value && selectedEndDate.value) {
+      await calculatePriceFromApi();
     }
+  },
+  { deep: true }
+);
 
-    currentDate.setDate(currentDate.getDate() + 1);
-  }
-
-  const dailyRate = highestWeeklyRate / 7;
-  return Number((dailyRate * days).toFixed(2));
-};
-
-const calculateTotalPrice = computed(() => {
-  if (!selectedStartDate.value || !selectedEndDate.value) return 0;
-
-  const days = Math.ceil(
-    (selectedEndDate.value.getTime() - selectedStartDate.value.getTime()) / (1000 * 60 * 60 * 24)
-  );
-
-  if (days >= 7) {
-    return getWeeklyRate(selectedStartDate.value, selectedEndDate.value);
-  }
-
-  let highestDailyRate = 0;
-  const currentDate = new Date(selectedStartDate.value);
-
-  while (currentDate <= selectedEndDate.value) {
-    const dailyRate = getPriceForDate(currentDate);
-    if (dailyRate > highestDailyRate) {
-      highestDailyRate = dailyRate;
-    }
-    currentDate.setDate(currentDate.getDate() + 1);
-  }
-
-  return Number((highestDailyRate * days).toFixed(2));
+// Prix total calculé (depuis l'API ou 0)
+const calculateTotalPrice = computed((): number => {
+  return priceCalculation.value?.totalPrice ?? 0;
 });
 
 const selectedPeriod = computed(() => {
@@ -491,21 +505,27 @@ onMounted(() => {
                 <div class="flex flex-col items-center">
                   <span class="text-sm sm:text-base">{{ day.date ? day.date.getDate() : '' }}</span>
                   <span
-                    v-if="day.isCurrentMonth && !day.isBooked && day.isAvailable"
+                    v-if="
+                      day.isCurrentMonth &&
+                      !day.isBooked &&
+                      day.isAvailable &&
+                      day.pricePerNight > 0
+                    "
                     class="text-[10px] sm:text-xs mt-0.5 hidden sm:inline"
                   >
-                    {{ formatPrice(getPriceForDate(day.date)) }}€
+                    {{ formatPrice(day.pricePerNight) }}€
                   </span>
                   <span
                     v-if="
                       day.isCurrentMonth &&
                       !day.isBooked &&
                       day.isAvailable &&
+                      day.pricePerNight > 0 &&
                       showPriceOnMobile === index
                     "
                     class="text-[10px] sm:text-xs mt-0.5 sm:hidden"
                   >
-                    {{ formatPrice(getPriceForDate(day.date)) }}€
+                    {{ formatPrice(day.pricePerNight) }}€
                   </span>
                 </div>
               </div>
@@ -518,6 +538,31 @@ onMounted(() => {
           <div class="space-y-2">
             <p>Du {{ selectedPeriod.startDate }} au {{ selectedPeriod.endDate }}</p>
             <p>{{ selectedPeriod.nights }} nuit{{ selectedPeriod.nights > 1 ? 's' : '' }}</p>
+
+            <!-- Indicateur de chargement du prix -->
+            <div v-if="calculatingPrice" class="flex items-center gap-2 text-gray-500">
+              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+              <span>Calcul du prix...</span>
+            </div>
+
+            <!-- Détail des plages tarifaires si plusieurs -->
+            <div
+              v-else-if="priceCalculation && priceCalculation.details.length > 1"
+              class="space-y-1"
+            >
+              <p class="text-sm text-gray-600 font-medium">Détail par période :</p>
+              <div
+                v-for="detail in priceCalculation.details"
+                :key="detail.seasonId + detail.startDate"
+                class="text-sm text-gray-600 pl-2 border-l-2 border-primary/30"
+              >
+                {{ detail.seasonName }} : {{ detail.nights }} nuit{{
+                  detail.nights > 1 ? 's' : ''
+                }}
+                × {{ formatPrice(detail.pricePerNight) }}€ = {{ formatPrice(detail.subtotal) }}€
+              </div>
+            </div>
+
             <p class="text-xl font-bold text-primary">
               Total : {{ formatPrice(selectedPeriod.totalPrice) }}€
             </p>

@@ -107,11 +107,11 @@ const handleSubmit = async () => {
       subject: '',
       message: '',
     };
-  } catch (err) {
-    console.error('Error sending message:', err);
+  } catch (error: unknown) {
+    console.error('Error sending message:', error);
     error.value =
-      err instanceof Error
-        ? err.message
+      error instanceof Error
+        ? error.message
         : "Une erreur est survenue lors de l'envoi du message. Veuillez nous contacter directement par téléphone au +33787864358.";
     showNotification(error.value, true);
   } finally {

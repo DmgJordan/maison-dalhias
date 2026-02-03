@@ -131,8 +131,8 @@ const fetchBooking = async (): Promise<void> => {
     loading.value = true;
     error.value = null;
     booking.value = await bookingsApi.getById(bookingId.value);
-  } catch (err) {
-    console.error('Erreur lors du chargement de la reservation:', err);
+  } catch (error: unknown) {
+    console.error('Erreur lors du chargement de la reservation:', error);
     error.value = 'Impossible de charger la reservation. Veuillez reessayer.';
   } finally {
     loading.value = false;
@@ -153,8 +153,8 @@ const handleConfirm = async (): Promise<void> => {
     await bookingsApi.confirm(bookingId.value);
     await fetchBooking();
     showSuccess('Reservation confirmee !');
-  } catch (err) {
-    console.error('Erreur lors de la confirmation:', err);
+  } catch (error: unknown) {
+    console.error('Erreur lors de la confirmation:', error);
     error.value = 'Impossible de confirmer la reservation. Veuillez reessayer.';
   } finally {
     loading.value = false;
@@ -168,8 +168,8 @@ const handleCancel = async (): Promise<void> => {
     await bookingsApi.cancel(bookingId.value);
     await fetchBooking();
     showSuccess('Reservation annulee.');
-  } catch (err) {
-    console.error("Erreur lors de l'annulation:", err);
+  } catch (error: unknown) {
+    console.error("Erreur lors de l'annulation:", error);
     error.value = "Impossible d'annuler la reservation. Veuillez reessayer.";
   } finally {
     loading.value = false;
@@ -186,8 +186,8 @@ const handleDelete = async (): Promise<void> => {
     setTimeout(() => {
       router.push('/admin/reservations');
     }, 1500);
-  } catch (err) {
-    console.error('Erreur lors de la suppression:', err);
+  } catch (error: unknown) {
+    console.error('Erreur lors de la suppression:', error);
     error.value = 'Impossible de supprimer la reservation. Veuillez reessayer.';
   } finally {
     loading.value = false;
@@ -217,8 +217,8 @@ const handleGenerateContract = async (): Promise<void> => {
     });
 
     showSuccess('Contrat telecharge !');
-  } catch (err) {
-    console.error('Erreur lors de la generation du contrat:', err);
+  } catch (error: unknown) {
+    console.error('Erreur lors de la generation du contrat:', error);
     error.value = 'Impossible de generer le contrat. Veuillez reessayer.';
   } finally {
     generatingContract.value = false;
@@ -249,8 +249,8 @@ const handleGenerateInvoice = async (): Promise<void> => {
     });
 
     showSuccess('Facture telechargee !');
-  } catch (err) {
-    console.error('Erreur lors de la generation de la facture:', err);
+  } catch (error: unknown) {
+    console.error('Erreur lors de la generation de la facture:', error);
     error.value = 'Impossible de generer la facture. Veuillez reessayer.';
   } finally {
     generatingInvoice.value = false;

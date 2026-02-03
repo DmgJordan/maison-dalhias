@@ -15,9 +15,9 @@ const handleLogin = async () => {
     error.value = null;
     await authApi.login(email.value, password.value);
     router.push('/admin');
-  } catch (err) {
-    if (err instanceof Error) {
-      error.value = err.message;
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      error.value = error.message;
     } else {
       error.value = 'Email ou mot de passe incorrect';
     }

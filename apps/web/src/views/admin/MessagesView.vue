@@ -26,8 +26,8 @@ const fetchMessages = async (): Promise<void> => {
     error.value = null;
     const data = await contactsApi.getAll();
     messages.value = data;
-  } catch (err) {
-    console.error('Erreur lors du chargement des messages:', err);
+  } catch (error: unknown) {
+    console.error('Erreur lors du chargement des messages:', error);
     error.value = 'Impossible de charger les messages. Veuillez réessayer.';
   } finally {
     loading.value = false;
@@ -48,8 +48,8 @@ const handleMarkAsRead = async (id: string): Promise<void> => {
     await contactsApi.markAsRead(id);
     await fetchMessages();
     showSuccess('Message marqué comme lu');
-  } catch (err) {
-    console.error('Erreur lors du marquage comme lu:', err);
+  } catch (error: unknown) {
+    console.error('Erreur lors du marquage comme lu:', error);
     error.value = 'Impossible de marquer le message comme lu. Veuillez réessayer.';
   } finally {
     loading.value = false;

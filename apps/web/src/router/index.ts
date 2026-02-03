@@ -14,6 +14,8 @@ const MessagesView = (): Promise<typeof import('../views/admin/MessagesView.vue'
   import('../views/admin/MessagesView.vue');
 const NewBookingView = (): Promise<typeof import('../views/admin/NewBookingView.vue')> =>
   import('../views/admin/NewBookingView.vue');
+const PricingView = (): Promise<typeof import('../views/admin/PricingView.vue')> =>
+  import('../views/admin/PricingView.vue');
 
 const routes = [
   {
@@ -54,6 +56,11 @@ const routes = [
         path: 'nouveau',
         name: 'AdminNewBooking',
         component: NewBookingView,
+      },
+      {
+        path: 'tarifs',
+        name: 'AdminPricing',
+        component: PricingView,
       },
     ],
   },

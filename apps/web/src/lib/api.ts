@@ -102,6 +102,59 @@ export interface CreateContactData {
   message: string;
 }
 
+// Seasons & Pricing Types
+export interface Season {
+  id: string;
+  name: string;
+  pricePerNight: number;
+  color: string | null;
+  order: number;
+  datePeriods?: DatePeriodSummary[];
+}
+
+export interface DatePeriodSummary {
+  id: string;
+  startDate: string;
+  endDate: string;
+  year: number;
+}
+
+export interface DatePeriod {
+  id: string;
+  startDate: string;
+  endDate: string;
+  year: number;
+  season: {
+    id: string;
+    name: string;
+    pricePerNight: number;
+    color: string | null;
+  };
+}
+
+export interface PriceDetail {
+  startDate: string;
+  endDate: string;
+  nights: number;
+  seasonId: string;
+  seasonName: string;
+  pricePerNight: number;
+  subtotal: number;
+}
+
+export interface PriceCalculation {
+  totalPrice: number;
+  totalNights: number;
+  details: PriceDetail[];
+  hasUncoveredDays: boolean;
+  uncoveredDays: number;
+  defaultPricePerNight: number;
+}
+
+export interface Settings {
+  defaultPricePerNight: number;
+}
+
 // Auth API
 export const authApi = {
   async login(email: string, password: string): Promise<LoginResponse> {
@@ -195,6 +248,118 @@ export const contactsApi = {
 
   async markAsRead(id: string): Promise<ContactForm> {
     const { data } = await api.patch<ContactForm>(`/contacts/${id}/read`);
+    return data;
+  },
+};
+
+// Seasons API
+export const seasonsApi = {
+  async getAll(): Promise<Season[]> {
+    const { data } = await api.get<Season[]>('/seasons');
+    return data;
+  },
+
+  async getById(id: string): Promise<Season> {
+    const { data } = await api.get<Season>(`/seasons/${id}`);
+    return data;
+  },
+
+  async create(season: {
+    name: string;
+    pricePerNight: number;
+    color?: string;
+    order?: number;
+  }): Promise<Season> {
+    const { data } = await api.post<Season>('/seasons', season);
+    return data;
+  },
+
+  async update(
+    id: string,
+    season: Partial<{ name: string; pricePerNight: number; color: string; order: number }>
+  ): Promise<Season> {
+    const { data } = await api.patch<Season>(`/seasons/${id}`, season);
+    return data;
+  },
+
+  async delete(id: string): Promise<void> {
+    await api.delete(`/seasons/${id}`);
+  },
+};
+
+// Date Periods API
+export const datePeriodsApi = {
+  async getAll(): Promise<DatePeriod[]> {
+    const { data } = await api.get<DatePeriod[]>('/date-periods');
+    return data;
+  },
+
+  async getByYear(year: number): Promise<DatePeriod[]> {
+    const { data } = await api.get<DatePeriod[]>(`/date-periods?year=${String(year)}`);
+    return data;
+  },
+
+  async getAvailableYears(): Promise<number[]> {
+    const { data } = await api.get<number[]>('/date-periods/years');
+    return data;
+  },
+
+  async getById(id: string): Promise<DatePeriod> {
+    const { data } = await api.get<DatePeriod>(`/date-periods/${id}`);
+    return data;
+  },
+
+  async create(period: {
+    startDate: string;
+    endDate: string;
+    year: number;
+    seasonId: string;
+  }): Promise<DatePeriod> {
+    const { data } = await api.post<DatePeriod>('/date-periods', period);
+    return data;
+  },
+
+  async update(
+    id: string,
+    period: Partial<{ startDate: string; endDate: string; year: number; seasonId: string }>
+  ): Promise<DatePeriod> {
+    const { data } = await api.patch<DatePeriod>(`/date-periods/${id}`, period);
+    return data;
+  },
+
+  async delete(id: string): Promise<void> {
+    await api.delete(`/date-periods/${id}`);
+  },
+
+  async copyFromYear(sourceYear: number, targetYear: number): Promise<{ copiedCount: number }> {
+    const { data } = await api.post<{ copiedCount: number }>('/date-periods/copy', {
+      sourceYear,
+      targetYear,
+    });
+    return data;
+  },
+};
+
+// Pricing API
+export const pricingApi = {
+  async calculate(startDate: string, endDate: string): Promise<PriceCalculation> {
+    const { data } = await api.post<PriceCalculation>('/pricing/calculate', {
+      startDate,
+      endDate,
+    });
+    return data;
+  },
+};
+
+// Settings API
+export const settingsApi = {
+  async get(): Promise<Settings> {
+    const { data } = await api.get<Settings>('/settings');
+    return data;
+  },
+
+  async update(settings: Partial<Settings>): Promise<Settings> {
+    const { data } = await api.patch<Settings>('/settings', settings);
     return data;
   },
 };

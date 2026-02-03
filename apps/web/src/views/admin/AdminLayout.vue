@@ -22,6 +22,7 @@ interface Tab {
 const tabs: Tab[] = [
   { id: 'bookings', label: 'Réservations', icon: 'calendar', route: '/admin/reservations' },
   { id: 'messages', label: 'Messages', icon: 'mail', route: '/admin/messages' },
+  { id: 'pricing', label: 'Tarifs', icon: 'tag', route: '/admin/tarifs' },
   { id: 'new', label: 'Nouveau', icon: 'plus', route: '/admin/nouveau' },
 ];
 
@@ -31,8 +32,8 @@ const fetchUnreadCount = async (): Promise<void> => {
     unreadCount.value = messages.filter(
       (m) => m.status === 'sent' || m.status === 'pending'
     ).length;
-  } catch (err) {
-    console.error('Erreur lors du chargement des messages:', err);
+  } catch (error: unknown) {
+    console.error('Erreur lors du chargement des messages:', error);
   }
 };
 
@@ -56,8 +57,8 @@ const fetchBookingsStats = async (): Promise<void> => {
       .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
     nextArrival.value = futureArrivals.length > 0 ? futureArrivals[0] : null;
-  } catch (err) {
-    console.error('Erreur lors du chargement des réservations:', err);
+  } catch (error: unknown) {
+    console.error('Erreur lors du chargement des réservations:', error);
   }
 };
 
@@ -78,6 +79,7 @@ onMounted(() => {
 const activeTab = computed((): string => {
   const path = route.path;
   if (path.includes('/messages')) return 'messages';
+  if (path.includes('/tarifs')) return 'pricing';
   if (path.includes('/nouveau')) return 'new';
   return 'bookings';
 });
@@ -86,6 +88,8 @@ const pageTitle = computed((): string => {
   switch (activeTab.value) {
     case 'messages':
       return 'Messages';
+    case 'pricing':
+      return 'Tarifs';
     case 'new':
       return 'Nouvelle réservation';
     default:
@@ -105,8 +109,8 @@ const handleGeneratePoster = async (): Promise<void> => {
   try {
     isGeneratingPoster.value = true;
     await generatePromotionalPoster();
-  } catch (err) {
-    console.error("Erreur lors de la génération de l'affiche:", err);
+  } catch (error: unknown) {
+    console.error("Erreur lors de la génération de l'affiche:", error);
   } finally {
     isGeneratingPoster.value = false;
   }
@@ -117,8 +121,8 @@ const signOut = async (): Promise<void> => {
     isLoggingOut.value = true;
     await authApi.logout();
     router.push('/login');
-  } catch (err) {
-    console.error('Erreur lors de la déconnexion:', err);
+  } catch (error: unknown) {
+    console.error('Erreur lors de la déconnexion:', error);
   } finally {
     isLoggingOut.value = false;
   }
@@ -171,7 +175,7 @@ const signOut = async (): Promise<void> => {
           </button>
           <button
             class="header-btn header-btn--logout"
-            title="Deconnexion"
+            title="Déconnexion"
             :disabled="isLoggingOut"
             @click="signOut"
           >
@@ -275,6 +279,21 @@ const signOut = async (): Promise<void> => {
               />
               <polyline points="22,6 12,13 2,6" />
             </svg>
+            <!-- Tag icon -->
+            <svg
+              v-else-if="tab.icon === 'tag'"
+              xmlns="http://www.w3.org/2000/svg"
+              class="tab-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"
+              />
+              <line x1="7" y1="7" x2="7.01" y2="7" />
+            </svg>
             <!-- Plus icon -->
             <svg
               v-else-if="tab.icon === 'plus'"
@@ -344,7 +363,7 @@ const signOut = async (): Promise<void> => {
             <polyline points="16 17 21 12 16 7" />
             <line x1="21" y1="12" x2="9" y2="12" />
           </svg>
-          <span>{{ isLoggingOut ? 'Deconnexion...' : 'Deconnexion' }}</span>
+          <span>{{ isLoggingOut ? 'Déconnexion...' : 'Déconnexion' }}</span>
         </button>
       </div>
     </aside>
@@ -391,6 +410,21 @@ const signOut = async (): Promise<void> => {
           >
             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
             <polyline points="22,6 12,13 2,6" />
+          </svg>
+          <!-- Tag icon -->
+          <svg
+            v-else-if="tab.icon === 'tag'"
+            xmlns="http://www.w3.org/2000/svg"
+            class="tab-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"
+            />
+            <line x1="7" y1="7" x2="7.01" y2="7" />
           </svg>
           <!-- Plus icon -->
           <svg
