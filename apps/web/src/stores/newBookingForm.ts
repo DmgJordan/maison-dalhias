@@ -1,4 +1,6 @@
 import { defineStore } from 'pinia';
+import { pricingApi, type PriceDetail } from '../lib/api';
+import { OPTION_PRICES, PAYMENT_PERCENTAGES, getFallbackPricePerNight } from '../constants/pricing';
 
 export interface ClientFormData {
   firstName: string;
@@ -32,6 +34,11 @@ export interface NewBookingFormState {
   // Etape 5 : Tarif
   rentalPrice: number;
   pricePerNight: number;
+  priceDetails: PriceDetail[];
+  hasUncoveredDays: boolean;
+  uncoveredDays: number;
+  priceCalculationError: string | null;
+  isCalculatingPrice: boolean;
 
   // Navigation
   currentStep: number;
@@ -60,6 +67,11 @@ const getInitialState = (): NewBookingFormState => ({
   linenIncluded: true,
   rentalPrice: 0,
   pricePerNight: 0,
+  priceDetails: [],
+  hasUncoveredDays: false,
+  uncoveredDays: 0,
+  priceCalculationError: null,
+  isCalculatingPrice: false,
   currentStep: 1,
 });
 
@@ -76,15 +88,15 @@ export const useNewBookingFormStore = defineStore('newBookingForm', {
     },
 
     cleaningPrice(): number {
-      return this.cleaningIncluded ? 80 : 0;
+      return this.cleaningIncluded ? OPTION_PRICES.CLEANING : 0;
     },
 
     linenPrice(): number {
-      return this.linenIncluded ? 15 * this.occupantsCount : 0;
+      return this.linenIncluded ? OPTION_PRICES.LINEN_PER_PERSON * this.occupantsCount : 0;
     },
 
     touristTaxPrice(): number {
-      return 1 * this.adultsCount * this.nightsCount;
+      return OPTION_PRICES.TOURIST_TAX_PER_ADULT_PER_NIGHT * this.adultsCount * this.nightsCount;
     },
 
     totalPrice(): number {
@@ -92,7 +104,7 @@ export const useNewBookingFormStore = defineStore('newBookingForm', {
     },
 
     depositAmount(): number {
-      return Math.round(this.totalPrice * 0.3);
+      return Math.round(this.totalPrice * PAYMENT_PERCENTAGES.DEPOSIT);
     },
 
     balanceAmount(): number {
@@ -209,25 +221,46 @@ export const useNewBookingFormStore = defineStore('newBookingForm', {
       this.secondaryClient = { ...this.secondaryClient, ...client };
     },
 
-    calculateSuggestedPrice(): void {
+    async calculateSuggestedPrice(): Promise<void> {
+      if (!this.startDate || !this.endDate) return;
+
+      this.isCalculatingPrice = true;
+      this.priceCalculationError = null;
+
+      try {
+        const result = await pricingApi.calculate(this.startDate, this.endDate);
+
+        this.rentalPrice = result.totalPrice;
+        this.priceDetails = result.details;
+        this.hasUncoveredDays = result.hasUncoveredDays;
+        this.uncoveredDays = result.uncoveredDays;
+
+        // Calculer le prix moyen par nuit pour l'affichage
+        if (result.totalNights > 0) {
+          this.pricePerNight = Math.round(result.totalPrice / result.totalNights);
+        }
+      } catch {
+        // Fallback: calcul local si l'API n'est pas disponible
+        this.priceCalculationError = 'Calcul automatique indisponible';
+        this.calculateFallbackPrice();
+      } finally {
+        this.isCalculatingPrice = false;
+      }
+    },
+
+    calculateFallbackPrice(): void {
       if (!this.startDate) return;
 
       const start = new Date(this.startDate);
       const month = start.getMonth() + 1;
 
-      // Tarifs selon la periode
-      let pricePerNight = 80; // Basse saison par defaut
-
-      if (month >= 7 && month <= 8) {
-        pricePerNight = 180; // Juillet-Aout
-      } else if (month >= 4 && month <= 6) {
-        pricePerNight = 120; // Avril-Juin
-      } else if (month === 9 || month === 10) {
-        pricePerNight = 100; // Septembre-Octobre
-      }
+      const pricePerNight = getFallbackPricePerNight(month);
 
       this.pricePerNight = pricePerNight;
       this.rentalPrice = pricePerNight * this.nightsCount;
+      this.priceDetails = [];
+      this.hasUncoveredDays = false;
+      this.uncoveredDays = 0;
     },
 
     reset(): void {
@@ -243,6 +276,11 @@ export const useNewBookingFormStore = defineStore('newBookingForm', {
       this.linenIncluded = initial.linenIncluded;
       this.rentalPrice = initial.rentalPrice;
       this.pricePerNight = initial.pricePerNight;
+      this.priceDetails = initial.priceDetails;
+      this.hasUncoveredDays = initial.hasUncoveredDays;
+      this.uncoveredDays = initial.uncoveredDays;
+      this.priceCalculationError = initial.priceCalculationError;
+      this.isCalculatingPrice = initial.isCalculatingPrice;
       this.currentStep = initial.currentStep;
     },
 

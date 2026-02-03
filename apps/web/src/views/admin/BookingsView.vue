@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { bookingsApi, type Booking } from '../../lib/api';
+import { useRouter } from 'vue-router';
+import { bookingsApi, seasonsApi, datePeriodsApi, type Booking } from '../../lib/api';
 import BookingCard from '../../components/admin/BookingCard.vue';
 
+const router = useRouter();
 const bookings = ref<Booking[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -10,6 +12,10 @@ const successMessage = ref<string | null>(null);
 const filter = ref<'upcoming' | 'past'>('upcoming');
 const loadingBookingId = ref<string | null>(null);
 const loadingAction = ref<'confirm' | 'cancel' | 'delete' | null>(null);
+
+// Configuration tarifaire
+const pricingConfigWarning = ref<string | null>(null);
+const checkingPricingConfig = ref(false);
 
 const filteredBookings = computed((): Booking[] => {
   const now = new Date();
@@ -57,8 +63,8 @@ const fetchBookings = async (): Promise<void> => {
     error.value = null;
     const data = await bookingsApi.getAll();
     bookings.value = data;
-  } catch (err) {
-    console.error('Erreur lors du chargement des réservations:', err);
+  } catch (error: unknown) {
+    console.error('Erreur lors du chargement des réservations:', error);
     error.value = 'Impossible de charger les réservations. Veuillez réessayer.';
   } finally {
     loading.value = false;
@@ -80,10 +86,10 @@ const handleConfirm = async (id: string): Promise<void> => {
     error.value = null;
     await bookingsApi.confirm(id);
     await fetchBookings();
-    showSuccess('Reservation confirmee !');
-  } catch (err) {
-    console.error('Erreur lors de la confirmation:', err);
-    error.value = 'Impossible de confirmer la reservation. Veuillez reessayer.';
+    showSuccess('Réservation confirmée !');
+  } catch (error: unknown) {
+    console.error('Erreur lors de la confirmation:', error);
+    error.value = 'Impossible de confirmer la réservation. Veuillez réessayer.';
   } finally {
     loading.value = false;
     loadingBookingId.value = null;
@@ -99,10 +105,10 @@ const handleCancel = async (id: string): Promise<void> => {
     error.value = null;
     await bookingsApi.cancel(id);
     await fetchBookings();
-    showSuccess('Reservation annulee.');
-  } catch (err) {
-    console.error("Erreur lors de l'annulation:", err);
-    error.value = "Impossible d'annuler la reservation. Veuillez reessayer.";
+    showSuccess('Réservation annulée.');
+  } catch (error: unknown) {
+    console.error("Erreur lors de l'annulation:", error);
+    error.value = "Impossible d'annuler la réservation. Veuillez réessayer.";
   } finally {
     loading.value = false;
     loadingBookingId.value = null;
@@ -118,10 +124,10 @@ const handleDelete = async (id: string): Promise<void> => {
     error.value = null;
     await bookingsApi.delete(id);
     await fetchBookings();
-    showSuccess('Reservation supprimee.');
-  } catch (err) {
-    console.error('Erreur lors de la suppression:', err);
-    error.value = 'Impossible de supprimer la reservation. Veuillez reessayer.';
+    showSuccess('Réservation supprimée.');
+  } catch (error: unknown) {
+    console.error('Erreur lors de la suppression:', error);
+    error.value = 'Impossible de supprimer la réservation. Veuillez réessayer.';
   } finally {
     loading.value = false;
     loadingBookingId.value = null;
@@ -129,8 +135,38 @@ const handleDelete = async (id: string): Promise<void> => {
   }
 };
 
+const checkPricingConfig = async (): Promise<void> => {
+  checkingPricingConfig.value = true;
+  try {
+    const currentYear = new Date().getFullYear();
+    const [seasons, periods] = await Promise.all([
+      seasonsApi.getAll(),
+      datePeriodsApi.getByYear(currentYear),
+    ]);
+
+    if (seasons.length === 0) {
+      pricingConfigWarning.value =
+        'Aucune saison tarifaire configurée. Les prix devront être saisis manuellement.';
+    } else if (periods.length === 0) {
+      pricingConfigWarning.value = `Aucune plage de dates configurée pour ${currentYear}. Les prix devront être saisis manuellement.`;
+    } else {
+      pricingConfigWarning.value = null;
+    }
+  } catch {
+    // Silently ignore - not critical
+    pricingConfigWarning.value = null;
+  } finally {
+    checkingPricingConfig.value = false;
+  }
+};
+
+const goToPricingConfig = (): void => {
+  void router.push('/admin/tarifs');
+};
+
 onMounted(() => {
   void fetchBookings();
+  void checkPricingConfig();
 });
 </script>
 
@@ -171,6 +207,42 @@ onMounted(() => {
         </svg>
         <span>{{ error }}</span>
         <button class="error-close" @click="error = null">Fermer</button>
+      </div>
+    </Transition>
+
+    <!-- Avertissement configuration tarifaire -->
+    <Transition name="fade">
+      <div v-if="pricingConfigWarning && !checkingPricingConfig" class="pricing-warning">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="warning-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+          />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+        <div class="warning-content">
+          <span class="warning-text">{{ pricingConfigWarning }}</span>
+          <button class="warning-action" @click="goToPricingConfig">Configurer les tarifs</button>
+        </div>
+        <button class="warning-dismiss" @click="pricingConfigWarning = null">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
       </div>
     </Transition>
 
@@ -333,6 +405,75 @@ onMounted(() => {
 
 .error-close:hover {
   background-color: #fecaca;
+}
+
+/* Avertissement configuration tarifaire */
+.pricing-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background-color: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.pricing-warning .warning-icon {
+  width: 24px;
+  height: 24px;
+  color: #d97706;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.warning-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.warning-text {
+  font-size: 14px;
+  color: #92400e;
+  line-height: 1.4;
+}
+
+.warning-action {
+  align-self: flex-start;
+  padding: 8px 16px;
+  background-color: #d97706;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.warning-action:hover {
+  background-color: #b45309;
+}
+
+.warning-dismiss {
+  padding: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #92400e;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.warning-dismiss:hover {
+  opacity: 1;
+}
+
+.warning-dismiss svg {
+  width: 20px;
+  height: 20px;
 }
 
 /* Barre de filtres */

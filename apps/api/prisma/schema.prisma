@@ -78,3 +78,39 @@ model ContactForm {
 
   @@map("contact_forms")
 }
+
+model Season {
+  id            String       @id @default(uuid())
+  name          String       @unique
+  pricePerNight Decimal      @map("price_per_night") @db.Decimal(10, 2)
+  color         String?
+  order         Int          @default(0)
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+  datePeriods   DatePeriod[]
+
+  @@map("seasons")
+}
+
+model DatePeriod {
+  id        String   @id @default(uuid())
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+  year      Int
+  seasonId  String   @map("season_id")
+  season    Season   @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([year])
+  @@index([startDate, endDate])
+  @@map("date_periods")
+}
+
+model Settings {
+  id                  String   @id @default("default")
+  defaultPricePerNight Decimal  @default(100) @map("default_price_per_night") @db.Decimal(10, 2)
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import { useNewBookingFormStore } from '../../stores/newBookingForm';
 import { bookingsApi } from '../../lib/api';
 import DatePicker from '../../components/admin/DatePicker.vue';
+import { formatDateLong, formatPrice } from '../../utils/formatting';
 
 const router = useRouter();
 const formStore = useNewBookingFormStore();
@@ -36,30 +37,11 @@ const minEndDate = computed((): string => {
   return start.toISOString().split('T')[0];
 });
 
-const formatDate = (dateString: string): string => {
-  if (!dateString) return '-';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-};
-
-const formatPrice = (price: number): string => {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-  }).format(price);
-};
-
 const fetchBookedDates = async (): Promise<void> => {
   try {
     bookedDates.value = await bookingsApi.getBookedDates();
-  } catch (err) {
-    console.error('Erreur lors du chargement des dates:', err);
+  } catch (error: unknown) {
+    console.error('Erreur lors du chargement des dates:', error);
   }
 };
 
@@ -67,8 +49,8 @@ const checkDateConflicts = async (): Promise<boolean> => {
   if (!formStore.startDate || !formStore.endDate) return false;
   try {
     return await bookingsApi.checkConflicts(formStore.startDate, formStore.endDate);
-  } catch (err) {
-    console.error('Erreur lors de la verification des conflits:', err);
+  } catch (error: unknown) {
+    console.error('Erreur lors de la verification des conflits:', error);
     return true;
   }
 };
@@ -80,14 +62,14 @@ const handleNext = async (): Promise<void> => {
   if (currentStep.value === 1) {
     const hasConflict = await checkDateConflicts();
     if (hasConflict) {
-      error.value = "Ces dates sont deja reservees. Veuillez choisir d'autres dates.";
+      error.value = "Ces dates sont déjà réservées. Veuillez choisir d'autres dates.";
       return;
     }
   }
 
   // Calculer le prix suggere quand on passe a l'etape 5
   if (currentStep.value === 4) {
-    formStore.calculateSuggestedPrice();
+    await formStore.calculateSuggestedPrice();
   }
 
   formStore.nextStep();
@@ -106,15 +88,15 @@ const handleSubmit = async (): Promise<void> => {
     const bookingData = formStore.getBookingData();
     await bookingsApi.create(bookingData);
 
-    successMessage.value = 'Reservation creee avec succes !';
+    successMessage.value = 'Réservation créée avec succès !';
     formStore.reset();
 
     setTimeout(() => {
       router.push('/admin/reservations');
     }, 2000);
-  } catch (err) {
-    console.error('Erreur lors de la creation de la reservation:', err);
-    error.value = 'Impossible de creer la reservation. Veuillez reessayer.';
+  } catch (error: unknown) {
+    console.error('Erreur lors de la creation de la reservation:', error);
+    error.value = 'Impossible de créer la réservation. Veuillez réessayer.';
   } finally {
     loading.value = false;
   }
@@ -231,13 +213,13 @@ onMounted(() => {
       <!-- Etape 1 : Dates -->
       <div v-if="currentStep === 1" class="step-panel">
         <h2 class="step-title">Quand arrive le client ?</h2>
-        <p class="step-description">Selectionnez les dates de sejour (minimum 3 nuits)</p>
+        <p class="step-description">Sélectionnez les dates de séjour (minimum 3 nuits)</p>
 
         <div class="form-group">
           <DatePicker
             v-model="formStore.startDate"
-            label="Date d'arrivee"
-            placeholder="Choisir la date d'arrivee"
+            label="Date d'arrivée"
+            placeholder="Choisir la date d'arrivée"
             :min-date="minDate"
             :disabled-dates="bookedDates"
           />
@@ -246,8 +228,8 @@ onMounted(() => {
         <div class="form-group">
           <DatePicker
             v-model="formStore.endDate"
-            label="Date de depart"
-            placeholder="Choisir la date de depart"
+            label="Date de départ"
+            placeholder="Choisir la date de départ"
             :min-date="minEndDate"
             :disabled="!formStore.startDate"
             :disabled-dates="bookedDates"
@@ -256,7 +238,7 @@ onMounted(() => {
 
         <div v-if="formStore.nightsCount > 0" class="date-summary">
           <div class="summary-item">
-            <span class="summary-label">Duree</span>
+            <span class="summary-label">Durée</span>
             <span class="summary-value"
               >{{ formStore.nightsCount }} nuit{{ formStore.nightsCount > 1 ? 's' : '' }}</span
             >
@@ -264,7 +246,7 @@ onMounted(() => {
         </div>
 
         <p v-if="formStore.startDate && formStore.nightsCount < 3" class="form-error">
-          Le sejour minimum est de 3 nuits
+          Le séjour minimum est de 3 nuits
         </p>
       </div>
 
@@ -275,7 +257,7 @@ onMounted(() => {
 
         <div class="form-row">
           <div class="form-group">
-            <label for="firstName" class="form-label">Prenom</label>
+            <label for="firstName" class="form-label">Prénom</label>
             <input
               id="firstName"
               v-model="formStore.primaryClient.firstName"
@@ -332,7 +314,7 @@ onMounted(() => {
         </div>
 
         <div class="form-group">
-          <label for="phone" class="form-label">Telephone</label>
+          <label for="phone" class="form-label">Téléphone</label>
           <input
             id="phone"
             v-model="formStore.primaryClient.phone"
@@ -366,7 +348,7 @@ onMounted(() => {
           <p class="form-subtitle">Second locataire</p>
           <div class="form-row">
             <div class="form-group">
-              <label for="secondFirstName" class="form-label">Prenom</label>
+              <label for="secondFirstName" class="form-label">Prénom</label>
               <input
                 id="secondFirstName"
                 v-model="formStore.secondaryClient.firstName"
@@ -431,7 +413,7 @@ onMounted(() => {
         </div>
 
         <div class="form-group">
-          <label class="form-label">Dont adultes (pour la taxe de sejour)</label>
+          <label class="form-label">Dont adultes (pour la taxe de séjour)</label>
           <div class="counter-input">
             <button
               class="counter-btn"
@@ -466,14 +448,14 @@ onMounted(() => {
               </svg>
             </button>
           </div>
-          <p class="form-hint">Les mineurs sont exemptes de taxe de sejour (1 EUR/nuit/adulte)</p>
+          <p class="form-hint">Les mineurs sont exemptés de taxe de séjour (1 EUR/nuit/adulte)</p>
         </div>
       </div>
 
       <!-- Etape 4 : Options -->
       <div v-if="currentStep === 4" class="step-panel">
-        <h2 class="step-title">Options du sejour</h2>
-        <p class="step-description">Cochez les options souhaitees</p>
+        <h2 class="step-title">Options du séjour</h2>
+        <p class="step-description">Cochez les options souhaitées</p>
 
         <div class="options-list">
           <label
@@ -483,7 +465,7 @@ onMounted(() => {
             <input v-model="formStore.cleaningIncluded" type="checkbox" class="option-input" />
             <div class="option-content">
               <div class="option-header">
-                <span class="option-name">Menage fin de sejour</span>
+                <span class="option-name">Ménage fin de séjour</span>
                 <span class="option-price">80 EUR</span>
               </div>
               <p class="option-description">Nettoyage complet (hors vaisselle et cuisine)</p>
@@ -537,21 +519,89 @@ onMounted(() => {
             <line x1="12" y1="16" x2="12" y2="12" />
             <line x1="12" y1="8" x2="12.01" y2="8" />
           </svg>
-          <p>La taxe de sejour (1 EUR/nuit/adulte) est automatiquement incluse.</p>
+          <p>La taxe de séjour (1 EUR/nuit/adulte) est automatiquement incluse.</p>
         </div>
       </div>
 
       <!-- Etape 5 : Tarif -->
       <div v-if="currentStep === 5" class="step-panel">
         <h2 class="step-title">Tarif de la location</h2>
-        <p class="step-description">Ajustez le prix si necessaire</p>
+        <p class="step-description">Ajustez le prix si nécessaire</p>
 
-        <div class="price-suggestion">
+        <!-- Indicateur de chargement -->
+        <div v-if="formStore.isCalculatingPrice" class="price-loading">
+          <svg
+            class="loading-spinner"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="10" />
+          </svg>
+          <span>Calcul du tarif en cours...</span>
+        </div>
+
+        <!-- Erreur de calcul -->
+        <div v-if="formStore.priceCalculationError" class="price-warning">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="warning-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path
+              d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+            />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          <span>{{ formStore.priceCalculationError }} - Tarif de secours appliqué</span>
+        </div>
+
+        <!-- Jours non couverts -->
+        <div v-if="formStore.hasUncoveredDays" class="price-warning">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="warning-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span
+            >{{ formStore.uncoveredDays }} jour(s) non couverts par la grille tarifaire (tarif par
+            défaut appliqué)</span
+          >
+        </div>
+
+        <!-- Detail par saison -->
+        <div v-if="formStore.priceDetails.length > 0" class="price-details">
+          <h3 class="details-title">Détail du calcul</h3>
+          <div v-for="(detail, index) in formStore.priceDetails" :key="index" class="detail-line">
+            <div class="detail-period">
+              <span class="detail-season">{{ detail.seasonName }}</span>
+              <span class="detail-dates"
+                >{{ detail.nights }} nuit{{ detail.nights > 1 ? 's' : '' }} x
+                {{ formatPrice(detail.pricePerNight) }}</span
+              >
+            </div>
+            <span class="detail-subtotal">{{ formatPrice(detail.subtotal) }}</span>
+          </div>
+        </div>
+
+        <div v-else class="price-suggestion">
           <div class="suggestion-header">
-            <span class="suggestion-label">Prix suggere</span>
+            <span class="suggestion-label">Prix suggéré</span>
             <span class="suggestion-value">{{ formatPrice(formStore.pricePerNight) }}/nuit</span>
           </div>
-          <p class="suggestion-note">Base sur la periode ({{ formStore.nightsCount }} nuits)</p>
+          <p class="suggestion-note">Basé sur la période ({{ formStore.nightsCount }} nuits)</p>
         </div>
 
         <div class="form-group">
@@ -570,13 +620,13 @@ onMounted(() => {
         </div>
 
         <div class="price-breakdown">
-          <h3 class="breakdown-title">Recapitulatif des couts</h3>
+          <h3 class="breakdown-title">Récapitulatif des coûts</h3>
           <div class="breakdown-line">
             <span>Location ({{ formStore.nightsCount }} nuits)</span>
             <span>{{ formatPrice(formStore.rentalPrice) }}</span>
           </div>
           <div v-if="formStore.cleaningIncluded" class="breakdown-line">
-            <span>Menage</span>
+            <span>Ménage</span>
             <span>{{ formatPrice(formStore.cleaningPrice) }}</span>
           </div>
           <div v-if="formStore.linenIncluded" class="breakdown-line">
@@ -584,7 +634,7 @@ onMounted(() => {
             <span>{{ formatPrice(formStore.linenPrice) }}</span>
           </div>
           <div class="breakdown-line">
-            <span>Taxe de sejour</span>
+            <span>Taxe de séjour</span>
             <span>{{ formatPrice(formStore.touristTaxPrice) }}</span>
           </div>
           <div class="breakdown-line breakdown-line--total">
@@ -596,15 +646,15 @@ onMounted(() => {
 
       <!-- Etape 6 : Recapitulatif -->
       <div v-if="currentStep === 6" class="step-panel">
-        <h2 class="step-title">Verifiez les informations</h2>
-        <p class="step-description">Confirmez pour creer la reservation</p>
+        <h2 class="step-title">Vérifiez les informations</h2>
+        <p class="step-description">Confirmez pour créer la réservation</p>
 
         <div class="recap-section">
-          <h3 class="recap-title">Dates du sejour</h3>
+          <h3 class="recap-title">Dates du séjour</h3>
           <div class="recap-content">
-            <p><strong>Arrivee :</strong> {{ formatDate(formStore.startDate) }}</p>
-            <p><strong>Depart :</strong> {{ formatDate(formStore.endDate) }}</p>
-            <p><strong>Duree :</strong> {{ formStore.nightsCount }} nuits</p>
+            <p><strong>Arrivée :</strong> {{ formatDateLong(formStore.startDate) }}</p>
+            <p><strong>Départ :</strong> {{ formatDateLong(formStore.endDate) }}</p>
+            <p><strong>Durée :</strong> {{ formStore.nightsCount }} nuits</p>
           </div>
         </div>
 
@@ -616,7 +666,7 @@ onMounted(() => {
               <strong>Adresse :</strong> {{ formStore.primaryClient.address }},
               {{ formStore.primaryClient.postalCode }} {{ formStore.primaryClient.city }}
             </p>
-            <p><strong>Telephone :</strong> {{ formStore.primaryClient.phone }}</p>
+            <p><strong>Téléphone :</strong> {{ formStore.primaryClient.phone }}</p>
             <p><strong>Email :</strong> {{ formStore.primaryClient.email }}</p>
           </div>
         </div>
@@ -636,7 +686,7 @@ onMounted(() => {
         <div class="recap-section">
           <h3 class="recap-title">Options</h3>
           <div class="recap-content">
-            <p v-if="formStore.cleaningIncluded">Menage fin de sejour : 80 EUR</p>
+            <p v-if="formStore.cleaningIncluded">Ménage fin de séjour : 80 EUR</p>
             <p v-if="formStore.linenIncluded">
               Linge de maison : {{ formatPrice(formStore.linenPrice) }}
             </p>
@@ -648,7 +698,7 @@ onMounted(() => {
           <h3 class="recap-title">Montants</h3>
           <div class="recap-content">
             <div class="recap-price-line">
-              <span>Total a payer</span>
+              <span>Total à payer</span>
               <span class="recap-total">{{ formatPrice(formStore.totalPrice) }}</span>
             </div>
             <div class="recap-price-line">
@@ -659,7 +709,7 @@ onMounted(() => {
               <span>Solde (15j avant)</span>
               <span>{{ formatPrice(formStore.balanceAmount) }}</span>
             </div>
-            <p class="recap-deposit">+ Depot de garantie : 500 EUR (cheque non encaisse)</p>
+            <p class="recap-deposit">+ Dépôt de garantie : 500 EUR (chèque non encaissé)</p>
           </div>
         </div>
       </div>
@@ -678,7 +728,7 @@ onMounted(() => {
           <line x1="19" y1="12" x2="5" y2="12" />
           <polyline points="12 19 5 12 12 5" />
         </svg>
-        Precedent
+        Précédent
       </button>
       <button v-else class="nav-btn nav-btn--reset" @click="handleReset">Recommencer</button>
 
@@ -722,7 +772,7 @@ onMounted(() => {
           >
             <polyline points="20 6 9 17 4 12" />
           </svg>
-          Creer la reservation
+          Créer la réservation
         </template>
       </button>
     </div>
@@ -1178,6 +1228,99 @@ onMounted(() => {
   font-size: 13px;
   color: #0369a1;
   margin: 0;
+}
+
+/* Chargement du prix */
+.price-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  background-color: #f3f4f6;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  color: #6b7280;
+  font-size: 15px;
+}
+
+.price-loading .loading-spinner {
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+}
+
+/* Avertissement prix */
+.price-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  background-color: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #92400e;
+}
+
+.price-warning .warning-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: #d97706;
+}
+
+/* Detail par saison */
+.price-details {
+  background-color: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.details-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #065f46;
+  margin: 0 0 12px 0;
+}
+
+.detail-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #a7f3d0;
+}
+
+.detail-line:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.detail-period {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detail-season {
+  font-size: 15px;
+  font-weight: 600;
+  color: #047857;
+}
+
+.detail-dates {
+  font-size: 13px;
+  color: #059669;
+}
+
+.detail-subtotal {
+  font-size: 15px;
+  font-weight: 600;
+  color: #065f46;
 }
 
 /* Prix suggere */
