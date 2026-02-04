@@ -107,6 +107,8 @@ export interface Season {
   id: string;
   name: string;
   pricePerNight: number;
+  weeklyNightRate: number | null;
+  minNights: number;
   color: string | null;
   order: number;
   datePeriods?: DatePeriodSummary[];
@@ -145,10 +147,32 @@ export interface PriceDetail {
 export interface PriceCalculation {
   totalPrice: number;
   totalNights: number;
+  isWeeklyRate: boolean;
+  minNightsRequired: number;
   details: PriceDetail[];
   hasUncoveredDays: boolean;
   uncoveredDays: number;
   defaultPricePerNight: number;
+}
+
+export interface PublicPricingPeriod {
+  seasonName: string;
+  startDate: string;
+  endDate: string;
+  pricePerNight: number;
+  weeklyPrice: number;
+  minNights: number;
+  color: string | null;
+}
+
+export interface PublicPricingGrid {
+  year: number;
+  periods: PublicPricingPeriod[];
+}
+
+export interface ConflictCheckResult {
+  hasConflict: boolean;
+  minNightsRequired: number;
 }
 
 export interface Settings {
@@ -224,13 +248,17 @@ export const bookingsApi = {
     await api.delete(`/bookings/${id}`);
   },
 
-  async checkConflicts(startDate: string, endDate: string, bookingId?: string): Promise<boolean> {
-    const { data } = await api.post<{ hasConflict: boolean }>('/bookings/check-conflicts', {
+  async checkConflicts(
+    startDate: string,
+    endDate: string,
+    bookingId?: string
+  ): Promise<ConflictCheckResult> {
+    const { data } = await api.post<ConflictCheckResult>('/bookings/check-conflicts', {
       startDate,
       endDate,
       bookingId,
     });
-    return data.hasConflict;
+    return data;
   },
 };
 
@@ -267,6 +295,8 @@ export const seasonsApi = {
   async create(season: {
     name: string;
     pricePerNight: number;
+    weeklyNightRate?: number;
+    minNights?: number;
     color?: string;
     order?: number;
   }): Promise<Season> {
@@ -276,7 +306,14 @@ export const seasonsApi = {
 
   async update(
     id: string,
-    season: Partial<{ name: string; pricePerNight: number; color: string; order: number }>
+    season: Partial<{
+      name: string;
+      pricePerNight: number;
+      weeklyNightRate: number | null;
+      minNights: number;
+      color: string;
+      order: number;
+    }>
   ): Promise<Season> {
     const { data } = await api.patch<Season>(`/seasons/${id}`, season);
     return data;
@@ -348,6 +385,18 @@ export const pricingApi = {
       endDate,
     });
     return data;
+  },
+
+  async getPublicGrid(year: number): Promise<PublicPricingGrid> {
+    const { data } = await api.get<PublicPricingGrid>(`/pricing/public-grid?year=${String(year)}`);
+    return data;
+  },
+
+  async getMinNights(startDate: string, endDate: string): Promise<number> {
+    const { data } = await api.get<{ minNights: number }>(
+      `/pricing/min-nights?startDate=${startDate}&endDate=${endDate}`
+    );
+    return data.minNights;
   },
 };
 

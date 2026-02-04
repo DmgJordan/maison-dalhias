@@ -48,7 +48,10 @@ const fetchBookedDates = async (): Promise<void> => {
 const checkDateConflicts = async (): Promise<boolean> => {
   if (!formStore.startDate || !formStore.endDate) return false;
   try {
-    return await bookingsApi.checkConflicts(formStore.startDate, formStore.endDate);
+    const result = await bookingsApi.checkConflicts(formStore.startDate, formStore.endDate);
+    // Mettre à jour le minimum de nuits requis dans le store
+    formStore.minNightsRequired = result.minNightsRequired;
+    return result.hasConflict;
   } catch (error: unknown) {
     console.error('Erreur lors de la verification des conflits:', error);
     return true;
@@ -213,7 +216,9 @@ onMounted(() => {
       <!-- Etape 1 : Dates -->
       <div v-if="currentStep === 1" class="step-panel">
         <h2 class="step-title">Quand arrive le client ?</h2>
-        <p class="step-description">Sélectionnez les dates de séjour (minimum 3 nuits)</p>
+        <p class="step-description">
+          Sélectionnez les dates de séjour (minimum {{ formStore.minNightsRequired }} nuits)
+        </p>
 
         <div class="form-group">
           <DatePicker
@@ -245,8 +250,8 @@ onMounted(() => {
           </div>
         </div>
 
-        <p v-if="formStore.startDate && formStore.nightsCount < 3" class="form-error">
-          Le séjour minimum est de 3 nuits
+        <p v-if="formStore.minNightsError" class="form-error">
+          {{ formStore.minNightsError }}
         </p>
       </div>
 
@@ -579,6 +584,22 @@ onMounted(() => {
             >{{ formStore.uncoveredDays }} jour(s) non couverts par la grille tarifaire (tarif par
             défaut appliqué)</span
           >
+        </div>
+
+        <!-- Indicateur tarif hebdo -->
+        <div v-if="formStore.weeklyRateLabel" class="weekly-rate-badge">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="badge-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+          <span>{{ formStore.weeklyRateLabel }}</span>
         </div>
 
         <!-- Detail par saison -->
@@ -1269,6 +1290,28 @@ onMounted(() => {
   height: 20px;
   flex-shrink: 0;
   color: #d97706;
+}
+
+/* Badge tarif hebdo */
+.weekly-rate-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background-color: #dbeafe;
+  border: 1px solid #93c5fd;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #1e40af;
+}
+
+.weekly-rate-badge .badge-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #2563eb;
 }
 
 /* Detail par saison */

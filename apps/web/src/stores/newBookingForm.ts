@@ -40,6 +40,10 @@ export interface NewBookingFormState {
   priceCalculationError: string | null;
   isCalculatingPrice: boolean;
 
+  // Contraintes dynamiques
+  minNightsRequired: number;
+  isWeeklyRate: boolean;
+
   // Navigation
   currentStep: number;
 }
@@ -72,6 +76,8 @@ const getInitialState = (): NewBookingFormState => ({
   uncoveredDays: 0,
   priceCalculationError: null,
   isCalculatingPrice: false,
+  minNightsRequired: 3,
+  isWeeklyRate: false,
   currentStep: 1,
 });
 
@@ -127,7 +133,20 @@ export const useNewBookingFormStore = defineStore('newBookingForm', {
       const end = new Date(this.endDate);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      return start >= today && end > start && this.nightsCount >= 3;
+      return start >= today && end > start && this.nightsCount >= this.minNightsRequired;
+    },
+
+    minNightsError(): string | null {
+      if (!this.startDate || !this.endDate) return null;
+      if (this.nightsCount < this.minNightsRequired) {
+        return `Cette période nécessite un minimum de ${String(this.minNightsRequired)} nuits`;
+      }
+      return null;
+    },
+
+    weeklyRateLabel(): string | null {
+      if (!this.isWeeklyRate) return null;
+      return 'Tarif semaine appliqué (7+ nuits)';
     },
 
     isStep2Valid(): boolean {
@@ -234,6 +253,8 @@ export const useNewBookingFormStore = defineStore('newBookingForm', {
         this.priceDetails = result.details;
         this.hasUncoveredDays = result.hasUncoveredDays;
         this.uncoveredDays = result.uncoveredDays;
+        this.minNightsRequired = result.minNightsRequired;
+        this.isWeeklyRate = result.isWeeklyRate;
 
         // Calculer le prix moyen par nuit pour l'affichage
         if (result.totalNights > 0) {
@@ -281,6 +302,8 @@ export const useNewBookingFormStore = defineStore('newBookingForm', {
       this.uncoveredDays = initial.uncoveredDays;
       this.priceCalculationError = initial.priceCalculationError;
       this.isCalculatingPrice = initial.isCalculatingPrice;
+      this.minNightsRequired = initial.minNightsRequired;
+      this.isWeeklyRate = initial.isWeeklyRate;
       this.currentStep = initial.currentStep;
     },
 

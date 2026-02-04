@@ -237,7 +237,14 @@ const closeSeasonModal = (): void => {
   editingSeason.value = null;
 };
 
-const handleSaveSeason = async (data: { name: string; pricePerNight: number }): Promise<void> => {
+interface SeasonSaveData {
+  name: string;
+  pricePerNight: number;
+  weeklyNightRate?: number | null;
+  minNights: number;
+}
+
+const handleSaveSeason = async (data: SeasonSaveData): Promise<void> => {
   try {
     isSubmittingSeason.value = true;
     error.value = null;
@@ -537,17 +544,27 @@ onMounted(async () => {
           <div v-for="season in seasons" :key="season.id" class="season-row">
             <div class="season-info">
               <span class="season-name">{{ season.name }}</span>
-              <span
-                v-if="season.datePeriods && season.datePeriods.length > 0"
-                class="season-periods"
-              >
-                {{ season.datePeriods.length }} période{{
-                  season.datePeriods.length > 1 ? 's' : ''
-                }}
-              </span>
+              <div class="season-meta">
+                <span
+                  v-if="season.datePeriods && season.datePeriods.length > 0"
+                  class="season-periods"
+                >
+                  {{ season.datePeriods.length }} période{{
+                    season.datePeriods.length > 1 ? 's' : ''
+                  }}
+                </span>
+                <span v-if="season.minNights > 3" class="season-min-nights">
+                  Min {{ season.minNights }} nuits
+                </span>
+              </div>
             </div>
-            <div class="season-price">
-              {{ formatPrice(season.pricePerNight) }}<span class="price-unit">/nuit</span>
+            <div class="season-pricing">
+              <div class="season-price">
+                {{ formatPrice(season.pricePerNight) }}<span class="price-unit">/nuit</span>
+              </div>
+              <div v-if="season.weeklyNightRate" class="season-weekly">
+                {{ formatPrice(season.weeklyNightRate * 7) }}<span class="price-unit">/sem</span>
+              </div>
             </div>
             <div class="season-actions">
               <button
@@ -729,7 +746,8 @@ onMounted(async () => {
           <div class="periods-header">
             <span class="col-dates">Période</span>
             <span class="col-season">Saison</span>
-            <span class="col-price">Tarif</span>
+            <span class="col-price">Nuit</span>
+            <span class="col-weekly">Semaine</span>
             <span class="col-actions"></span>
           </div>
           <div v-for="period in datePeriods" :key="period.id" class="period-row">
@@ -742,6 +760,14 @@ onMounted(async () => {
             </div>
             <div class="col-season">{{ period.season.name }}</div>
             <div class="col-price">{{ formatPrice(period.season.pricePerNight) }}</div>
+            <div class="col-weekly">
+              {{
+                formatPrice(
+                  (seasons.find((s) => s.id === period.season.id)?.weeklyNightRate ??
+                    period.season.pricePerNight) * 7
+                )
+              }}
+            </div>
             <div class="col-actions">
               <button
                 class="action-btn"
@@ -1265,7 +1291,7 @@ onMounted(async () => {
 .season-row {
   display: grid;
   grid-template-columns: 1fr auto auto;
-  align-items: center;
+  align-items: start;
   gap: 16px;
   padding: 16px 24px;
   border-bottom: 1px solid #f3f4f6;
@@ -1290,17 +1316,42 @@ onMounted(async () => {
   color: #111827;
 }
 
+.season-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 .season-periods {
   font-size: 12px;
   color: #9ca3af;
-  margin-top: 2px;
+}
+
+.season-min-nights {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.season-pricing {
+  text-align: right;
 }
 
 .season-price {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   color: #111827;
   font-variant-numeric: tabular-nums;
+}
+
+.season-weekly {
+  font-size: 13px;
+  color: #6b7280;
+  margin-top: 2px;
 }
 
 .price-unit {
@@ -1413,7 +1464,7 @@ onMounted(async () => {
 @media (min-width: 768px) {
   .periods-header {
     display: grid;
-    grid-template-columns: 1fr 140px 100px 80px;
+    grid-template-columns: 1fr 120px 80px 90px 80px;
     gap: 16px;
     padding: 12px 24px;
     background: #f9fafb;
@@ -1444,7 +1495,7 @@ onMounted(async () => {
 
 @media (min-width: 768px) {
   .period-row {
-    grid-template-columns: 1fr 140px 100px 80px;
+    grid-template-columns: 1fr 120px 80px 90px 80px;
     align-items: center;
     gap: 16px;
   }
@@ -1476,6 +1527,13 @@ onMounted(async () => {
   font-size: 15px;
   font-weight: 600;
   color: #111827;
+  font-variant-numeric: tabular-nums;
+}
+
+.col-weekly {
+  font-size: 15px;
+  font-weight: 600;
+  color: #059669;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1668,7 +1726,8 @@ onMounted(async () => {
   }
 
   .col-season,
-  .col-price {
+  .col-price,
+  .col-weekly {
     display: none;
   }
 

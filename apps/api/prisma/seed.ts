@@ -56,6 +56,8 @@ async function main(): Promise<void> {
       data: {
         name: 'Basse saison',
         pricePerNight: new Prisma.Decimal(80),
+        weeklyNightRate: new Prisma.Decimal(70),
+        minNights: 3,
         color: '#10B981',
         order: 1,
       },
@@ -64,6 +66,8 @@ async function main(): Promise<void> {
       data: {
         name: 'Moyenne saison',
         pricePerNight: new Prisma.Decimal(120),
+        weeklyNightRate: new Prisma.Decimal(100),
+        minNights: 3,
         color: '#F59E0B',
         order: 2,
       },
@@ -72,6 +76,8 @@ async function main(): Promise<void> {
       data: {
         name: 'Haute saison',
         pricePerNight: new Prisma.Decimal(150),
+        weeklyNightRate: new Prisma.Decimal(130),
+        minNights: 7,
         color: '#F97316',
         order: 3,
       },
@@ -80,6 +86,8 @@ async function main(): Promise<void> {
       data: {
         name: 'Très haute saison',
         pricePerNight: new Prisma.Decimal(180),
+        weeklyNightRate: new Prisma.Decimal(160),
+        minNights: 7,
         color: '#EF4444',
         order: 4,
       },

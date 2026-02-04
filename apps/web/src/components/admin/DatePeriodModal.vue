@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue';
 import type { DatePeriod, Season } from '../../lib/api';
 import { formatPrice, formatDateForInput, countDays } from '../../utils/formatting';
 import BaseModal from './BaseModal.vue';
+import DatePicker from './DatePicker.vue';
 
 interface Props {
   period?: DatePeriod | null;
@@ -100,27 +101,22 @@ watch(
       <div class="year-badge">Année {{ year }}</div>
 
       <!-- Dates -->
-      <div class="dates-row">
+      <div class="dates-column">
         <div class="form-group">
-          <label for="start-date" class="form-label">Date de début</label>
-          <input
-            id="start-date"
+          <DatePicker
             v-model="startDate"
-            type="date"
-            class="form-input"
+            label="Date de début"
+            placeholder="Choisir la date de début"
             :disabled="submitting"
-            required
           />
         </div>
         <div class="form-group">
-          <label for="end-date" class="form-label">Date de fin</label>
-          <input
-            id="end-date"
+          <DatePicker
             v-model="endDate"
-            type="date"
-            class="form-input"
-            :disabled="submitting"
-            required
+            label="Date de fin"
+            placeholder="Choisir la date de fin"
+            :min-date="startDate"
+            :disabled="submitting || !startDate"
           />
         </div>
       </div>
@@ -195,10 +191,10 @@ watch(
   margin-bottom: 20px;
 }
 
-.dates-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+.dates-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 8px;
 }
 
@@ -218,7 +214,6 @@ watch(
   margin-bottom: 8px;
 }
 
-.form-input,
 .form-select {
   width: 100%;
   padding: 12px 14px;
@@ -230,14 +225,12 @@ watch(
   transition: all 0.15s;
 }
 
-.form-input:focus,
 .form-select:focus {
   outline: none;
   border-color: #ff385c;
   box-shadow: 0 0 0 3px rgba(255, 56, 92, 0.1);
 }
 
-.form-input:disabled,
 .form-select:disabled {
   background: #f9fafb;
   cursor: not-allowed;
@@ -364,10 +357,6 @@ watch(
 
 /* Mobile */
 @media (max-width: 480px) {
-  .dates-row {
-    grid-template-columns: 1fr;
-  }
-
   .btn {
     width: 100%;
   }
