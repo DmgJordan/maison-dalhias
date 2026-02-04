@@ -15,21 +15,26 @@ const COLORS = {
 };
 
 /**
- * Charge une image et la convertit en Data URL
+ * Charge une image et la convertit en Data URL optimisée pour PDF
  */
-function loadImage(url: string): Promise<string> {
+function loadImage(url: string, maxWidth = 150): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = 'Anonymous';
     img.onload = (): void => {
       const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
+      // Redimensionner pour réduire la taille du PDF
+      const scale = Math.min(1, maxWidth / img.width);
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.drawImage(img, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       }
-      resolve(canvas.toDataURL('image/png', 1.0));
+      // PNG pour préserver la transparence du logo
+      resolve(canvas.toDataURL('image/png'));
     };
     img.onerror = reject;
     img.src = url;
@@ -123,11 +128,11 @@ export async function generatePricingGrid(
 
   await configurePdfWithFrenchFont(doc);
 
-  // Charger le logo et générer le QR code
-  const logoDataUrl = await loadImage(logoImage);
+  // Charger le logo et générer le QR code (optimisés pour taille PDF réduite)
+  const logoDataUrl = await loadImage(logoImage, 250);
   const websiteUrl = LOGEMENT.site;
   const qrCodeDataUrl = await QRCode.toDataURL(websiteUrl, {
-    width: 200,
+    width: 80, // Réduit de 200 à 80 pour optimiser la taille du PDF
     margin: 1,
     color: { dark: '#000000', light: '#ffffff' },
   });
