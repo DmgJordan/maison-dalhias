@@ -1,6 +1,12 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { Booking, Client } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { PricingService } from '../pricing/pricing.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 
 export interface BookingWithRelations extends Booking {
@@ -16,9 +22,17 @@ export interface DeleteResponse {
   message: string;
 }
 
+export interface ConflictCheckResult {
+  hasConflict: boolean;
+  minNightsRequired: number;
+}
+
 @Injectable()
 export class BookingsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private pricingService: PricingService
+  ) {}
 
   async findAll(): Promise<BookingWithRelations[]> {
     return this.prisma.booking.findMany({
@@ -59,13 +73,23 @@ export class BookingsService {
   }
 
   async create(userId: string, createBookingDto: CreateBookingDto): Promise<BookingWithRelations> {
-    const hasConflict = await this.checkConflicts(
-      new Date(createBookingDto.startDate),
-      new Date(createBookingDto.endDate)
-    );
+    const startDate = new Date(createBookingDto.startDate);
+    const endDate = new Date(createBookingDto.endDate);
 
+    // Vérifier les conflits de dates
+    const hasConflict = await this.checkConflicts(startDate, endDate);
     if (hasConflict) {
       throw new ConflictException('Ces dates sont déjà réservées ou indisponibles');
+    }
+
+    // Vérifier le minimum de nuits dynamique
+    const minNightsRequired = await this.pricingService.getMinNightsForPeriod(startDate, endDate);
+    const nights = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (nights < minNightsRequired) {
+      throw new BadRequestException(
+        `Cette période nécessite un minimum de ${String(minNightsRequired)} nuits`
+      );
     }
 
     let primaryClientId: string | undefined;
@@ -156,6 +180,20 @@ export class BookingsService {
     });
 
     return conflictingBookings.length > 0;
+  }
+
+  async checkConflictsWithMinNights(
+    startDate: Date,
+    endDate: Date,
+    excludeBookingId?: string
+  ): Promise<ConflictCheckResult> {
+    const hasConflict = await this.checkConflicts(startDate, endDate, excludeBookingId);
+    const minNightsRequired = await this.pricingService.getMinNightsForPeriod(startDate, endDate);
+
+    return {
+      hasConflict,
+      minNightsRequired,
+    };
   }
 
   async getBookedDates(): Promise<string[]> {

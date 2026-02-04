@@ -80,14 +80,16 @@ model ContactForm {
 }
 
 model Season {
-  id            String       @id @default(uuid())
-  name          String       @unique
-  pricePerNight Decimal      @map("price_per_night") @db.Decimal(10, 2)
-  color         String?
-  order         Int          @default(0)
-  createdAt     DateTime     @default(now()) @map("created_at")
-  updatedAt     DateTime     @updatedAt @map("updated_at")
-  datePeriods   DatePeriod[]
+  id              String       @id @default(uuid())
+  name            String       @unique
+  pricePerNight   Decimal      @map("price_per_night") @db.Decimal(10, 2)
+  weeklyNightRate Decimal?     @map("weekly_night_rate") @db.Decimal(10, 2)
+  minNights       Int          @default(3) @map("min_nights")
+  color           String?
+  order           Int          @default(0)
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  datePeriods     DatePeriod[]
 
   @@map("seasons")
 }

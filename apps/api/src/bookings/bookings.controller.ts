@@ -21,6 +21,7 @@ interface AuthenticatedRequest {
 
 interface ConflictResponse {
   hasConflict: boolean;
+  minNightsRequired: number;
 }
 
 @Controller('bookings')
@@ -73,11 +74,11 @@ export class BookingsController {
   async checkConflicts(
     @Body() body: { startDate: string; endDate: string; bookingId?: string }
   ): Promise<ConflictResponse> {
-    const hasConflict = await this.bookingsService.checkConflicts(
+    const result = await this.bookingsService.checkConflictsWithMinNights(
       new Date(body.startDate),
       new Date(body.endDate),
       body.bookingId
     );
-    return { hasConflict };
+    return result;
   }
 }

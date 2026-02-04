@@ -3,6 +3,13 @@ import { ref, computed, watch } from 'vue';
 import type { Season } from '../../lib/api';
 import BaseModal from './BaseModal.vue';
 
+interface SaveData {
+  name: string;
+  pricePerNight: number;
+  weeklyNightRate?: number | null;
+  minNights: number;
+}
+
 interface Props {
   season?: Season | null;
   submitting?: boolean;
@@ -15,11 +22,21 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   close: [];
-  save: [data: { name: string; pricePerNight: number }];
+  save: [data: SaveData];
 }>();
 
 const name = ref('');
 const pricePerNight = ref<number | string>('');
+const weeklyNightRate = ref<number | string>('');
+const minNights = ref<number>(3);
+
+const minNightsOptions = [
+  { value: 1, label: '1 nuit' },
+  { value: 2, label: '2 nuits' },
+  { value: 3, label: '3 nuits' },
+  { value: 7, label: '7 nuits (semaine)' },
+  { value: 14, label: '14 nuits (2 semaines)' },
+];
 
 const isEditing = computed((): boolean => !!props.season);
 
@@ -27,10 +44,35 @@ const modalTitle = computed((): string => {
   return isEditing.value ? 'Modifier la saison' : 'Nouvelle saison';
 });
 
+const weeklyPriceDisplay = computed((): string | null => {
+  const rate =
+    typeof weeklyNightRate.value === 'string'
+      ? parseFloat(weeklyNightRate.value)
+      : weeklyNightRate.value;
+  if (isNaN(rate) || rate <= 0) return null;
+  return `${(rate * 7).toFixed(0)}`;
+});
+
+const weeklyRateError = computed((): string | null => {
+  const numPrice =
+    typeof pricePerNight.value === 'string' ? parseFloat(pricePerNight.value) : pricePerNight.value;
+  const weeklyRate =
+    typeof weeklyNightRate.value === 'string'
+      ? parseFloat(weeklyNightRate.value)
+      : weeklyNightRate.value;
+
+  if (!isNaN(weeklyRate) && weeklyRate > 0 && !isNaN(numPrice) && weeklyRate > numPrice) {
+    return 'Le tarif hebdo doit être inférieur ou égal au tarif standard';
+  }
+  return null;
+});
+
 const isValid = computed((): boolean => {
   const trimmedName = name.value.trim();
   const numPrice =
     typeof pricePerNight.value === 'string' ? parseFloat(pricePerNight.value) : pricePerNight.value;
+
+  if (weeklyRateError.value) return false;
 
   return trimmedName.length > 0 && !isNaN(numPrice) && numPrice > 0;
 });
@@ -40,11 +82,26 @@ const handleSubmit = (): void => {
 
   const numPrice =
     typeof pricePerNight.value === 'string' ? parseFloat(pricePerNight.value) : pricePerNight.value;
+  const numWeeklyRate =
+    typeof weeklyNightRate.value === 'string'
+      ? parseFloat(weeklyNightRate.value)
+      : weeklyNightRate.value;
 
-  emit('save', {
+  const data: SaveData = {
     name: name.value.trim(),
     pricePerNight: numPrice,
-  });
+    minNights: minNights.value,
+  };
+
+  // Inclure weeklyNightRate seulement si défini
+  if (!isNaN(numWeeklyRate) && numWeeklyRate > 0) {
+    data.weeklyNightRate = numWeeklyRate;
+  } else if (props.season?.weeklyNightRate !== null) {
+    // Si on édite et qu'on vide le champ, envoyer null
+    data.weeklyNightRate = null;
+  }
+
+  emit('save', data);
 };
 
 const handleClose = (): void => {
@@ -60,9 +117,13 @@ watch(
     if (newSeason) {
       name.value = newSeason.name;
       pricePerNight.value = newSeason.pricePerNight;
+      weeklyNightRate.value = newSeason.weeklyNightRate ?? '';
+      minNights.value = newSeason.minNights;
     } else {
       name.value = '';
       pricePerNight.value = '';
+      weeklyNightRate.value = '';
+      minNights.value = 3;
     }
   },
   { immediate: true }
@@ -70,7 +131,7 @@ watch(
 </script>
 
 <template>
-  <BaseModal :title="modalTitle" :submitting="submitting" max-width="400px" @close="handleClose">
+  <BaseModal :title="modalTitle" :submitting="submitting" max-width="420px" @close="handleClose">
     <form @submit.prevent="handleSubmit">
       <div class="form-group">
         <label for="season-name" class="form-label">Nom de la saison</label>
@@ -100,6 +161,40 @@ watch(
           />
           <span class="price-suffix">EUR / nuit</span>
         </div>
+      </div>
+
+      <div class="form-group">
+        <label for="weekly-rate" class="form-label">
+          Prix par nuit (7+ nuits)
+          <span class="label-hint">Optionnel</span>
+        </label>
+        <div class="price-input">
+          <input
+            id="weekly-rate"
+            v-model="weeklyNightRate"
+            type="number"
+            class="form-input"
+            :class="{ 'has-error': weeklyRateError }"
+            placeholder="Laisser vide si pas de réduction"
+            min="1"
+            step="1"
+            :disabled="submitting"
+          />
+          <span class="price-suffix">EUR / nuit</span>
+        </div>
+        <p v-if="weeklyRateError" class="field-error">{{ weeklyRateError }}</p>
+        <p v-else-if="weeklyPriceDisplay" class="field-hint">
+          Soit {{ weeklyPriceDisplay }} EUR par semaine
+        </p>
+      </div>
+
+      <div class="form-group">
+        <label for="min-nights" class="form-label">Minimum de nuits</label>
+        <select id="min-nights" v-model="minNights" class="form-input" :disabled="submitting">
+          <option v-for="option in minNightsOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
       </div>
     </form>
 
@@ -160,6 +255,43 @@ watch(
 
 .form-input::placeholder {
   color: #9ca3af;
+}
+
+.form-input.has-error {
+  border-color: #ef4444;
+}
+
+.form-input.has-error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+select.form-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 12px center;
+  background-repeat: no-repeat;
+  background-size: 16px;
+  padding-right: 40px;
+}
+
+.label-hint {
+  font-weight: 400;
+  color: #9ca3af;
+  font-size: 13px;
+  margin-left: 8px;
+}
+
+.field-hint {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.field-error {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #ef4444;
 }
 
 .price-input {

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSeasonDto } from './dto/create-season.dto';
 import { UpdateSeasonDto } from './dto/update-season.dto';
@@ -60,9 +60,24 @@ export class SeasonsService {
   }
 
   async create(createSeasonDto: CreateSeasonDto): Promise<Season> {
+    // Validation métier : weeklyNightRate doit être ≤ pricePerNight
+    if (
+      createSeasonDto.weeklyNightRate !== undefined &&
+      createSeasonDto.weeklyNightRate > createSeasonDto.pricePerNight
+    ) {
+      throw new BadRequestException(
+        'Le tarif hebdomadaire ne peut pas être supérieur au tarif standard'
+      );
+    }
+
     const data: Prisma.SeasonCreateInput = {
       name: createSeasonDto.name,
       pricePerNight: new Prisma.Decimal(createSeasonDto.pricePerNight),
+      weeklyNightRate:
+        createSeasonDto.weeklyNightRate !== undefined
+          ? new Prisma.Decimal(createSeasonDto.weeklyNightRate)
+          : null,
+      minNights: createSeasonDto.minNights ?? 3,
       color: createSeasonDto.color,
       order: createSeasonDto.order ?? 0,
     };
@@ -71,7 +86,23 @@ export class SeasonsService {
   }
 
   async update(id: string, updateSeasonDto: UpdateSeasonDto): Promise<Season> {
-    await this.findOne(id);
+    const existingSeason = await this.findOne(id);
+
+    // Déterminer les valeurs finales pour la validation
+    const finalPricePerNight =
+      updateSeasonDto.pricePerNight ?? Number(existingSeason.pricePerNight);
+    const finalWeeklyRate =
+      updateSeasonDto.weeklyNightRate === null
+        ? null
+        : (updateSeasonDto.weeklyNightRate ??
+          (existingSeason.weeklyNightRate ? Number(existingSeason.weeklyNightRate) : null));
+
+    // Validation métier : weeklyNightRate doit être ≤ pricePerNight
+    if (finalWeeklyRate !== null && finalWeeklyRate > finalPricePerNight) {
+      throw new BadRequestException(
+        'Le tarif hebdomadaire ne peut pas être supérieur au tarif standard'
+      );
+    }
 
     const data: Prisma.SeasonUpdateInput = {};
 
@@ -80,6 +111,15 @@ export class SeasonsService {
     }
     if (updateSeasonDto.pricePerNight !== undefined) {
       data.pricePerNight = new Prisma.Decimal(updateSeasonDto.pricePerNight);
+    }
+    if (updateSeasonDto.weeklyNightRate !== undefined) {
+      data.weeklyNightRate =
+        updateSeasonDto.weeklyNightRate === null
+          ? null
+          : new Prisma.Decimal(updateSeasonDto.weeklyNightRate);
+    }
+    if (updateSeasonDto.minNights !== undefined) {
+      data.minNights = updateSeasonDto.minNights;
     }
     if (updateSeasonDto.color !== undefined) {
       data.color = updateSeasonDto.color;
