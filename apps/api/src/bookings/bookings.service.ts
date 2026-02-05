@@ -6,8 +6,9 @@ import {
 } from '@nestjs/common';
 import { Booking, Client } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { PricingService } from '../pricing/pricing.service';
+import { PricingService, PriceCalculation } from '../pricing/pricing.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { UpdateBookingDto } from './dto/update-booking.dto';
 
 export interface BookingWithRelations extends Booking {
   user?: {
@@ -127,6 +128,114 @@ export class BookingsService {
         secondaryClient: true,
       },
     });
+  }
+
+  async update(id: string, updateBookingDto: UpdateBookingDto): Promise<BookingWithRelations> {
+    const booking = await this.findById(id);
+
+    if (booking.status !== 'PENDING') {
+      throw new BadRequestException('Seules les réservations en attente peuvent être modifiées');
+    }
+
+    const startDate = updateBookingDto.startDate
+      ? new Date(updateBookingDto.startDate)
+      : booking.startDate;
+    const endDate = updateBookingDto.endDate ? new Date(updateBookingDto.endDate) : booking.endDate;
+
+    // Vérifier les conflits si les dates sont modifiées
+    if (updateBookingDto.startDate || updateBookingDto.endDate) {
+      const hasConflict = await this.checkConflicts(startDate, endDate, id);
+      if (hasConflict) {
+        throw new ConflictException('Ces dates sont déjà réservées ou indisponibles');
+      }
+
+      // Vérifier le minimum de nuits
+      const minNightsRequired = await this.pricingService.getMinNightsForPeriod(startDate, endDate);
+      const nights = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (nights < minNightsRequired) {
+        throw new BadRequestException(
+          `Cette période nécessite un minimum de ${String(minNightsRequired)} nuits`
+        );
+      }
+    }
+
+    // Recalcul automatique du prix si demandé
+    let rentalPrice = updateBookingDto.rentalPrice;
+    if (updateBookingDto.recalculatePrice) {
+      const priceCalculation = await this.pricingService.calculatePrice(startDate, endDate);
+      rentalPrice = priceCalculation.totalPrice;
+    }
+
+    // Mise à jour du client principal (upsert)
+    let primaryClientId = booking.primaryClientId;
+    if (updateBookingDto.primaryClient) {
+      if (booking.primaryClientId) {
+        await this.prisma.client.update({
+          where: { id: booking.primaryClientId },
+          data: updateBookingDto.primaryClient,
+        });
+      } else {
+        const newClient = await this.prisma.client.create({
+          data: updateBookingDto.primaryClient,
+        });
+        primaryClientId = newClient.id;
+      }
+    }
+
+    // Mise à jour du client secondaire (upsert)
+    let secondaryClientId = booking.secondaryClientId;
+    if (updateBookingDto.secondaryClient) {
+      if (booking.secondaryClientId) {
+        await this.prisma.client.update({
+          where: { id: booking.secondaryClientId },
+          data: updateBookingDto.secondaryClient,
+        });
+      } else {
+        const newClient = await this.prisma.client.create({
+          data: updateBookingDto.secondaryClient,
+        });
+        secondaryClientId = newClient.id;
+      }
+    }
+
+    // Construire les données de mise à jour
+    const updateData: Record<string, unknown> = {};
+
+    if (updateBookingDto.startDate) updateData.startDate = startDate;
+    if (updateBookingDto.endDate) updateData.endDate = endDate;
+    if (primaryClientId !== booking.primaryClientId) updateData.primaryClientId = primaryClientId;
+    if (secondaryClientId !== booking.secondaryClientId)
+      updateData.secondaryClientId = secondaryClientId;
+    if (updateBookingDto.occupantsCount !== undefined)
+      updateData.occupantsCount = updateBookingDto.occupantsCount;
+    if (rentalPrice !== undefined) updateData.rentalPrice = rentalPrice;
+    if (updateBookingDto.touristTaxIncluded !== undefined)
+      updateData.touristTaxIncluded = updateBookingDto.touristTaxIncluded;
+    if (updateBookingDto.cleaningIncluded !== undefined)
+      updateData.cleaningIncluded = updateBookingDto.cleaningIncluded;
+    if (updateBookingDto.linenIncluded !== undefined)
+      updateData.linenIncluded = updateBookingDto.linenIncluded;
+
+    return this.prisma.booking.update({
+      where: { id },
+      data: updateData,
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+          },
+        },
+        primaryClient: true,
+        secondaryClient: true,
+      },
+    });
+  }
+
+  async recalculatePrice(id: string): Promise<PriceCalculation> {
+    const booking = await this.findById(id);
+    return this.pricingService.calculatePrice(booking.startDate, booking.endDate);
   }
 
   async confirm(id: string): Promise<BookingWithRelations> {

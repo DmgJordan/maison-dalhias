@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { bookingsApi, type Booking } from '../../lib/api';
+import { bookingsApi, type Booking, type PriceCalculation } from '../../lib/api';
 import { generateContract } from '../../services/pdf/contractGenerator';
 import { generateInvoice, generateInvoiceNumber } from '../../services/pdf/invoiceGenerator';
+import { OPTION_PRICES } from '../../constants/pricing';
+import BookingEditModal from '../../components/admin/BookingEditModal.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -13,8 +15,12 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
 const showDeleteConfirm = ref(false);
+const showEditModal = ref(false);
 const generatingContract = ref(false);
 const generatingInvoice = ref(false);
+const bookedDates = ref<string[]>([]);
+const priceCalculation = ref<PriceCalculation | null>(null);
+const priceMismatch = ref(false);
 
 const bookingId = computed((): string => route.params.id as string);
 
@@ -31,17 +37,17 @@ const adultsCount = computed((): number => {
 });
 
 const cleaningPrice = computed((): number => {
-  return booking.value?.cleaningIncluded ? 80 : 0;
+  return booking.value?.cleaningIncluded ? OPTION_PRICES.CLEANING : 0;
 });
 
 const linenPrice = computed((): number => {
   if (!booking.value?.linenIncluded) return 0;
-  return 15 * (booking.value.occupantsCount ?? 0);
+  return OPTION_PRICES.LINEN_PER_PERSON * (booking.value.occupantsCount ?? 0);
 });
 
 const touristTaxPrice = computed((): number => {
   if (!booking.value?.touristTaxIncluded) return 0;
-  return 1 * adultsCount.value * nightsCount.value;
+  return OPTION_PRICES.TOURIST_TAX_PER_ADULT_PER_NIGHT * adultsCount.value * nightsCount.value;
 });
 
 const totalPrice = computed((): number => {
@@ -139,6 +145,38 @@ const fetchBooking = async (): Promise<void> => {
   }
 };
 
+const checkPriceConsistency = async (): Promise<void> => {
+  if (!booking.value) return;
+  try {
+    const result = await bookingsApi.recalculatePrice(booking.value.id);
+    priceCalculation.value = result;
+    const storedPrice =
+      typeof booking.value.rentalPrice === 'string'
+        ? parseFloat(booking.value.rentalPrice)
+        : booking.value.rentalPrice;
+    priceMismatch.value = Math.abs(storedPrice - result.totalPrice) > 0.01;
+  } catch {
+    // Silencieux si erreur
+  }
+};
+
+const handleUpdatePrice = async (): Promise<void> => {
+  if (!booking.value || !priceCalculation.value) return;
+  try {
+    loading.value = true;
+    await bookingsApi.update(booking.value.id, {
+      rentalPrice: priceCalculation.value.totalPrice,
+    });
+    await fetchBooking();
+    priceMismatch.value = false;
+    showSuccess('Prix mis a jour !');
+  } catch {
+    error.value = 'Impossible de mettre a jour le prix.';
+  } finally {
+    loading.value = false;
+  }
+};
+
 const showSuccess = (message: string): void => {
   successMessage.value = message;
   setTimeout(() => {
@@ -198,6 +236,22 @@ const goBack = (): void => {
   router.push('/admin/reservations');
 };
 
+const handleOpenEdit = async (): Promise<void> => {
+  try {
+    bookedDates.value = await bookingsApi.getBookedDates();
+  } catch {
+    // Continuer sans les dates réservées
+  }
+  showEditModal.value = true;
+};
+
+const handleBookingUpdated = async (updatedBooking: Booking): Promise<void> => {
+  booking.value = updatedBooking;
+  showEditModal.value = false;
+  showSuccess('Reservation modifiee !');
+  await fetchBooking();
+};
+
 const handleGenerateContract = async (): Promise<void> => {
   if (!booking.value) return;
 
@@ -245,6 +299,12 @@ const handleGenerateInvoice = async (): Promise<void> => {
       cleaningPrice: cleaningPrice.value,
       linenPrice: linenPrice.value,
       touristTaxPrice: touristTaxPrice.value,
+      priceDetails: priceCalculation.value?.details.map((d) => ({
+        nights: d.nights,
+        seasonName: d.seasonName,
+        pricePerNight: d.pricePerNight,
+        subtotal: d.subtotal,
+      })),
     });
 
     showSuccess('Facture telechargee !');
@@ -256,8 +316,9 @@ const handleGenerateInvoice = async (): Promise<void> => {
   }
 };
 
-onMounted(() => {
-  void fetchBooking();
+onMounted(async () => {
+  await fetchBooking();
+  await checkPriceConsistency();
 });
 </script>
 
@@ -487,6 +548,48 @@ onMounted(() => {
               </div>
             </div>
 
+            <!-- Avertissement prix incoherent -->
+            <div
+              v-if="priceMismatch && priceCalculation && booking.status === 'PENDING'"
+              class="price-warning"
+            >
+              <div class="price-warning-text">
+                <strong>Prix potentiellement incorrect</strong>
+                <p>
+                  Prix stocke : {{ formatPrice(booking.rentalPrice) }} | Prix recalcule :
+                  {{ formatPrice(priceCalculation.totalPrice) }}
+                </p>
+              </div>
+              <button class="price-warning-btn" :disabled="loading" @click="handleUpdatePrice">
+                Mettre a jour
+              </button>
+            </div>
+
+            <!-- Detail tarifaire -->
+            <div
+              v-if="priceCalculation && priceCalculation.details.length > 0"
+              class="price-breakdown"
+            >
+              <h3 class="breakdown-title">Detail du calcul</h3>
+              <div
+                v-for="detail in priceCalculation.details"
+                :key="detail.seasonId + detail.startDate"
+                class="breakdown-line"
+              >
+                <span
+                  >{{ detail.nights }} nuit{{ detail.nights > 1 ? 's' : '' }}
+                  {{ detail.seasonName }}</span
+                >
+                <span
+                  >{{ detail.nights }} x {{ formatPrice(detail.pricePerNight) }}/nuit =
+                  {{ formatPrice(detail.subtotal) }}</span
+                >
+              </div>
+              <p v-if="priceCalculation.isWeeklyRate" class="breakdown-note">
+                Tarif hebdomadaire applique
+              </p>
+            </div>
+
             <!-- Echeances -->
             <div class="payment-schedule">
               <h3 class="schedule-title">Echeances de paiement</h3>
@@ -580,11 +683,12 @@ onMounted(() => {
 
       <!-- Actions -->
       <section v-if="booking.status !== 'CANCELLED'" class="detail-actions">
+        <!-- Action principale -->
         <button
           v-if="booking.status === 'PENDING'"
-          class="action-btn action-btn--confirm"
+          class="action-btn action-btn--primary"
           :disabled="loading"
-          @click="handleConfirm"
+          @click="handleOpenEdit"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -594,31 +698,45 @@ onMounted(() => {
             stroke="currentColor"
             stroke-width="2"
           >
-            <polyline points="20 6 9 17 4 12" />
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
           </svg>
-          Confirmer la reservation
+          Modifier la reservation
         </button>
 
-        <button
-          v-if="booking.status === 'PENDING'"
-          class="action-btn action-btn--cancel"
-          :disabled="loading"
-          @click="handleCancel"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="btn-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-          Annuler la reservation
-        </button>
+        <!-- Actions secondaires -->
+        <div v-if="booking.status === 'PENDING'" class="action-row">
+          <button class="action-btn action-btn--confirm" :disabled="loading" @click="handleConfirm">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="btn-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            Confirmer
+          </button>
 
+          <button class="action-btn action-btn--cancel" :disabled="loading" @click="handleCancel">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="btn-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+            Annuler
+          </button>
+        </div>
+
+        <!-- Action danger -->
         <button
           class="action-btn action-btn--delete"
           :disabled="loading"
@@ -665,6 +783,15 @@ onMounted(() => {
         </div>
       </Transition>
     </Teleport>
+
+    <!-- Modal de modification -->
+    <BookingEditModal
+      v-if="showEditModal && booking"
+      :booking="booking"
+      :booked-dates="bookedDates"
+      @close="showEditModal = false"
+      @updated="handleBookingUpdated"
+    />
   </div>
 </template>
 
@@ -1050,6 +1177,89 @@ onMounted(() => {
   color: #222222;
 }
 
+/* Avertissement prix */
+.price-warning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background-color: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.price-warning-text {
+  flex: 1;
+}
+
+.price-warning-text strong {
+  display: block;
+  font-size: 14px;
+  color: #92400e;
+  margin-bottom: 4px;
+}
+
+.price-warning-text p {
+  font-size: 13px;
+  color: #78350f;
+  margin: 0;
+}
+
+.price-warning-btn {
+  padding: 8px 16px;
+  background-color: #f59e0b;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s;
+}
+
+.price-warning-btn:hover:not(:disabled) {
+  background-color: #d97706;
+}
+
+.price-warning-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Detail tarifaire */
+.price-breakdown {
+  background-color: #f0f9ff;
+  border: 1px solid #bae6fd;
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.breakdown-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0369a1;
+  margin: 0 0 8px;
+}
+
+.breakdown-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #0c4a6e;
+  padding: 4px 0;
+}
+
+.breakdown-note {
+  font-size: 12px;
+  color: #0369a1;
+  font-style: italic;
+  margin: 6px 0 0;
+}
+
 /* Echeances */
 .payment-schedule {
   background-color: #fff8e6;
@@ -1170,6 +1380,17 @@ onMounted(() => {
   flex-direction: column;
   gap: 12px;
   margin-top: 24px;
+  background-color: white;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e5e5;
+}
+
+.action-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 .action-btn {
@@ -1177,14 +1398,14 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 16px 24px;
+  padding: 14px 20px;
   border-radius: 12px;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   border: none;
   cursor: pointer;
   transition: all 0.2s;
-  min-height: 56px;
+  min-height: 52px;
 }
 
 .action-btn:disabled {
@@ -1197,31 +1418,61 @@ onMounted(() => {
   height: 20px;
 }
 
-.action-btn--confirm {
-  background-color: #10b981;
+/* Bouton principal - pleine largeur, accent fort */
+.action-btn--primary {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
   color: white;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+  font-size: 16px;
+  min-height: 56px;
+}
+
+.action-btn--primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.45);
+  transform: translateY(-1px);
+}
+
+.action-btn--primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+/* Boutons secondaires - style outline */
+.action-btn--confirm {
+  background-color: white;
+  color: #059669;
+  border: 2px solid #10b981;
 }
 
 .action-btn--confirm:hover:not(:disabled) {
-  background-color: #059669;
+  background-color: #ecfdf5;
+  border-color: #059669;
 }
 
 .action-btn--cancel {
-  background-color: #f59e0b;
-  color: white;
+  background-color: white;
+  color: #d97706;
+  border: 2px solid #f59e0b;
 }
 
 .action-btn--cancel:hover:not(:disabled) {
-  background-color: #d97706;
+  background-color: #fffbeb;
+  border-color: #d97706;
 }
 
+/* Bouton danger - discret */
 .action-btn--delete {
-  background-color: #f3f4f6;
-  color: #6b7280;
+  background-color: transparent;
+  color: #9ca3af;
+  font-size: 14px;
+  font-weight: 500;
+  min-height: 44px;
+  padding: 10px 16px;
 }
 
 .action-btn--delete:hover:not(:disabled) {
-  background-color: #fee2e2;
+  background-color: #fef2f2;
   color: #dc2626;
 }
 
@@ -1331,14 +1582,6 @@ onMounted(() => {
   .success-toast {
     top: 32px;
   }
-
-  .detail-actions {
-    flex-direction: row;
-  }
-
-  .action-btn {
-    flex: 1;
-  }
 }
 
 /* Desktop: Layout 2 colonnes */
@@ -1372,11 +1615,22 @@ onMounted(() => {
   .detail-actions {
     position: sticky;
     bottom: 20px;
-    background-color: white;
-    padding: 20px;
-    border-radius: 16px;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
-    margin-top: 24px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .action-btn--primary {
+    flex: 1 1 100%;
+  }
+
+  .action-row {
+    flex: 1;
+  }
+
+  .action-btn--delete {
+    flex: 0 0 auto;
   }
 }
 
