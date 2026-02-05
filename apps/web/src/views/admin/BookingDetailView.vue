@@ -232,9 +232,8 @@ const handleGenerateInvoice = async (): Promise<void> => {
     generatingInvoice.value = true;
     error.value = null;
 
-    // Generer un numero de facture base sur l'ID de la reservation
-    // En production, ce numero devrait venir du backend
-    const invoiceNumber = generateInvoiceNumber(parseInt(booking.value.id.slice(0, 8), 16) % 1000);
+    // Generer une reference basee sur la date de sejour et le nom du client
+    const invoiceNumber = generateInvoiceNumber(booking.value);
 
     await generateInvoice({
       booking: booking.value,

@@ -326,17 +326,28 @@ export async function generateInvoice(data: InvoiceData): Promise<void> {
   drawPaymentConditions(doc, depositAmount, balanceAmount, margin, y + 20);
 
   // Télécharger le PDF
-  const clientFileName = booking.primaryClient
-    ? `${booking.primaryClient.lastName}_${booking.primaryClient.firstName}`
-    : 'client';
-  const startDateStr = new Date(booking.startDate).toISOString().split('T')[0];
-  doc.save(`facture_${invoiceNumber}_${clientFileName}_${startDateStr}.pdf`);
+  doc.save(`facture_${invoiceNumber}.pdf`);
 }
 
 /**
- * Génère un numéro de facture formaté (ex: "001", "002", etc.)
+ * Génère une référence de facture basée sur la date de séjour et le nom du client
+ * Format: YYYY-MM-DD-NOM (ex: "2024-07-15-DUPONT")
  */
-export function generateInvoiceNumber(existingCount: number): string {
-  const nextNumber = existingCount + 1;
-  return nextNumber.toString().padStart(3, '0');
+export function generateInvoiceNumber(booking: Booking): string {
+  // Extraire la date (gérer les formats ISO string ou Date)
+  const dateStr =
+    typeof booking.startDate === 'string'
+      ? booking.startDate.split('T')[0]
+      : new Date(booking.startDate).toISOString().split('T')[0];
+
+  // Extraire le nom du client
+  const lastName = booking.primaryClient?.lastName ?? 'CLIENT';
+  // Normaliser le nom (majuscules, retirer accents et caractères spéciaux)
+  const normalizedName = lastName
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Z]/g, '');
+
+  return `${dateStr}-${normalizedName}`;
 }
