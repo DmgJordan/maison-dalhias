@@ -44,7 +44,7 @@ Les factures ne recalculent PAS le prix via la config saisons. Si on modifie les
 
 **Tâches :**
 
-- [ ] 1.1 Créer `UpdateBookingDto` avec tous les champs modifiables :
+- [x] 1.1 Créer `UpdateBookingDto` avec tous les champs modifiables :
   ```typescript
   {
     startDate?: string;
@@ -58,14 +58,14 @@ Les factures ne recalculent PAS le prix via la config saisons. Si on modifie les
     linenIncluded?: boolean;
   }
   ```
-- [ ] 1.2 Ajouter méthode `update(id, userId, dto)` dans `BookingsService` :
+- [x] 1.2 Ajouter méthode `update(id, dto)` dans `BookingsService` :
   - Vérifier que la réservation existe
   - Vérifier que le status est `PENDING` (sinon erreur 400)
   - Vérifier les conflits de dates si dates modifiées
   - Valider le minimum de nuits si dates modifiées
   - Mettre à jour les clients (upsert)
   - Mettre à jour la réservation
-- [ ] 1.3 Ajouter endpoint `PATCH /api/bookings/:id` dans le controller
+- [x] 1.3 Ajouter endpoint `PATCH /api/bookings/:id` dans le controller
 - [ ] 1.4 Ajouter tests unitaires
 
 **Validation :**
@@ -86,15 +86,15 @@ if (booking.status !== 'PENDING') {
 
 **Tâches :**
 
-- [ ] 2.1 Ajouter option `recalculatePrice` dans `UpdateBookingDto` :
+- [x] 2.1 Ajouter option `recalculatePrice` dans `UpdateBookingDto` :
   ```typescript
   recalculatePrice?: boolean; // Si true, recalcule via PricingService
   ```
-- [ ] 2.2 Si dates modifiées + `recalculatePrice: true` :
+- [x] 2.2 Si dates modifiées + `recalculatePrice: true` :
   - Appeler `PricingService.calculatePrice(newStartDate, newEndDate)`
   - Mettre à jour `rentalPrice` avec le nouveau total
   - Retourner le détail du calcul dans la réponse
-- [ ] 2.3 Ajouter endpoint `POST /api/bookings/:id/recalculate-price` :
+- [x] 2.3 Ajouter endpoint `POST /api/bookings/:id/recalculate-price` :
   - Recalcule le prix selon les dates actuelles
   - Retourne le détail sans modifier la réservation
   - Utile pour prévisualisation
@@ -110,21 +110,21 @@ if (booking.status !== 'PENDING') {
 
 **Tâches :**
 
-- [ ] 3.1 Mettre à jour `api.ts` avec les nouveaux endpoints :
+- [x] 3.1 Mettre à jour `api.ts` avec les nouveaux endpoints :
   ```typescript
   updateBooking(id: string, data: UpdateBookingData): Promise<Booking>
   recalculateBookingPrice(id: string): Promise<PriceCalculation>
   ```
-- [ ] 3.2 Créer `BookingEditModal.vue` avec édition par sections :
+- [x] 3.2 Créer `BookingEditModal.vue` avec édition par sections :
   - Section Dates (calendrier inline)
   - Section Client principal (formulaire)
   - Section Client secondaire (optionnel)
   - Section Occupants (compteur)
   - Section Options (toggles)
   - Section Prix (auto ou manuel)
-- [ ] 3.3 Ajouter bouton "Modifier" dans `BookingDetailView.vue` (visible si PENDING)
-- [ ] 3.4 Afficher les modifications en temps réel
-- [ ] 3.5 Recalcul automatique du prix si dates changées (avec confirmation)
+- [x] 3.3 Ajouter bouton "Modifier" dans `BookingDetailView.vue` (visible si PENDING)
+- [x] 3.4 Afficher les modifications en temps réel
+- [x] 3.5 Recalcul automatique du prix si dates changées (avec confirmation)
 
 **UX pour utilisateur senior :**
 
@@ -184,16 +184,16 @@ if (booking.status !== 'PENDING') {
 
 **Tâches :**
 
-- [ ] 4.1 Vérifier que `rentalPrice` de la réservation reflète bien le calcul PricingService :
+- [x] 4.1 Vérifier que `rentalPrice` de la réservation reflète bien le calcul PricingService :
   - Tracer le flux : création → stockage → facture
   - Vérifier que weeklyNightRate est appliqué pour réservations ≥7 nuits
-- [ ] 4.2 Ajouter affichage du détail tarifaire dans BookingDetailView :
+- [x] 4.2 Ajouter affichage du détail tarifaire dans BookingDetailView :
   - Si la réservation chevauche plusieurs saisons, afficher le détail
   - Appeler `recalculateBookingPrice` pour obtenir le détail actuel
-- [ ] 4.3 Comparer prix stocké vs prix recalculé :
+- [x] 4.3 Comparer prix stocké vs prix recalculé :
   - Si différence → afficher avertissement
   - Proposer de mettre à jour le prix
-- [ ] 4.4 Améliorer la facture PDF pour afficher le détail par saison (optionnel) :
+- [x] 4.4 Améliorer la facture PDF pour afficher le détail par saison (optionnel) :
   ```
   Location du 28 juin au 8 juillet :
     - 3 nuits Moyenne saison × 80€ = 240€

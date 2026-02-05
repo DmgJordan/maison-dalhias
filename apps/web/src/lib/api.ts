@@ -94,6 +94,19 @@ export interface CreateBookingData {
   linenIncluded?: boolean;
 }
 
+export interface UpdateBookingData {
+  startDate?: string;
+  endDate?: string;
+  primaryClient?: Omit<Client, 'id'>;
+  secondaryClient?: Omit<Client, 'id'>;
+  occupantsCount?: number;
+  rentalPrice?: number;
+  touristTaxIncluded?: boolean;
+  cleaningIncluded?: boolean;
+  linenIncluded?: boolean;
+  recalculatePrice?: boolean;
+}
+
 export interface CreateContactData {
   name: string;
   email: string;
@@ -231,6 +244,16 @@ export const bookingsApi = {
 
   async create(booking: CreateBookingData): Promise<Booking> {
     const { data } = await api.post<Booking>('/bookings', booking);
+    return data;
+  },
+
+  async update(id: string, data: UpdateBookingData): Promise<Booking> {
+    const { data: result } = await api.patch<Booking>(`/bookings/${id}`, data);
+    return result;
+  },
+
+  async recalculatePrice(id: string): Promise<PriceCalculation> {
+    const { data } = await api.post<PriceCalculation>(`/bookings/${id}/recalculate-price`);
     return data;
   },
 

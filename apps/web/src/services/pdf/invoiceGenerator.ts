@@ -3,6 +3,13 @@ import type { Booking } from '../../lib/api';
 import { configurePdfWithFrenchFont } from './fontLoader';
 import { BAILLEUR, TARIFS, PDF_COLORS as COLORS } from '../../constants/property';
 
+export interface PriceDetailForInvoice {
+  nights: number;
+  seasonName: string;
+  pricePerNight: number;
+  subtotal: number;
+}
+
 export interface InvoiceData {
   booking: Booking;
   invoiceNumber: string;
@@ -13,6 +20,7 @@ export interface InvoiceData {
   cleaningPrice: number;
   linenPrice: number;
   touristTaxPrice: number;
+  priceDetails?: PriceDetailForInvoice[];
 }
 
 /**
@@ -190,10 +198,22 @@ function drawTable(
   const tableContentStartY = y - 6;
 
   for (const line of lines) {
-    // Texte de la ligne
+    // Texte de la ligne (gerer multi-lignes)
     doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
-    doc.text(line.designation, colDesignation + 8, y);
+    const designationLines = line.designation.split('\n');
+    doc.text(designationLines[0], colDesignation + 8, y);
     doc.text(formatPrice(line.montant), colMontant + 25, y, { align: 'right' });
+
+    // Sous-lignes (detail par saison)
+    if (designationLines.length > 1) {
+      doc.setFontSize(9);
+      doc.setTextColor(COLORS.secondary.r, COLORS.secondary.g, COLORS.secondary.b);
+      for (let i = 1; i < designationLines.length; i++) {
+        y += 5;
+        doc.text(designationLines[i], colDesignation + 12, y);
+      }
+      doc.setFontSize(10);
+    }
 
     // Ligne de séparation
     y += 4;
@@ -301,9 +321,19 @@ export async function generateInvoice(data: InvoiceData): Promise<void> {
   const rentalPrice =
     typeof booking.rentalPrice === 'string' ? parseFloat(booking.rentalPrice) : booking.rentalPrice;
 
+  // Construire la designation de la location avec detail par saison si disponible
+  let locationDesignation = `Location du ${formatDateShort(booking.startDate)} au ${formatDateShort(booking.endDate)}`;
+  if (data.priceDetails && data.priceDetails.length > 1) {
+    const detailLines = data.priceDetails.map(
+      (d) =>
+        `  ${String(d.nights)} nuit${d.nights > 1 ? 's' : ''} ${d.seasonName} x ${formatPrice(d.pricePerNight)} EUR`
+    );
+    locationDesignation += '\n' + detailLines.join('\n');
+  }
+
   const lines: InvoiceLine[] = [
     {
-      designation: `Location du ${formatDateShort(booking.startDate)} au ${formatDateShort(booking.endDate)}`,
+      designation: locationDesignation,
       montant: rentalPrice,
     },
     {

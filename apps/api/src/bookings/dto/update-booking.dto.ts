@@ -9,12 +9,14 @@ import {
 import { Type } from 'class-transformer';
 import { ClientDto } from './client.dto';
 
-export class CreateBookingDto {
+export class UpdateBookingDto {
+  @IsOptional()
   @IsDateString()
-  startDate: string;
+  startDate?: string;
 
+  @IsOptional()
   @IsDateString()
-  endDate: string;
+  endDate?: string;
 
   @IsOptional()
   @ValidateNested()
@@ -47,4 +49,8 @@ export class CreateBookingDto {
   @IsOptional()
   @IsBoolean()
   linenIncluded?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  recalculatePrice?: boolean;
 }

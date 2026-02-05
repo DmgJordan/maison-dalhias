@@ -10,7 +10,9 @@ import {
   Request,
 } from '@nestjs/common';
 import { BookingsService, BookingWithRelations, DeleteResponse } from './bookings.service';
+import { PriceCalculation } from '../pricing/pricing.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { UpdateBookingDto } from './dto/update-booking.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { Booking } from '@prisma/client';
@@ -50,6 +52,21 @@ export class BookingsController {
     @Body() createBookingDto: CreateBookingDto
   ): Promise<BookingWithRelations> {
     return this.bookingsService.create(req.user.id, createBookingDto);
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Post(':id/recalculate-price')
+  recalculatePrice(@Param('id') id: string): Promise<PriceCalculation> {
+    return this.bookingsService.recalculatePrice(id);
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Patch(':id')
+  update(
+    @Param('id') id: string,
+    @Body() updateBookingDto: UpdateBookingDto
+  ): Promise<BookingWithRelations> {
+    return this.bookingsService.update(id, updateBookingDto);
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)
