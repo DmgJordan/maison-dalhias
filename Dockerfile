@@ -1,4 +1,4 @@
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -7,8 +7,8 @@ COPY package.json package-lock.json ./
 COPY apps/api/package.json ./apps/api/
 COPY apps/web/package.json ./apps/web/
 
-# Installer les dépendances
-RUN npm ci
+# Installer les dépendances (ignorer husky prepare)
+RUN npm ci --ignore-scripts
 
 # Copier tout le code
 COPY . .
@@ -18,14 +18,14 @@ RUN npx prisma generate --schema apps/api/prisma/schema.prisma
 RUN npm run build:api
 
 # --- Image de production ---
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY apps/api/package.json ./apps/api/
 
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
