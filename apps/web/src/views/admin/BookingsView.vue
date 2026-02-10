@@ -63,8 +63,8 @@ const fetchBookings = async (): Promise<void> => {
     error.value = null;
     const data = await bookingsApi.getAll();
     bookings.value = data;
-  } catch (error: unknown) {
-    console.error('Erreur lors du chargement des réservations:', error);
+  } catch (err: unknown) {
+    console.error('Erreur lors du chargement des réservations:', err);
     error.value = 'Impossible de charger les réservations. Veuillez réessayer.';
   } finally {
     loading.value = false;
@@ -87,8 +87,8 @@ const handleConfirm = async (id: string): Promise<void> => {
     await bookingsApi.confirm(id);
     await fetchBookings();
     showSuccess('Réservation confirmée !');
-  } catch (error: unknown) {
-    console.error('Erreur lors de la confirmation:', error);
+  } catch (err: unknown) {
+    console.error('Erreur lors de la confirmation:', err);
     error.value = 'Impossible de confirmer la réservation. Veuillez réessayer.';
   } finally {
     loading.value = false;
@@ -106,8 +106,8 @@ const handleCancel = async (id: string): Promise<void> => {
     await bookingsApi.cancel(id);
     await fetchBookings();
     showSuccess('Réservation annulée.');
-  } catch (error: unknown) {
-    console.error("Erreur lors de l'annulation:", error);
+  } catch (err: unknown) {
+    console.error("Erreur lors de l'annulation:", err);
     error.value = "Impossible d'annuler la réservation. Veuillez réessayer.";
   } finally {
     loading.value = false;
@@ -125,8 +125,8 @@ const handleDelete = async (id: string): Promise<void> => {
     await bookingsApi.delete(id);
     await fetchBookings();
     showSuccess('Réservation supprimée.');
-  } catch (error: unknown) {
-    console.error('Erreur lors de la suppression:', error);
+  } catch (err: unknown) {
+    console.error('Erreur lors de la suppression:', err);
     error.value = 'Impossible de supprimer la réservation. Veuillez réessayer.';
   } finally {
     loading.value = false;

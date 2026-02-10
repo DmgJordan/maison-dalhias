@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
@@ -18,9 +18,12 @@ RUN cd apps/api && npx nest build
 RUN ls -la apps/api/dist/
 
 # --- Image de production ---
-FROM node:20-alpine
+FROM node:20-slim
 
 WORKDIR /app
+
+# OpenSSL nécessaire pour Prisma
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Copier package.json et installer uniquement les deps de production
 COPY package.json package-lock.json ./

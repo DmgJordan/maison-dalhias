@@ -97,8 +97,8 @@ const handleSubmit = async (): Promise<void> => {
     setTimeout(() => {
       router.push('/admin/reservations');
     }, 2000);
-  } catch (error: unknown) {
-    console.error('Erreur lors de la creation de la reservation:', error);
+  } catch (err: unknown) {
+    console.error('Erreur lors de la creation de la reservation:', err);
     error.value = 'Impossible de créer la réservation. Veuillez réessayer.';
   } finally {
     loading.value = false;

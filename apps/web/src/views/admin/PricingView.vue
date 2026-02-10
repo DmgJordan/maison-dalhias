@@ -253,7 +253,10 @@ const handleSaveSeason = async (data: SeasonSaveData): Promise<void> => {
       await seasonsApi.update(editingSeason.value.id, data);
       showSuccess('Saison modifiée');
     } else {
-      await seasonsApi.create(data);
+      await seasonsApi.create({
+        ...data,
+        weeklyNightRate: data.weeklyNightRate ?? undefined,
+      });
       showSuccess('Saison créée');
     }
 
