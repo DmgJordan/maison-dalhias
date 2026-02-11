@@ -35,5 +35,10 @@ apps/api/prisma/*.db-journal
 
 # Claude Code (configuration locale)
 .claude/settings.json
+.claude/settings.local.json
 .claude/skills/
 .plans/
+
+# BMAD (installation locale, outputs trackés)
+_bmad/
+.claude/commands/bmad-*
