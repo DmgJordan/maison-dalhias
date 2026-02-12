@@ -62,6 +62,7 @@ const form = ref({
       }
     : null,
   occupantsCount: props.booking.occupantsCount,
+  adultsCount: props.booking.adultsCount,
   rentalPrice: parseFloat(String(props.booking.rentalPrice)),
   touristTaxIncluded: props.booking.touristTaxIncluded,
   cleaningIncluded: props.booking.cleaningIncluded,
@@ -91,9 +92,7 @@ const linenPrice = computed((): number => {
 
 const touristTaxPrice = computed((): number => {
   if (!form.value.touristTaxIncluded) return 0;
-  return (
-    OPTION_PRICES.TOURIST_TAX_PER_ADULT_PER_NIGHT * form.value.occupantsCount * nightsCount.value
-  );
+  return OPTION_PRICES.TOURIST_TAX_PER_ADULT_PER_NIGHT * form.value.adultsCount * nightsCount.value;
 });
 
 const totalPrice = computed((): number => {
@@ -127,6 +126,7 @@ const hasChanges = computed((): boolean => {
     form.value.startDate !== originalStart ||
     form.value.endDate !== originalEnd ||
     form.value.occupantsCount !== original.occupantsCount ||
+    form.value.adultsCount !== original.adultsCount ||
     form.value.rentalPrice !== originalRentalPrice ||
     form.value.touristTaxIncluded !== original.touristTaxIncluded ||
     form.value.cleaningIncluded !== original.cleaningIncluded ||
@@ -179,7 +179,10 @@ const startEditing = (section: string): void => {
       primaryClient: form.value.primaryClient ? { ...form.value.primaryClient } : null,
     };
   } else if (section === 'occupants') {
-    sectionBackup.value = { occupantsCount: form.value.occupantsCount };
+    sectionBackup.value = {
+      occupantsCount: form.value.occupantsCount,
+      adultsCount: form.value.adultsCount,
+    };
   } else if (section === 'options') {
     sectionBackup.value = {
       touristTaxIncluded: form.value.touristTaxIncluded,
@@ -238,6 +241,16 @@ watch(datesChanged, (changed) => {
   }
 });
 
+// Ajuster adultsCount si occupantsCount diminue
+watch(
+  () => form.value.occupantsCount,
+  (newCount) => {
+    if (form.value.adultsCount > newCount) {
+      form.value.adultsCount = newCount;
+    }
+  }
+);
+
 const validateForm = (): string | null => {
   if (!form.value.startDate || !form.value.endDate) {
     return 'Les dates de debut et de fin sont obligatoires.';
@@ -265,6 +278,9 @@ const validateForm = (): string | null => {
     ) {
       return 'Tous les champs du client principal doivent etre remplis.';
     }
+    if (c.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)) {
+      return "L'adresse email du client principal est invalide.";
+    }
   }
 
   if (
@@ -272,6 +288,10 @@ const validateForm = (): string | null => {
     form.value.occupantsCount > BOOKING_CONSTRAINTS.MAX_OCCUPANTS
   ) {
     return `Le nombre d'occupants doit etre entre 1 et ${String(BOOKING_CONSTRAINTS.MAX_OCCUPANTS)}.`;
+  }
+
+  if (form.value.adultsCount < 1 || form.value.adultsCount > form.value.occupantsCount) {
+    return "Le nombre d'adultes doit etre entre 1 et le nombre total d'occupants.";
   }
 
   if (form.value.rentalPrice < 0) {
@@ -302,6 +322,8 @@ const handleSubmit = async (): Promise<void> => {
     if (form.value.endDate !== originalEnd) updateData.endDate = form.value.endDate;
     if (form.value.occupantsCount !== original.occupantsCount)
       updateData.occupantsCount = form.value.occupantsCount;
+    if (form.value.adultsCount !== original.adultsCount)
+      updateData.adultsCount = form.value.adultsCount;
     if (form.value.rentalPrice !== parseFloat(String(original.rentalPrice)))
       updateData.rentalPrice = form.value.rentalPrice;
     if (form.value.touristTaxIncluded !== original.touristTaxIncluded)
@@ -475,12 +497,14 @@ const handleSubmit = async (): Promise<void> => {
             <input v-model="form.primaryClient.phone" type="tel" class="form-input" />
           </div>
           <div class="form-field">
-            <label class="form-label">Email (optionnel)</label>
+            <label class="form-label" for="edit-client-email">Email (optionnel)</label>
             <input
+              id="edit-client-email"
               v-model="form.primaryClient.email"
               type="email"
               class="form-input"
               placeholder="email@exemple.com"
+              aria-label="Email du client principal"
             />
           </div>
         </template>
@@ -522,6 +546,9 @@ const handleSubmit = async (): Promise<void> => {
       </div>
       <div v-if="editingSection !== 'occupants'" class="edit-section-summary">
         <span>{{ form.occupantsCount }} personne{{ form.occupantsCount > 1 ? 's' : '' }}</span>
+        <span class="edit-section-detail"
+          >dont {{ form.adultsCount }} adulte{{ form.adultsCount > 1 ? 's' : '' }}</span
+        >
       </div>
       <div v-else class="edit-section-form">
         <div class="counter-control">
@@ -547,6 +574,24 @@ const handleSubmit = async (): Promise<void> => {
           </button>
         </div>
         <p class="counter-hint">Maximum {{ BOOKING_CONSTRAINTS.MAX_OCCUPANTS }} personnes</p>
+        <p class="counter-section-label">Dont adultes (pour la taxe de sejour)</p>
+        <div class="counter-control">
+          <button
+            class="counter-btn"
+            :disabled="form.adultsCount <= 1"
+            @click="form.adultsCount = Math.max(1, form.adultsCount - 1)"
+          >
+            -
+          </button>
+          <span class="counter-value">{{ form.adultsCount }}</span>
+          <button
+            class="counter-btn"
+            :disabled="form.adultsCount >= form.occupantsCount"
+            @click="form.adultsCount = Math.min(form.occupantsCount, form.adultsCount + 1)"
+          >
+            +
+          </button>
+        </div>
       </div>
     </div>
 
@@ -995,6 +1040,14 @@ const handleSubmit = async (): Promise<void> => {
   font-size: 13px;
   color: #9ca3af;
   margin: 8px 0 0;
+}
+
+.counter-section-label {
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  margin: 16px 0 8px;
 }
 
 /* Options toggles */

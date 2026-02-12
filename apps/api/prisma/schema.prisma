@@ -36,6 +36,7 @@ model Booking {
   secondaryClientId    String?             @map("secondary_client_id")
   secondaryClient      Client?             @relation("SecondaryClient", fields: [secondaryClientId], references: [id])
   occupantsCount       Int                 @default(1) @map("occupants_count")
+  adultsCount          Int                 @default(1) @map("adults_count")
   rentalPrice          Decimal             @default(0) @map("rental_price") @db.Decimal(10, 2)
   touristTaxIncluded   Boolean             @default(false) @map("tourist_tax_included")
   cleaningIncluded     Boolean             @default(false) @map("cleaning_included")

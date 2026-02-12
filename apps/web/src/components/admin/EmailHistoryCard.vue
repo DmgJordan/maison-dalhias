@@ -12,6 +12,7 @@ const emit = defineEmits<{
 
 function formatDateTime(dateStr: string): string {
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return 'Date inconnue';
   return (
     date.toLocaleDateString('fr-FR', {
       day: 'numeric',
@@ -36,7 +37,12 @@ function getDocLabel(type: string): string {
 <template>
   <div class="email-history-card" :class="{ failed: emailLog.status === 'FAILED' }">
     <div class="card-header">
-      <span class="status-badge" :class="emailLog.status === 'SENT' ? 'sent' : 'failed'">
+      <span
+        class="status-badge"
+        :class="emailLog.status === 'SENT' ? 'sent' : 'failed'"
+        role="status"
+        :aria-label="emailLog.status === 'SENT' ? 'Email envoyé' : 'Erreur d\'envoi'"
+      >
         {{ emailLog.status === 'SENT' ? 'Envoyé' : 'Erreur' }}
       </span>
       <span class="card-date">{{ formatDateTime(emailLog.sentAt) }}</span>
@@ -54,7 +60,11 @@ function getDocLabel(type: string): string {
         </span>
       </div>
 
-      <div v-if="emailLog.personalMessage" class="personal-message-preview">
+      <div
+        v-if="emailLog.personalMessage"
+        class="personal-message-preview"
+        :title="emailLog.personalMessage"
+      >
         {{ emailLog.personalMessage }}
       </div>
 
@@ -64,7 +74,9 @@ function getDocLabel(type: string): string {
     </div>
 
     <div class="card-actions">
-      <button class="resend-btn" @click="emit('resend', emailLog)">Renvoyer</button>
+      <button type="button" class="resend-btn" @click="emit('resend', emailLog)">
+        Renvoyer ces documents
+      </button>
     </div>
   </div>
 </template>

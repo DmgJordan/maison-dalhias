@@ -35,15 +35,15 @@ export interface Tarifs {
 }
 
 export const BAILLEUR: Bailleur = {
-  nom: 'Dominguez Alvarez Christelle',
-  adresse: '12 rue du grand clos, Villers la Montagne 54920',
-  adresse1: '12 rue du grand clos',
-  adresse2: '54920 Villers la Montagne',
-  dateNaissance: '22/07/1969',
-  telephone: '+33 7 87 86 43 58',
-  email: 'dominguez-juan@orange.fr',
-  iban: 'FR76 1027 8043 1300 0477 8024 032',
-  bic: 'CMCIFR2A',
+  nom: process.env.BAILLEUR_NOM ?? 'Dominguez Alvarez Christelle',
+  adresse: process.env.BAILLEUR_ADRESSE ?? '12 rue du grand clos, Villers la Montagne 54920',
+  adresse1: process.env.BAILLEUR_ADRESSE1 ?? '12 rue du grand clos',
+  adresse2: process.env.BAILLEUR_ADRESSE2 ?? '54920 Villers la Montagne',
+  dateNaissance: process.env.BAILLEUR_DATE_NAISSANCE ?? '22/07/1969',
+  telephone: process.env.BAILLEUR_TELEPHONE ?? '+33 7 87 86 43 58',
+  email: process.env.BAILLEUR_EMAIL ?? 'dominguez-juan@orange.fr',
+  iban: process.env.BAILLEUR_IBAN ?? 'FR76 1027 8043 1300 0477 8024 032',
+  bic: process.env.BAILLEUR_BIC ?? 'CMCIFR2A',
 };
 
 export const LOGEMENT: Logement = {

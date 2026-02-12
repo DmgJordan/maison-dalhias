@@ -5,6 +5,7 @@ import {
   IsBoolean,
   ValidateNested,
   Min,
+  Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ClientDto } from './client.dto';
@@ -29,7 +30,14 @@ export class CreateBookingDto {
   @IsOptional()
   @IsNumber()
   @Min(1)
+  @Max(6)
   occupantsCount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(6)
+  adultsCount?: number;
 
   @IsOptional()
   @IsNumber()

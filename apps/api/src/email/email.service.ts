@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Resend } from 'resend';
 
 interface ContactFormData {
@@ -13,7 +13,7 @@ interface ContactFormData {
 export interface DocumentEmailParams {
   recipientEmail: string;
   recipientName: string;
-  documentTypes: string[];
+  documentTypes: ('contract' | 'invoice')[];
   startDate: Date;
   endDate: Date;
   personalMessage?: string;
@@ -34,8 +34,19 @@ function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
+export function buildEmailSubject(documentTypes: string[]): string {
+  if (documentTypes.includes('contract') && documentTypes.includes('invoice')) {
+    return '[Maison Dalhias] Vos documents de réservation';
+  }
+  if (documentTypes.includes('contract')) {
+    return '[Maison Dalhias] Votre contrat de location';
+  }
+  return '[Maison Dalhias] Votre facture';
+}
+
 @Injectable()
-export class EmailService {
+export class EmailService implements OnModuleInit {
+  private readonly logger = new Logger(EmailService.name);
   private resend: Resend;
   private senderEmail: string;
   private contactEmail: string;
@@ -46,15 +57,21 @@ export class EmailService {
     this.contactEmail = process.env.CONTACT_EMAIL ?? 'dominguez-juan@orange.fr';
   }
 
+  onModuleInit(): void {
+    if (!process.env.RESEND_API_KEY) {
+      this.logger.warn("RESEND_API_KEY non définie — les envois d'emails échoueront");
+    }
+  }
+
   async sendContactEmail(contact: ContactFormData): Promise<void> {
     const html = `
       <h2>Nouveau message de contact - Maison Dalhias 19</h2>
-      <p><strong>De:</strong> ${contact.name} (${contact.email})</p>
-      ${contact.phone ? `<p><strong>Téléphone:</strong> ${contact.phone}</p>` : ''}
-      <p><strong>Sujet:</strong> ${contact.subject}</p>
+      <p><strong>De:</strong> ${escapeHtml(contact.name)} (${escapeHtml(contact.email)})</p>
+      ${contact.phone ? `<p><strong>Téléphone:</strong> ${escapeHtml(contact.phone)}</p>` : ''}
+      <p><strong>Sujet:</strong> ${escapeHtml(contact.subject)}</p>
       <hr />
       <p><strong>Message:</strong></p>
-      <p>${contact.message.replace(/\n/g, '<br />')}</p>
+      <p>${escapeHtml(contact.message).replace(/\n/g, '<br />')}</p>
     `;
 
     await this.resend.emails.send({
@@ -78,15 +95,7 @@ export class EmailService {
       invoicePdf,
     } = params;
 
-    // Build subject
-    let subject: string;
-    if (documentTypes.length === 2) {
-      subject = '[Maison Dalhias] Vos documents de réservation';
-    } else if (documentTypes.includes('contract')) {
-      subject = '[Maison Dalhias] Votre contrat de location';
-    } else {
-      subject = '[Maison Dalhias] Votre facture';
-    }
+    const subject = buildEmailSubject(documentTypes);
 
     // Format dates for email body
     const startDateStr = startDate.toLocaleDateString('fr-FR', {

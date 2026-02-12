@@ -53,6 +53,7 @@ export interface Booking {
   primaryClient?: Client;
   secondaryClient?: Client;
   occupantsCount: number;
+  adultsCount: number;
   rentalPrice: number;
   touristTaxIncluded: boolean;
   cleaningIncluded: boolean;
@@ -90,6 +91,7 @@ export interface CreateBookingData {
   primaryClient?: Omit<Client, 'id'>;
   secondaryClient?: Omit<Client, 'id'>;
   occupantsCount?: number;
+  adultsCount?: number;
   rentalPrice?: number;
   touristTaxIncluded?: boolean;
   cleaningIncluded?: boolean;
@@ -102,6 +104,7 @@ export interface UpdateBookingData {
   primaryClient?: Omit<Client, 'id'>;
   secondaryClient?: Omit<Client, 'id'>;
   occupantsCount?: number;
+  adultsCount?: number;
   rentalPrice?: number;
   touristTaxIncluded?: boolean;
   cleaningIncluded?: boolean;
@@ -200,16 +203,16 @@ export interface EmailLog {
   bookingId: string;
   recipientEmail: string;
   recipientName: string;
-  documentTypes: string[];
+  documentTypes: ('contract' | 'invoice')[];
   subject: string;
-  personalMessage?: string;
-  resendMessageId?: string;
+  personalMessage: string | null;
+  resendMessageId: string | null;
   status: 'SENT' | 'FAILED';
   sentAt: string;
-  failedAt?: string;
-  failureReason?: string;
-  contractSnapshotId?: string;
-  invoiceSnapshotId?: string;
+  failedAt: string | null;
+  failureReason: string | null;
+  contractSnapshotId: string | null;
+  invoiceSnapshotId: string | null;
   createdAt: string;
 }
 

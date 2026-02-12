@@ -313,6 +313,7 @@ export const useNewBookingFormStore = defineStore('newBookingForm', {
       primaryClient: Omit<ClientFormData, 'email'> & { email?: string };
       secondaryClient?: Omit<ClientFormData, 'email'> & { email?: string };
       occupantsCount: number;
+      adultsCount: number;
       rentalPrice: number;
       touristTaxIncluded: boolean;
       cleaningIncluded: boolean;
@@ -332,6 +333,7 @@ export const useNewBookingFormStore = defineStore('newBookingForm', {
           ...(this.primaryClient.email ? { email: this.primaryClient.email } : {}),
         },
         occupantsCount: this.occupantsCount,
+        adultsCount: this.adultsCount,
         rentalPrice: this.rentalPrice,
         touristTaxIncluded: true,
         cleaningIncluded: this.cleaningIncluded,

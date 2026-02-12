@@ -39,4 +39,5 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 EXPOSE 3000
 
-CMD ["node", "apps/api/dist/src/main.js"]
+# Appliquer les migrations Prisma puis démarrer l'API
+CMD npx prisma migrate deploy --schema apps/api/prisma/schema.prisma && node apps/api/dist/src/main.js

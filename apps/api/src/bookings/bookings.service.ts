@@ -118,6 +118,7 @@ export class BookingsService {
         primaryClientId,
         secondaryClientId,
         occupantsCount: createBookingDto.occupantsCount,
+        adultsCount: createBookingDto.adultsCount,
         rentalPrice: createBookingDto.rentalPrice,
         touristTaxIncluded: createBookingDto.touristTaxIncluded,
         cleaningIncluded: createBookingDto.cleaningIncluded,
@@ -209,6 +210,8 @@ export class BookingsService {
       updateData.secondaryClientId = secondaryClientId;
     if (updateBookingDto.occupantsCount !== undefined)
       updateData.occupantsCount = updateBookingDto.occupantsCount;
+    if (updateBookingDto.adultsCount !== undefined)
+      updateData.adultsCount = updateBookingDto.adultsCount;
     if (rentalPrice !== undefined) updateData.rentalPrice = rentalPrice;
     if (updateBookingDto.touristTaxIncluded !== undefined)
       updateData.touristTaxIncluded = updateBookingDto.touristTaxIncluded;

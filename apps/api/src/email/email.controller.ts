@@ -1,4 +1,15 @@
-import { Controller, Post, Get, Body, Param, UseGuards, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
+  UseGuards,
+  BadRequestException,
+  ParseUUIDPipe,
+  Logger,
+} from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { PrismaService } from '../prisma/prisma.service';
@@ -6,18 +17,12 @@ import { BookingsService } from '../bookings/bookings.service';
 import { PdfService } from '../pdf/pdf.service';
 import { EmailService } from './email.service';
 import { SendDocumentEmailDto } from './dto/send-document-email.dto';
+import { buildEmailSubject } from './email.service';
 import { generateInvoiceNumber } from '../pdf/invoice-generator.service';
 import type { ContractGenerateData } from '../pdf/contract-generator.service';
 import type { InvoiceGenerateData, PriceDetailForInvoice } from '../pdf/invoice-generator.service';
+import { TARIFS } from '../pdf/constants/property';
 import { EmailLog, ContractSnapshot, InvoiceSnapshot, Prisma } from '@prisma/client';
-
-// Option price constants matching frontend
-const OPTION_PRICES = {
-  CLEANING: 80,
-  LINEN_PER_PERSON: 15,
-  TOURIST_TAX_PER_ADULT_PER_NIGHT: 1,
-};
-const DEPOSIT_PERCENTAGE = 0.3;
 
 interface EmailLogWithSnapshots extends EmailLog {
   contractSnapshot: ContractSnapshot | null;
@@ -26,6 +31,8 @@ interface EmailLogWithSnapshots extends EmailLog {
 
 @Controller('emails')
 export class EmailController {
+  private readonly logger = new Logger(EmailController.name);
+
   constructor(
     private bookingsService: BookingsService,
     private pdfService: PdfService,
@@ -34,7 +41,8 @@ export class EmailController {
   ) {}
 
   @Post('send')
-  @UseGuards(JwtAuthGuard, AdminGuard)
+  @UseGuards(JwtAuthGuard, AdminGuard, ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async sendDocumentEmail(@Body() dto: SendDocumentEmailDto): Promise<EmailLogWithSnapshots> {
     // 1. Fetch booking with relations
     const booking = await this.bookingsService.findById(dto.bookingId);
@@ -53,57 +61,25 @@ export class EmailController {
     }
 
     // Compute prices
-    const rentalPrice =
-      typeof booking.rentalPrice === 'object'
-        ? Number(booking.rentalPrice)
-        : Number(booking.rentalPrice);
-    const nightsCount = Math.round(
+    const rentalPrice = Number(booking.rentalPrice);
+    const nightsCount = Math.ceil(
       (new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) /
         (1000 * 60 * 60 * 24)
     );
-    const cleaningPrice = booking.cleaningIncluded ? OPTION_PRICES.CLEANING : 0;
-    const linenPrice = booking.linenIncluded
-      ? OPTION_PRICES.LINEN_PER_PERSON * booking.occupantsCount
-      : 0;
+    const cleaningPrice = booking.cleaningIncluded ? TARIFS.menage : 0;
+    const linenPrice = booking.linenIncluded ? TARIFS.linge * booking.occupantsCount : 0;
     const touristTaxPrice = booking.touristTaxIncluded
-      ? OPTION_PRICES.TOURIST_TAX_PER_ADULT_PER_NIGHT * booking.occupantsCount * nightsCount
+      ? TARIFS.taxeSejour * booking.adultsCount * nightsCount
       : 0;
     const totalPrice = rentalPrice + cleaningPrice + linenPrice + touristTaxPrice;
-    const depositAmount = Math.round(totalPrice * DEPOSIT_PERCENTAGE);
+    const depositPercentage = TARIFS.acompte / 100;
+    const depositAmount = Math.round(totalPrice * depositPercentage);
     const balanceAmount = totalPrice - depositAmount;
 
-    // 4. Create snapshots
-    let contractSnapshotId: string | undefined;
-    let invoiceSnapshotId: string | undefined;
+    // 4. Create snapshots in transaction
     let priceDetailsJson: PriceDetailForInvoice[] | undefined;
 
-    if (dto.documentTypes.includes('contract')) {
-      const snapshot = await this.prisma.contractSnapshot.create({
-        data: {
-          bookingId: booking.id,
-          clientFirstName: client.firstName,
-          clientLastName: client.lastName,
-          clientAddress: client.address,
-          clientCity: client.city,
-          clientPostalCode: client.postalCode,
-          clientCountry: client.country,
-          clientEmail: client.email,
-          clientPhone: client.phone,
-          startDate: booking.startDate,
-          endDate: booking.endDate,
-          occupantsCount: booking.occupantsCount,
-          rentalPrice: booking.rentalPrice,
-          cleaningIncluded: booking.cleaningIncluded,
-          linenIncluded: booking.linenIncluded,
-          touristTaxIncluded: booking.touristTaxIncluded,
-          depositAmount,
-        },
-      });
-      contractSnapshotId = snapshot.id;
-    }
-
     if (dto.documentTypes.includes('invoice')) {
-      // Try to compute price details from pricing service
       try {
         const priceCalc = await this.bookingsService.recalculatePrice(booking.id);
         if (priceCalc.details.length > 0) {
@@ -114,34 +90,68 @@ export class EmailController {
             subtotal: d.subtotal,
           }));
         }
-      } catch {
-        // If price recalculation fails, proceed without details
+      } catch (err) {
+        this.logger.warn(`Échec du recalcul de prix pour la réservation ${booking.id}`, err);
+      }
+    }
+
+    const { contractSnapshotId, invoiceSnapshotId } = await this.prisma.$transaction(async (tx) => {
+      let contractId: string | undefined;
+      let invoiceId: string | undefined;
+
+      if (dto.documentTypes.includes('contract')) {
+        const snapshot = await tx.contractSnapshot.create({
+          data: {
+            bookingId: booking.id,
+            clientFirstName: client.firstName,
+            clientLastName: client.lastName,
+            clientAddress: client.address,
+            clientCity: client.city,
+            clientPostalCode: client.postalCode,
+            clientCountry: client.country,
+            clientEmail: client.email,
+            clientPhone: client.phone,
+            startDate: booking.startDate,
+            endDate: booking.endDate,
+            occupantsCount: booking.occupantsCount,
+            rentalPrice: booking.rentalPrice,
+            cleaningIncluded: booking.cleaningIncluded,
+            linenIncluded: booking.linenIncluded,
+            touristTaxIncluded: booking.touristTaxIncluded,
+            depositAmount,
+          },
+        });
+        contractId = snapshot.id;
       }
 
-      const snapshot = await this.prisma.invoiceSnapshot.create({
-        data: {
-          bookingId: booking.id,
-          clientFirstName: client.firstName,
-          clientLastName: client.lastName,
-          clientAddress: client.address,
-          clientCity: client.city,
-          clientPostalCode: client.postalCode,
-          clientCountry: client.country,
-          rentalPrice: booking.rentalPrice,
-          nightsCount,
-          cleaningPrice: cleaningPrice > 0 ? cleaningPrice : null,
-          linenPrice: linenPrice > 0 ? linenPrice : null,
-          touristTaxPrice: touristTaxPrice > 0 ? touristTaxPrice : null,
-          totalPrice,
-          depositAmount,
-          balanceAmount,
-          priceDetailsJson: priceDetailsJson
-            ? (priceDetailsJson as unknown as Prisma.InputJsonValue)
-            : undefined,
-        },
-      });
-      invoiceSnapshotId = snapshot.id;
-    }
+      if (dto.documentTypes.includes('invoice')) {
+        const snapshot = await tx.invoiceSnapshot.create({
+          data: {
+            bookingId: booking.id,
+            clientFirstName: client.firstName,
+            clientLastName: client.lastName,
+            clientAddress: client.address,
+            clientCity: client.city,
+            clientPostalCode: client.postalCode,
+            clientCountry: client.country,
+            rentalPrice: booking.rentalPrice,
+            nightsCount,
+            cleaningPrice: cleaningPrice > 0 ? cleaningPrice : null,
+            linenPrice: linenPrice > 0 ? linenPrice : null,
+            touristTaxPrice: touristTaxPrice > 0 ? touristTaxPrice : null,
+            totalPrice,
+            depositAmount,
+            balanceAmount,
+            priceDetailsJson: priceDetailsJson
+              ? (priceDetailsJson as unknown as Prisma.InputJsonValue)
+              : undefined,
+          },
+        });
+        invoiceId = snapshot.id;
+      }
+
+      return { contractSnapshotId: contractId, invoiceSnapshotId: invoiceId };
+    });
 
     // 5. Generate PDFs
     let contractPdf: Buffer | undefined;
@@ -202,7 +212,7 @@ export class EmailController {
           recipientEmail: dto.recipientEmail,
           recipientName: dto.recipientName,
           documentTypes: dto.documentTypes,
-          subject: this.buildSubject(dto.documentTypes),
+          subject: buildEmailSubject(dto.documentTypes),
           personalMessage: dto.personalMessage,
           status: 'FAILED',
           sentAt: new Date(),
@@ -255,7 +265,7 @@ export class EmailController {
         recipientEmail: dto.recipientEmail,
         recipientName: dto.recipientName,
         documentTypes: dto.documentTypes,
-        subject: this.buildSubject(dto.documentTypes),
+        subject: buildEmailSubject(dto.documentTypes),
         personalMessage: dto.personalMessage,
         resendMessageId,
         status,
@@ -283,7 +293,9 @@ export class EmailController {
 
   @Get('booking/:bookingId')
   @UseGuards(JwtAuthGuard, AdminGuard)
-  async getByBooking(@Param('bookingId') bookingId: string): Promise<EmailLogWithSnapshots[]> {
+  async getByBooking(
+    @Param('bookingId', ParseUUIDPipe) bookingId: string
+  ): Promise<EmailLogWithSnapshots[]> {
     return this.prisma.emailLog.findMany({
       where: { bookingId },
       include: {
@@ -292,15 +304,5 @@ export class EmailController {
       },
       orderBy: { sentAt: 'desc' },
     });
-  }
-
-  private buildSubject(documentTypes: string[]): string {
-    if (documentTypes.length === 2) {
-      return '[Maison Dalhias] Vos documents de réservation';
-    }
-    if (documentTypes.includes('contract')) {
-      return '[Maison Dalhias] Votre contrat de location';
-    }
-    return '[Maison Dalhias] Votre facture';
   }
 }

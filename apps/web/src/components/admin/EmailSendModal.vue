@@ -21,7 +21,7 @@ const emit = defineEmits<{
 }>();
 
 // State
-const selectedDocTypes = ref<('contract' | 'invoice')[]>([...props.initialDocumentTypes]);
+const selectedDocTypes = ref<('contract' | 'invoice')[]>([]);
 const recipientType = ref<'primary' | 'secondary' | 'custom'>('primary');
 const customEmail = ref('');
 const personalMessage = ref('');
@@ -34,7 +34,7 @@ watch(
   (newVal) => {
     if (newVal) {
       selectedDocTypes.value = [...props.initialDocumentTypes];
-      recipientType.value = 'primary';
+      recipientType.value = props.booking.primaryClient?.email ? 'primary' : 'custom';
       customEmail.value = '';
       personalMessage.value = '';
       sending.value = false;
@@ -69,8 +69,18 @@ const subject = computed((): string => {
   return 'Votre facture';
 });
 
+const isValidEmail = computed((): boolean => {
+  if (recipientType.value !== 'custom') return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customEmail.value);
+});
+
 const canSend = computed((): boolean => {
-  return selectedDocTypes.value.length > 0 && recipientEmail.value.trim() !== '' && !sending.value;
+  return (
+    selectedDocTypes.value.length > 0 &&
+    recipientEmail.value.trim() !== '' &&
+    isValidEmail.value &&
+    !sending.value
+  );
 });
 
 const bookingDatesSummary = computed((): string => {
@@ -196,11 +206,24 @@ async function handleSend(): Promise<void> {
 
       <input
         v-if="recipientType === 'custom'"
+        id="custom-email-input"
         v-model="customEmail"
         type="email"
         class="custom-email-input"
+        :class="{ 'input-error': customEmail && !isValidEmail }"
         placeholder="email@exemple.com"
+        aria-label="Adresse email du destinataire"
+        :aria-invalid="customEmail && !isValidEmail ? 'true' : undefined"
+        aria-describedby="custom-email-error"
       />
+      <span
+        v-if="recipientType === 'custom' && customEmail && !isValidEmail"
+        id="custom-email-error"
+        class="email-error"
+        role="alert"
+      >
+        Adresse email invalide
+      </span>
     </div>
 
     <!-- Document selection -->
@@ -297,11 +320,15 @@ async function handleSend(): Promise<void> {
     </div>
 
     <!-- Error message -->
-    <div v-if="errorMessage" class="error-banner"><strong>Erreur :</strong> {{ errorMessage }}</div>
+    <div v-if="errorMessage" class="error-banner" role="alert">
+      <strong>Erreur :</strong> {{ errorMessage }}
+    </div>
 
     <template #actions>
-      <button class="btn-cancel" :disabled="sending" @click="emit('close')">Annuler</button>
-      <button class="btn-send" :disabled="!canSend" @click="handleSend">
+      <button type="button" class="btn-cancel" :disabled="sending" @click="emit('close')">
+        Annuler
+      </button>
+      <button type="button" class="btn-send" :disabled="!canSend" @click="handleSend">
         <template v-if="sending">
           <span class="spinner"></span>
           Envoi en cours...
@@ -400,6 +427,18 @@ async function handleSend(): Promise<void> {
 
 .custom-email-input:focus {
   border-color: #ff385c;
+}
+
+.custom-email-input.input-error {
+  border-color: #ef4444;
+}
+
+.email-error {
+  display: block;
+  margin-top: 4px;
+  margin-left: 28px;
+  font-size: 13px;
+  color: #ef4444;
 }
 
 .checkbox-group {

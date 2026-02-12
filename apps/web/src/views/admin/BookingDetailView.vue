@@ -10,7 +10,7 @@ import {
 } from '../../lib/api';
 import { generateContract } from '../../services/pdf/contractGenerator';
 import { generateInvoice, generateInvoiceNumber } from '../../services/pdf/invoiceGenerator';
-import { OPTION_PRICES } from '../../constants/pricing';
+import { OPTION_PRICES, PAYMENT_PERCENTAGES } from '../../constants/pricing';
 import BookingEditModal from '../../components/admin/BookingEditModal.vue';
 import EmailSendModal from '../../components/admin/EmailSendModal.vue';
 import EmailHistoryCard from '../../components/admin/EmailHistoryCard.vue';
@@ -49,7 +49,7 @@ const nightsCount = computed((): number => {
 });
 
 const adultsCount = computed((): number => {
-  return booking.value?.occupantsCount ?? 0;
+  return booking.value?.adultsCount ?? 0;
 });
 
 const cleaningPrice = computed((): number => {
@@ -76,7 +76,7 @@ const totalPrice = computed((): number => {
 });
 
 const depositAmount = computed((): number => {
-  return Math.round(totalPrice.value * 0.3);
+  return Math.round(totalPrice.value * PAYMENT_PERCENTAGES.DEPOSIT);
 });
 
 const balanceAmount = computed((): number => {
@@ -347,8 +347,8 @@ const fetchEmailHistory = async (): Promise<void> => {
   try {
     loadingEmails.value = true;
     emailLogs.value = await emailApi.getByBooking(booking.value.id);
-  } catch {
-    // Silently fail
+  } catch (err: unknown) {
+    console.error("Erreur lors du chargement de l'historique des emails:", err);
   } finally {
     loadingEmails.value = false;
   }
@@ -372,7 +372,7 @@ const dismissSuccessScreen = (): void => {
 };
 
 const handleResend = (emailLog: EmailLog): void => {
-  emailModalDocTypes.value = emailLog.documentTypes as ('contract' | 'invoice')[];
+  emailModalDocTypes.value = emailLog.documentTypes;
   showEmailModal.value = true;
 };
 
@@ -679,7 +679,9 @@ onMounted(async () => {
               </div>
               <div class="schedule-item schedule-item--deposit">
                 <span class="schedule-label">Depot de garantie</span>
-                <span class="schedule-value">500 EUR (cheque non encaisse)</span>
+                <span class="schedule-value"
+                  >{{ OPTION_PRICES.SECURITY_DEPOSIT }} EUR (cheque non encaisse)</span
+                >
               </div>
             </div>
           </section>
@@ -705,7 +707,7 @@ onMounted(async () => {
             </h2>
 
             <!-- Modified since last send alert -->
-            <div v-if="modifiedSinceLastSend" class="modified-alert">
+            <div v-if="modifiedSinceLastSend" class="modified-alert" role="alert">
               La reservation a ete modifiee depuis le dernier envoi. Pensez a renvoyer les
               documents.
             </div>
