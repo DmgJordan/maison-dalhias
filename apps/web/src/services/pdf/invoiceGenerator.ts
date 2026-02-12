@@ -326,7 +326,7 @@ export async function generateInvoice(data: InvoiceData): Promise<void> {
   if (data.priceDetails && data.priceDetails.length > 1) {
     const detailLines = data.priceDetails.map(
       (d) =>
-        `  ${String(d.nights)} nuit${d.nights > 1 ? 's' : ''} ${d.seasonName} x ${formatPrice(d.pricePerNight)} EUR`
+        `  ${String(d.nights)} nuit${d.nights > 1 ? 's' : ''} ${d.seasonName} x ${formatPrice(d.pricePerNight)} €`
     );
     locationDesignation += '\n' + detailLines.join('\n');
   }

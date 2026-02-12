@@ -499,7 +499,7 @@ onMounted(async () => {
               step="5"
               class="price-input"
             />
-            <span class="input-suffix">EUR/nuit</span>
+            <span class="input-suffix">€/nuit</span>
           </div>
           <button
             class="btn btn-primary btn-sm"

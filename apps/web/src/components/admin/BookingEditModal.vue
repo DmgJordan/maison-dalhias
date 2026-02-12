@@ -745,7 +745,7 @@ const handleSubmit = async (): Promise<void> => {
           <input v-model="form.linenIncluded" type="checkbox" class="toggle-checkbox" />
           <span class="toggle-label">
             <span class="toggle-name">Linge de maison</span>
-            <span class="toggle-price">{{ OPTION_PRICES.LINEN_PER_PERSON }} EUR/personne</span>
+            <span class="toggle-price">{{ OPTION_PRICES.LINEN_PER_PERSON }} €/personne</span>
           </span>
         </label>
         <label class="toggle-option">
@@ -753,7 +753,7 @@ const handleSubmit = async (): Promise<void> => {
           <span class="toggle-label">
             <span class="toggle-name">Taxe de sejour</span>
             <span class="toggle-price"
-              >{{ OPTION_PRICES.TOURIST_TAX_PER_ADULT_PER_NIGHT }} EUR/pers/nuit</span
+              >{{ OPTION_PRICES.TOURIST_TAX_PER_ADULT_PER_NIGHT }} €/pers/nuit</span
             >
           </span>
         </label>
@@ -852,7 +852,7 @@ const handleSubmit = async (): Promise<void> => {
           </button>
         </div>
         <div v-if="form.manualPrice" class="form-field">
-          <label class="form-label">Prix de la location (EUR)</label>
+          <label class="form-label">Prix de la location (€)</label>
           <input
             v-model.number="form.rentalPrice"
             type="number"

@@ -180,7 +180,7 @@ watch(
             :disabled="submitting"
             @blur="seasonValidation.touchField('pricePerNight')"
           />
-          <span class="price-suffix">EUR / nuit</span>
+          <span class="price-suffix">€ / nuit</span>
         </div>
         <p v-if="seasonValidation.fieldError('pricePerNight')" class="field-error">
           {{ seasonValidation.fieldError('pricePerNight') }}
@@ -204,11 +204,11 @@ watch(
             step="1"
             :disabled="submitting"
           />
-          <span class="price-suffix">EUR / nuit</span>
+          <span class="price-suffix">€ / nuit</span>
         </div>
         <p v-if="weeklyRateError" class="field-error">{{ weeklyRateError }}</p>
         <p v-else-if="weeklyPriceDisplay" class="field-hint">
-          Soit {{ weeklyPriceDisplay }} EUR par semaine
+          Soit {{ weeklyPriceDisplay }} € par semaine
         </p>
       </div>
 

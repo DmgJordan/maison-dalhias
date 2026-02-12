@@ -477,7 +477,8 @@ const clientName = computed((): string => {
   border-radius: 12px;
   font-size: 14px;
   font-weight: 600;
-  border: none;
+  border: 2px solid transparent;
+  background: white;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -503,8 +504,8 @@ const clientName = computed((): string => {
 }
 
 .btn-spinner--light {
-  border-color: rgba(255, 255, 255, 0.3);
-  border-top-color: white;
+  border-color: rgba(0, 0, 0, 0.1);
+  border-top-color: currentColor;
 }
 
 @keyframes spin {
@@ -514,30 +515,35 @@ const clientName = computed((): string => {
 }
 
 .action-btn--confirm {
-  background-color: #10b981;
-  color: white;
+  border-color: #10b981;
+  color: #059669;
 }
 
 .action-btn--confirm:hover:not(:disabled) {
-  background-color: #059669;
+  background-color: #ecfdf5;
+  border-color: #059669;
 }
 
 .action-btn--cancel {
-  background-color: #f59e0b;
-  color: white;
+  border-color: #d4d4d4;
+  color: #717171;
 }
 
 .action-btn--cancel:hover:not(:disabled) {
-  background-color: #d97706;
+  background-color: #f7f7f7;
+  border-color: #a3a3a3;
+  color: #484848;
 }
 
 .action-btn--delete {
-  background-color: #f3f4f6;
-  color: #6b7280;
+  background-color: transparent;
+  border-color: transparent;
+  color: #9ca3af;
+  font-weight: 500;
 }
 
 .action-btn--delete:hover:not(:disabled) {
-  background-color: #fee2e2;
+  background-color: #fef2f2;
   color: #dc2626;
 }
 

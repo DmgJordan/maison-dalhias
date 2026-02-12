@@ -602,7 +602,7 @@ onMounted(() => {
               </svg>
             </button>
           </div>
-          <p class="form-hint">Les mineurs sont exemptés de taxe de séjour (1 EUR/nuit/adulte)</p>
+          <p class="form-hint">Les mineurs sont exemptés de taxe de séjour (1 €/nuit/adulte)</p>
         </div>
       </div>
 
@@ -620,7 +620,7 @@ onMounted(() => {
             <div class="option-content">
               <div class="option-header">
                 <span class="option-name">Ménage fin de séjour</span>
-                <span class="option-price">80 EUR</span>
+                <span class="option-price">80 €</span>
               </div>
               <p class="option-description">Nettoyage complet (hors vaisselle et cuisine)</p>
             </div>
@@ -642,7 +642,7 @@ onMounted(() => {
             <div class="option-content">
               <div class="option-header">
                 <span class="option-name">Linge de maison</span>
-                <span class="option-price">15 EUR/personne</span>
+                <span class="option-price">15 €/personne</span>
               </div>
               <p class="option-description">Draps, serviettes et torchons fournis</p>
             </div>
@@ -673,7 +673,7 @@ onMounted(() => {
             <line x1="12" y1="16" x2="12" y2="12" />
             <line x1="12" y1="8" x2="12.01" y2="8" />
           </svg>
-          <p>La taxe de séjour (1 EUR/nuit/adulte) est automatiquement incluse.</p>
+          <p>La taxe de séjour (1 €/nuit/adulte) est automatiquement incluse.</p>
         </div>
       </div>
 
@@ -785,7 +785,7 @@ onMounted(() => {
               min="0"
               step="10"
             />
-            <span class="price-suffix">EUR</span>
+            <span class="price-suffix">€</span>
           </div>
         </div>
 
@@ -857,7 +857,7 @@ onMounted(() => {
         <div class="recap-section">
           <h3 class="recap-title">Options</h3>
           <div class="recap-content">
-            <p v-if="formStore.cleaningIncluded">Ménage fin de séjour : 80 EUR</p>
+            <p v-if="formStore.cleaningIncluded">Ménage fin de séjour : 80 €</p>
             <p v-if="formStore.linenIncluded">
               Linge de maison : {{ formatPrice(formStore.linenPrice) }}
             </p>
@@ -880,7 +880,7 @@ onMounted(() => {
               <span>Solde (15j avant)</span>
               <span>{{ formatPrice(formStore.balanceAmount) }}</span>
             </div>
-            <p class="recap-deposit">+ Dépôt de garantie : 500 EUR (chèque non encaissé)</p>
+            <p class="recap-deposit">+ Dépôt de garantie : 500 € (chèque non encaissé)</p>
           </div>
         </div>
       </div>

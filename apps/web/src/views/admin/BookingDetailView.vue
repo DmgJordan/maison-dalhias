@@ -37,6 +37,7 @@ const emailModalDocTypes = ref<('contract' | 'invoice')[]>([]);
 const showSuccessScreen = ref(false);
 const lastSentEmail = ref<EmailLog | null>(null);
 const loadingEmails = ref(false);
+const showAllEmails = ref(false);
 
 const bookingId = computed((): string => route.params.id as string);
 
@@ -111,6 +112,11 @@ const statusClass = computed((): string => {
 
 const hasClientEmail = computed((): boolean => {
   return !!booking.value?.primaryClient?.email;
+});
+
+const visibleEmailLogs = computed((): EmailLog[] => {
+  if (showAllEmails.value) return emailLogs.value;
+  return emailLogs.value.slice(0, 2);
 });
 
 const modifiedSinceLastSend = computed((): boolean => {
@@ -579,10 +585,7 @@ onMounted(async () => {
               </div>
             </div>
           </section>
-        </div>
 
-        <!-- Colonne droite : Tarifs + Documents -->
-        <div class="detail-column detail-column--right">
           <!-- Section Tarifs -->
           <section class="detail-section">
             <h2 class="section-title">
@@ -680,9 +683,118 @@ onMounted(async () => {
               <div class="schedule-item schedule-item--deposit">
                 <span class="schedule-label">Depot de garantie</span>
                 <span class="schedule-value"
-                  >{{ OPTION_PRICES.SECURITY_DEPOSIT }} EUR (cheque non encaisse)</span
+                  >{{ OPTION_PRICES.SECURITY_DEPOSIT }} € (cheque non encaisse)</span
                 >
               </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- Colonne droite : Actions + Documents + Historique emails -->
+        <div class="detail-column detail-column--right">
+          <!-- Section Actions -->
+          <section v-if="booking.status !== 'CANCELLED'" class="detail-section">
+            <h2 class="section-title">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="section-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <line x1="4" y1="21" x2="4" y2="14" />
+                <line x1="4" y1="10" x2="4" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12" y2="3" />
+                <line x1="20" y1="21" x2="20" y2="16" />
+                <line x1="20" y1="12" x2="20" y2="3" />
+                <line x1="1" y1="14" x2="7" y2="14" />
+                <line x1="9" y1="8" x2="15" y2="8" />
+                <line x1="17" y1="16" x2="23" y2="16" />
+              </svg>
+              Actions
+            </h2>
+            <div class="actions-card">
+              <button
+                v-if="booking.status === 'PENDING'"
+                class="action-btn action-btn--primary"
+                :disabled="loading"
+                @click="handleOpenEdit"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="btn-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+                Modifier la reservation
+              </button>
+
+              <div v-if="booking.status === 'PENDING'" class="action-row">
+                <button
+                  class="action-btn action-btn--confirm"
+                  :disabled="loading"
+                  @click="handleConfirm"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="btn-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Confirmer
+                </button>
+
+                <button
+                  class="action-btn action-btn--cancel"
+                  :disabled="loading"
+                  @click="handleCancel"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="btn-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                  Annuler
+                </button>
+              </div>
+
+              <button
+                class="action-btn action-btn--delete"
+                :disabled="loading"
+                @click="showDeleteConfirm = true"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="btn-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <polyline points="3 6 5 6 21 6" />
+                  <path
+                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                  />
+                </svg>
+                Supprimer
+              </button>
             </div>
           </section>
 
@@ -901,93 +1013,22 @@ onMounted(async () => {
             </h2>
             <div class="email-history-list">
               <EmailHistoryCard
-                v-for="log in emailLogs"
+                v-for="log in visibleEmailLogs"
                 :key="log.id"
                 :email-log="log"
                 @resend="handleResend"
               />
             </div>
+            <button
+              v-if="!showAllEmails && emailLogs.length > 2"
+              class="show-all-emails-btn"
+              @click="showAllEmails = true"
+            >
+              Voir tout l'historique ({{ emailLogs.length }})
+            </button>
           </section>
         </div>
       </div>
-
-      <!-- Actions -->
-      <section v-if="booking.status !== 'CANCELLED'" class="detail-actions">
-        <!-- Action principale -->
-        <button
-          v-if="booking.status === 'PENDING'"
-          class="action-btn action-btn--primary"
-          :disabled="loading"
-          @click="handleOpenEdit"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="btn-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
-          Modifier la reservation
-        </button>
-
-        <!-- Actions secondaires -->
-        <div v-if="booking.status === 'PENDING'" class="action-row">
-          <button class="action-btn action-btn--confirm" :disabled="loading" @click="handleConfirm">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="btn-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            Confirmer
-          </button>
-
-          <button class="action-btn action-btn--cancel" :disabled="loading" @click="handleCancel">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="btn-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-            Annuler
-          </button>
-        </div>
-
-        <!-- Action danger -->
-        <button
-          class="action-btn action-btn--delete"
-          :disabled="loading"
-          @click="showDeleteConfirm = true"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="btn-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <polyline points="3 6 5 6 21 6" />
-            <path
-              d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-            />
-          </svg>
-          Supprimer
-        </button>
-      </section>
     </template>
 
     <!-- Modal de confirmation suppression -->
@@ -1762,17 +1803,34 @@ onMounted(async () => {
   gap: 12px;
 }
 
-/* Actions */
-.detail-actions {
+.show-all-emails-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 12px 16px;
+  margin-top: 12px;
+  background: white;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #717171;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.show-all-emails-btn:hover {
+  background-color: #f7f7f7;
+  border-color: #d4d4d4;
+  color: #484848;
+}
+
+/* Actions card */
+.actions-card {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: 24px;
-  background-color: white;
-  border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e5e5e5;
 }
 
 .action-row {
@@ -1790,7 +1848,8 @@ onMounted(async () => {
   border-radius: 12px;
   font-size: 15px;
   font-weight: 600;
-  border: none;
+  border: 2px solid transparent;
+  background: white;
   cursor: pointer;
   transition: all 0.2s;
   min-height: 52px;
@@ -1806,31 +1865,28 @@ onMounted(async () => {
   height: 20px;
 }
 
-/* Bouton principal - pleine largeur, accent fort */
+/* Bouton principal - outline primary, pleine largeur */
 .action-btn--primary {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  color: white;
-  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
+  border-color: #ff385c;
+  color: #ff385c;
   font-size: 16px;
   min-height: 56px;
 }
 
 .action-btn--primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.45);
-  transform: translateY(-1px);
+  background-color: #fff0f3;
+  border-color: #e0314f;
+  color: #e0314f;
 }
 
 .action-btn--primary:active:not(:disabled) {
-  transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  background-color: #ffe4e9;
 }
 
-/* Boutons secondaires - style outline */
+/* Bouton confirmer - outline vert */
 .action-btn--confirm {
-  background-color: white;
+  border-color: #10b981;
   color: #059669;
-  border: 2px solid #10b981;
 }
 
 .action-btn--confirm:hover:not(:disabled) {
@@ -1838,21 +1894,23 @@ onMounted(async () => {
   border-color: #059669;
 }
 
+/* Bouton annuler - outline gris neutre */
 .action-btn--cancel {
-  background-color: white;
-  color: #d97706;
-  border: 2px solid #f59e0b;
+  border-color: #d4d4d4;
+  color: #717171;
 }
 
 .action-btn--cancel:hover:not(:disabled) {
-  background-color: #fffbeb;
-  border-color: #d97706;
+  background-color: #f7f7f7;
+  border-color: #a3a3a3;
+  color: #484848;
 }
 
 /* Bouton danger - discret */
 .action-btn--delete {
   background-color: transparent;
   color: #9ca3af;
+  border-color: transparent;
   font-size: 14px;
   font-weight: 500;
   min-height: 44px;
@@ -1999,26 +2057,32 @@ onMounted(async () => {
     margin-bottom: 0;
   }
 
-  /* Actions sticky en bas */
-  .detail-actions {
-    position: sticky;
-    bottom: 20px;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
+  /* Email history: scroll on desktop */
+  .email-history-list {
+    max-height: 400px;
+    overflow-y: auto;
   }
 
-  .action-btn--primary {
-    flex: 1 1 100%;
+  .email-history-list::-webkit-scrollbar {
+    width: 6px;
   }
 
-  .action-row {
-    flex: 1;
+  .email-history-list::-webkit-scrollbar-track {
+    background: transparent;
   }
 
-  .action-btn--delete {
-    flex: 0 0 auto;
+  .email-history-list::-webkit-scrollbar-thumb {
+    background-color: #d4d4d4;
+    border-radius: 3px;
+  }
+
+  .email-history-list::-webkit-scrollbar-thumb:hover {
+    background-color: #a3a3a3;
+  }
+
+  /* Show all button hidden on desktop (scroll handles it) */
+  .show-all-emails-btn {
+    display: none;
   }
 }
 
