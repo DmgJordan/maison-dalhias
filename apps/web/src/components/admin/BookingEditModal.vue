@@ -41,6 +41,7 @@ const form = ref({
     ? {
         firstName: props.booking.primaryClient.firstName,
         lastName: props.booking.primaryClient.lastName,
+        email: props.booking.primaryClient.email || '',
         address: props.booking.primaryClient.address,
         city: props.booking.primaryClient.city,
         postalCode: props.booking.primaryClient.postalCode,
@@ -52,6 +53,7 @@ const form = ref({
     ? {
         firstName: props.booking.secondaryClient.firstName,
         lastName: props.booking.secondaryClient.lastName,
+        email: props.booking.secondaryClient.email || '',
         address: props.booking.secondaryClient.address,
         city: props.booking.secondaryClient.city,
         postalCode: props.booking.secondaryClient.postalCode,
@@ -145,6 +147,7 @@ const hasClientChanged = (type: 'primary' | 'secondary'): boolean => {
   return (
     formClient.firstName !== originalClient.firstName ||
     formClient.lastName !== originalClient.lastName ||
+    formClient.email !== (originalClient.email || '') ||
     formClient.address !== originalClient.address ||
     formClient.city !== originalClient.city ||
     formClient.postalCode !== originalClient.postalCode ||
@@ -435,6 +438,9 @@ const handleSubmit = async (): Promise<void> => {
             {{ form.primaryClient.city }}</span
           >
           <span class="edit-section-detail">{{ form.primaryClient.phone }}</span>
+          <span v-if="form.primaryClient.email" class="edit-section-detail">{{
+            form.primaryClient.email
+          }}</span>
         </template>
         <span v-else class="edit-section-detail">Non renseigne</span>
       </div>
@@ -467,6 +473,15 @@ const handleSubmit = async (): Promise<void> => {
           <div class="form-field">
             <label class="form-label">Telephone</label>
             <input v-model="form.primaryClient.phone" type="tel" class="form-input" />
+          </div>
+          <div class="form-field">
+            <label class="form-label">Email (optionnel)</label>
+            <input
+              v-model="form.primaryClient.email"
+              type="email"
+              class="form-input"
+              placeholder="email@exemple.com"
+            />
           </div>
         </template>
       </div>

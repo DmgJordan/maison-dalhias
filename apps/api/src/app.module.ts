@@ -9,6 +9,7 @@ import { SeasonsModule } from './seasons/seasons.module';
 import { DatePeriodsModule } from './date-periods/date-periods.module';
 import { PricingModule } from './pricing/pricing.module';
 import { SettingsModule } from './settings/settings.module';
+import { PdfModule } from './pdf/pdf.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { SettingsModule } from './settings/settings.module';
     DatePeriodsModule,
     PricingModule,
     SettingsModule,
+    PdfModule,
   ],
 })
 export class AppModule {}

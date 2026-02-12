@@ -58,12 +58,14 @@ export interface Booking {
   cleaningIncluded: boolean;
   linenIncluded: boolean;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface Client {
   id: string;
   firstName: string;
   lastName: string;
+  email?: string;
   address: string;
   city: string;
   postalCode: string;
@@ -190,6 +192,33 @@ export interface ConflictCheckResult {
 
 export interface Settings {
   defaultPricePerNight: number;
+}
+
+// Email Types
+export interface EmailLog {
+  id: string;
+  bookingId: string;
+  recipientEmail: string;
+  recipientName: string;
+  documentTypes: string[];
+  subject: string;
+  personalMessage?: string;
+  resendMessageId?: string;
+  status: 'SENT' | 'FAILED';
+  sentAt: string;
+  failedAt?: string;
+  failureReason?: string;
+  contractSnapshotId?: string;
+  invoiceSnapshotId?: string;
+  createdAt: string;
+}
+
+export interface SendDocumentEmailRequest {
+  bookingId: string;
+  documentTypes: ('contract' | 'invoice')[];
+  recipientEmail: string;
+  recipientName: string;
+  personalMessage?: string;
 }
 
 // Auth API
@@ -432,6 +461,19 @@ export const settingsApi = {
 
   async update(settings: Partial<Settings>): Promise<Settings> {
     const { data } = await api.patch<Settings>('/settings', settings);
+    return data;
+  },
+};
+
+// Email API
+export const emailApi = {
+  async send(data: SendDocumentEmailRequest): Promise<EmailLog> {
+    const { data: result } = await api.post<EmailLog>('/emails/send', data);
+    return result;
+  },
+
+  async getByBooking(bookingId: string): Promise<EmailLog[]> {
+    const { data } = await api.get<EmailLog[]>(`/emails/booking/${bookingId}`);
     return data;
   },
 };

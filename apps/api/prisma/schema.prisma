@@ -25,22 +25,26 @@ enum Role {
 }
 
 model Booking {
-  id                   String   @id @default(uuid())
-  startDate            DateTime @map("start_date")
-  endDate              DateTime @map("end_date")
-  status               Status   @default(PENDING)
-  userId               String   @map("user_id")
-  user                 User     @relation(fields: [userId], references: [id])
-  primaryClientId      String?  @map("primary_client_id")
-  primaryClient        Client?  @relation("PrimaryClient", fields: [primaryClientId], references: [id])
-  secondaryClientId    String?  @map("secondary_client_id")
-  secondaryClient      Client?  @relation("SecondaryClient", fields: [secondaryClientId], references: [id])
-  occupantsCount       Int      @default(1) @map("occupants_count")
-  rentalPrice          Decimal  @default(0) @map("rental_price") @db.Decimal(10, 2)
-  touristTaxIncluded   Boolean  @default(false) @map("tourist_tax_included")
-  cleaningIncluded     Boolean  @default(false) @map("cleaning_included")
-  linenIncluded        Boolean  @default(false) @map("linen_included")
-  createdAt            DateTime @default(now()) @map("created_at")
+  id                   String              @id @default(uuid())
+  startDate            DateTime            @map("start_date")
+  endDate              DateTime            @map("end_date")
+  status               Status              @default(PENDING)
+  userId               String              @map("user_id")
+  user                 User                @relation(fields: [userId], references: [id])
+  primaryClientId      String?             @map("primary_client_id")
+  primaryClient        Client?             @relation("PrimaryClient", fields: [primaryClientId], references: [id])
+  secondaryClientId    String?             @map("secondary_client_id")
+  secondaryClient      Client?             @relation("SecondaryClient", fields: [secondaryClientId], references: [id])
+  occupantsCount       Int                 @default(1) @map("occupants_count")
+  rentalPrice          Decimal             @default(0) @map("rental_price") @db.Decimal(10, 2)
+  touristTaxIncluded   Boolean             @default(false) @map("tourist_tax_included")
+  cleaningIncluded     Boolean             @default(false) @map("cleaning_included")
+  linenIncluded        Boolean             @default(false) @map("linen_included")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+  emailLogs            EmailLog[]
+  contractSnapshots    ContractSnapshot[]
+  invoiceSnapshots     InvoiceSnapshot[]
 
   @@map("bookings")
 }
@@ -55,6 +59,7 @@ model Client {
   id                String    @id @default(uuid())
   firstName         String    @map("first_name")
   lastName          String    @map("last_name")
+  email             String?
   address           String
   city              String
   postalCode        String    @map("postal_code")
@@ -116,4 +121,86 @@ model Settings {
   updatedAt           DateTime @updatedAt @map("updated_at")
 
   @@map("settings")
+}
+
+enum EmailStatus {
+  SENT
+  FAILED
+}
+
+model EmailLog {
+  id                  String            @id @default(uuid())
+  bookingId           String            @map("booking_id")
+  booking             Booking           @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  recipientEmail      String            @map("recipient_email")
+  recipientName       String            @map("recipient_name")
+  documentTypes       String[]          @map("document_types")
+  subject             String
+  personalMessage     String?           @map("personal_message")
+  resendMessageId     String?           @map("resend_message_id")
+  status              EmailStatus
+  sentAt              DateTime          @map("sent_at")
+  failedAt            DateTime?         @map("failed_at")
+  failureReason       String?           @map("failure_reason")
+  contractSnapshotId  String?           @map("contract_snapshot_id")
+  contractSnapshot    ContractSnapshot? @relation(fields: [contractSnapshotId], references: [id])
+  invoiceSnapshotId   String?           @map("invoice_snapshot_id")
+  invoiceSnapshot     InvoiceSnapshot?  @relation(fields: [invoiceSnapshotId], references: [id])
+  createdAt           DateTime          @default(now()) @map("created_at")
+
+  @@index([bookingId])
+  @@map("email_logs")
+}
+
+model ContractSnapshot {
+  id                String     @id @default(uuid())
+  bookingId         String     @map("booking_id")
+  booking           Booking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  clientFirstName   String     @map("client_first_name")
+  clientLastName    String     @map("client_last_name")
+  clientAddress     String     @map("client_address")
+  clientCity        String     @map("client_city")
+  clientPostalCode  String     @map("client_postal_code")
+  clientCountry     String     @map("client_country")
+  clientEmail       String?    @map("client_email")
+  clientPhone       String     @map("client_phone")
+  startDate         DateTime   @map("start_date")
+  endDate           DateTime   @map("end_date")
+  occupantsCount    Int        @map("occupants_count")
+  rentalPrice       Decimal    @map("rental_price") @db.Decimal(10, 2)
+  cleaningIncluded  Boolean    @map("cleaning_included")
+  linenIncluded     Boolean    @map("linen_included")
+  touristTaxIncluded Boolean   @map("tourist_tax_included")
+  depositAmount     Decimal    @map("deposit_amount") @db.Decimal(10, 2)
+  createdAt         DateTime   @default(now()) @map("created_at")
+  emailLogs         EmailLog[]
+
+  @@index([bookingId])
+  @@map("contract_snapshots")
+}
+
+model InvoiceSnapshot {
+  id                String     @id @default(uuid())
+  bookingId         String     @map("booking_id")
+  booking           Booking    @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  clientFirstName   String     @map("client_first_name")
+  clientLastName    String     @map("client_last_name")
+  clientAddress     String     @map("client_address")
+  clientCity        String     @map("client_city")
+  clientPostalCode  String     @map("client_postal_code")
+  clientCountry     String     @map("client_country")
+  rentalPrice       Decimal    @map("rental_price") @db.Decimal(10, 2)
+  nightsCount       Int        @map("nights_count")
+  cleaningPrice     Decimal?   @map("cleaning_price") @db.Decimal(10, 2)
+  linenPrice        Decimal?   @map("linen_price") @db.Decimal(10, 2)
+  touristTaxPrice   Decimal?   @map("tourist_tax_price") @db.Decimal(10, 2)
+  totalPrice        Decimal    @map("total_price") @db.Decimal(10, 2)
+  depositAmount     Decimal    @map("deposit_amount") @db.Decimal(10, 2)
+  balanceAmount     Decimal    @map("balance_amount") @db.Decimal(10, 2)
+  priceDetailsJson  Json?      @map("price_details_json")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  emailLogs         EmailLog[]
+
+  @@index([bookingId])
+  @@map("invoice_snapshots")
 }

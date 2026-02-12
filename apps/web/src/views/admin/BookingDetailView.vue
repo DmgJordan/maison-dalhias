@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { bookingsApi, type Booking, type PriceCalculation } from '../../lib/api';
+import {
+  bookingsApi,
+  emailApi,
+  type Booking,
+  type PriceCalculation,
+  type EmailLog,
+} from '../../lib/api';
 import { generateContract } from '../../services/pdf/contractGenerator';
 import { generateInvoice, generateInvoiceNumber } from '../../services/pdf/invoiceGenerator';
 import { OPTION_PRICES } from '../../constants/pricing';
 import BookingEditModal from '../../components/admin/BookingEditModal.vue';
+import EmailSendModal from '../../components/admin/EmailSendModal.vue';
+import EmailHistoryCard from '../../components/admin/EmailHistoryCard.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -21,6 +29,14 @@ const generatingInvoice = ref(false);
 const bookedDates = ref<string[]>([]);
 const priceCalculation = ref<PriceCalculation | null>(null);
 const priceMismatch = ref(false);
+
+// Email state
+const emailLogs = ref<EmailLog[]>([]);
+const showEmailModal = ref(false);
+const emailModalDocTypes = ref<('contract' | 'invoice')[]>([]);
+const showSuccessScreen = ref(false);
+const lastSentEmail = ref<EmailLog | null>(null);
+const loadingEmails = ref(false);
 
 const bookingId = computed((): string => route.params.id as string);
 
@@ -91,6 +107,16 @@ const statusClass = computed((): string => {
     default:
       return '';
   }
+});
+
+const hasClientEmail = computed((): boolean => {
+  return !!booking.value?.primaryClient?.email;
+});
+
+const modifiedSinceLastSend = computed((): boolean => {
+  if (!booking.value || emailLogs.value.length === 0) return false;
+  const lastLog = emailLogs.value[0]; // Sorted by sentAt desc
+  return new Date(booking.value.updatedAt) > new Date(lastLog.sentAt);
 });
 
 const formatDate = (dateString: string): string => {
@@ -316,9 +342,43 @@ const handleGenerateInvoice = async (): Promise<void> => {
   }
 };
 
+const fetchEmailHistory = async (): Promise<void> => {
+  if (!booking.value) return;
+  try {
+    loadingEmails.value = true;
+    emailLogs.value = await emailApi.getByBooking(booking.value.id);
+  } catch {
+    // Silently fail
+  } finally {
+    loadingEmails.value = false;
+  }
+};
+
+const openEmailModal = (docTypes: ('contract' | 'invoice')[]): void => {
+  emailModalDocTypes.value = docTypes;
+  showEmailModal.value = true;
+};
+
+const handleEmailSent = async (emailLog: EmailLog): Promise<void> => {
+  showEmailModal.value = false;
+  lastSentEmail.value = emailLog;
+  showSuccessScreen.value = true;
+  await fetchEmailHistory();
+};
+
+const dismissSuccessScreen = (): void => {
+  showSuccessScreen.value = false;
+  lastSentEmail.value = null;
+};
+
+const handleResend = (emailLog: EmailLog): void => {
+  emailModalDocTypes.value = emailLog.documentTypes as ('contract' | 'invoice')[];
+  showEmailModal.value = true;
+};
+
 onMounted(async () => {
   await fetchBooking();
-  await checkPriceConsistency();
+  await Promise.all([checkPriceConsistency(), fetchEmailHistory()]);
 });
 </script>
 
@@ -475,6 +535,22 @@ onMounted(async () => {
                     </svg>
                     {{ booking.primaryClient.phone }}
                   </a>
+                  <span v-if="booking.primaryClient.email" class="contact-link contact-link--email">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="contact-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+                      />
+                      <polyline points="22,6 12,13 2,6" />
+                    </svg>
+                    {{ booking.primaryClient.email }}
+                  </span>
                 </div>
               </div>
               <div v-if="booking.secondaryClient" class="secondary-client">
@@ -627,55 +703,207 @@ onMounted(async () => {
               </svg>
               Documents
             </h2>
-            <div class="documents-grid">
-              <button
-                class="document-btn document-btn--active"
-                :disabled="generatingContract"
-                @click="handleGenerateContract"
-              >
+
+            <!-- Modified since last send alert -->
+            <div v-if="modifiedSinceLastSend" class="modified-alert">
+              La reservation a ete modifiee depuis le dernier envoi. Pensez a renvoyer les
+              documents.
+            </div>
+
+            <!-- Success screen -->
+            <div v-if="showSuccessScreen && lastSentEmail" class="success-screen">
+              <div class="success-icon-large">
                 <svg
-                  v-if="!generatingContract"
                   xmlns="http://www.w3.org/2000/svg"
-                  class="document-icon"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2"
                 >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
                 </svg>
-                <div v-else class="document-spinner"></div>
-                <span class="document-label">Contrat de location</span>
-                <span class="document-status document-status--ready">
-                  {{ generatingContract ? 'Generation...' : 'Telecharger' }}
-                </span>
+              </div>
+              <h3 class="success-heading">Email envoye avec succes !</h3>
+              <div class="success-recap">
+                <p>
+                  <strong>Destinataire :</strong> {{ lastSentEmail.recipientName }} ({{
+                    lastSentEmail.recipientEmail
+                  }})
+                </p>
+                <p>
+                  <strong>Documents :</strong>
+                  {{
+                    lastSentEmail.documentTypes
+                      .map((t) => (t === 'contract' ? 'Contrat' : 'Facture'))
+                      .join(', ')
+                  }}
+                </p>
+                <p>
+                  <strong>Envoye le :</strong>
+                  {{
+                    new Date(lastSentEmail.sentAt).toLocaleDateString('fr-FR', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  }}
+                </p>
+              </div>
+              <button class="btn-back-to-booking" @click="dismissSuccessScreen">
+                Retour a la reservation
               </button>
-              <button
-                class="document-btn document-btn--active"
-                :disabled="generatingInvoice"
-                @click="handleGenerateInvoice"
-              >
-                <svg
-                  v-if="!generatingInvoice"
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="document-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
+            </div>
+
+            <!-- Document buttons (hidden during success screen) -->
+            <template v-if="!showSuccessScreen">
+              <div class="documents-grid">
+                <button
+                  class="document-btn document-btn--active"
+                  :disabled="generatingContract"
+                  @click="handleGenerateContract"
                 >
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="7 10 12 15 17 10" />
-                  <line x1="12" y1="15" x2="12" y2="3" />
-                </svg>
-                <div v-else class="document-spinner"></div>
-                <span class="document-label">Facture</span>
-                <span class="document-status document-status--ready">
-                  {{ generatingInvoice ? 'Generation...' : 'Telecharger' }}
-                </span>
-              </button>
+                  <svg
+                    v-if="!generatingContract"
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="document-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <div v-else class="document-spinner"></div>
+                  <span class="document-label">Contrat de location</span>
+                  <span class="document-status document-status--ready">
+                    {{ generatingContract ? 'Generation...' : 'Telecharger' }}
+                  </span>
+                </button>
+                <button
+                  class="document-btn document-btn--active"
+                  :disabled="generatingInvoice"
+                  @click="handleGenerateInvoice"
+                >
+                  <svg
+                    v-if="!generatingInvoice"
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="document-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  <div v-else class="document-spinner"></div>
+                  <span class="document-label">Facture</span>
+                  <span class="document-status document-status--ready">
+                    {{ generatingInvoice ? 'Generation...' : 'Telecharger' }}
+                  </span>
+                </button>
+              </div>
+
+              <!-- Email send buttons -->
+              <template v-if="booking.status !== 'CANCELLED'">
+                <div v-if="!hasClientEmail" class="email-warning">
+                  Adresse email du client requise pour l'envoi.
+                </div>
+                <div class="email-send-buttons">
+                  <button
+                    class="email-btn"
+                    :disabled="!hasClientEmail"
+                    @click="openEmailModal(['contract'])"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="email-btn-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+                      />
+                      <polyline points="22,6 12,13 2,6" />
+                    </svg>
+                    Envoyer le contrat par email
+                  </button>
+                  <button
+                    class="email-btn"
+                    :disabled="!hasClientEmail"
+                    @click="openEmailModal(['invoice'])"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="email-btn-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+                      />
+                      <polyline points="22,6 12,13 2,6" />
+                    </svg>
+                    Envoyer la facture par email
+                  </button>
+                  <button
+                    class="email-btn email-btn--both"
+                    :disabled="!hasClientEmail"
+                    @click="openEmailModal(['contract', 'invoice'])"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="email-btn-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+                      />
+                      <polyline points="22,6 12,13 2,6" />
+                    </svg>
+                    Envoyer les deux par email
+                  </button>
+                </div>
+              </template>
+            </template>
+          </section>
+
+          <!-- Email History Section -->
+          <section v-if="emailLogs.length > 0" class="detail-section">
+            <h2 class="section-title">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="section-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              Historique des emails
+            </h2>
+            <div class="email-history-list">
+              <EmailHistoryCard
+                v-for="log in emailLogs"
+                :key="log.id"
+                :email-log="log"
+                @resend="handleResend"
+              />
             </div>
           </section>
         </div>
@@ -791,6 +1019,16 @@ onMounted(async () => {
       :booked-dates="bookedDates"
       @close="showEditModal = false"
       @updated="handleBookingUpdated"
+    />
+
+    <!-- Modal d'envoi email -->
+    <EmailSendModal
+      v-if="booking"
+      :booking="booking"
+      :initial-document-types="emailModalDocTypes"
+      :show="showEmailModal"
+      @close="showEmailModal = false"
+      @sent="handleEmailSent"
     />
   </div>
 </template>
@@ -1372,6 +1610,154 @@ onMounted(async () => {
   border-top-color: #ff385c;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
+}
+
+/* Email - contact link style */
+.contact-link--email {
+  cursor: default;
+}
+
+/* Modified alert */
+.modified-alert {
+  padding: 12px 16px;
+  background-color: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  color: #92400e;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+/* Success screen */
+.success-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 32px 20px;
+}
+
+.success-icon-large {
+  width: 64px;
+  height: 64px;
+  color: #10b981;
+  margin-bottom: 16px;
+}
+
+.success-icon-large svg {
+  width: 100%;
+  height: 100%;
+}
+
+.success-heading {
+  font-size: 20px;
+  font-weight: 700;
+  color: #10b981;
+  margin: 0 0 20px 0;
+}
+
+.success-recap {
+  text-align: left;
+  width: 100%;
+  max-width: 380px;
+  background: #f0fdf4;
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+
+.success-recap p {
+  margin: 6px 0;
+  font-size: 14px;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.btn-back-to-booking {
+  padding: 14px 28px;
+  min-height: 48px;
+  border: none;
+  border-radius: 10px;
+  background: #10b981;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-back-to-booking:hover {
+  background: #059669;
+}
+
+/* Email send buttons */
+.email-warning {
+  padding: 10px 14px;
+  background-color: #fef2f2;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 14px;
+  margin-top: 12px;
+}
+
+.email-send-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.email-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 16px;
+  min-height: 48px;
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.email-btn:hover:not(:disabled) {
+  background: #f0f9ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+}
+
+.email-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.email-btn--both {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.email-btn--both:hover:not(:disabled) {
+  background: #dbeafe;
+}
+
+.email-btn-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* Email history */
+.email-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 /* Actions */

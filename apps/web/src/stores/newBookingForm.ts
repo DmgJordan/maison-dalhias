@@ -329,6 +329,7 @@ export const useNewBookingFormStore = defineStore('newBookingForm', {
           city: this.primaryClient.city,
           country: this.primaryClient.country,
           phone: this.primaryClient.phone,
+          ...(this.primaryClient.email ? { email: this.primaryClient.email } : {}),
         },
         occupantsCount: this.occupantsCount,
         rentalPrice: this.rentalPrice,
@@ -346,6 +347,7 @@ export const useNewBookingFormStore = defineStore('newBookingForm', {
           city: this.secondaryClient.city || this.primaryClient.city,
           country: this.secondaryClient.country || this.primaryClient.country,
           phone: this.secondaryClient.phone || this.primaryClient.phone,
+          ...(this.secondaryClient.email ? { email: this.secondaryClient.email } : {}),
         };
       }
 
