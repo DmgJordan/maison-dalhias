@@ -2,6 +2,8 @@
 import { ref, computed, watch } from 'vue';
 import type { Season } from '../../lib/api';
 import BaseModal from './BaseModal.vue';
+import { required, min } from '../../utils/validation';
+import { useFormValidation } from '../../composables/useFormValidation';
 
 interface SaveData {
   name: string;
@@ -29,6 +31,22 @@ const name = ref('');
 const pricePerNight = ref<number | string>('');
 const weeklyNightRate = ref<number | string>('');
 const minNights = ref<number>(3);
+
+const seasonFormData = computed(() => ({
+  name: name.value,
+  pricePerNight: pricePerNight.value,
+}));
+
+const seasonValidation = useFormValidation({
+  schema: {
+    name: [required('Le nom de la saison est obligatoire')],
+    pricePerNight: [
+      required('Le prix par nuit est obligatoire'),
+      min(1, 'Le prix doit être supérieur à 0'),
+    ],
+  },
+  formData: seasonFormData,
+});
 
 const minNightsOptions = [
   { value: 1, label: '1 nuit' },
@@ -68,13 +86,8 @@ const weeklyRateError = computed((): string | null => {
 });
 
 const isValid = computed((): boolean => {
-  const trimmedName = name.value.trim();
-  const numPrice =
-    typeof pricePerNight.value === 'string' ? parseFloat(pricePerNight.value) : pricePerNight.value;
-
   if (weeklyRateError.value) return false;
-
-  return trimmedName.length > 0 && !isNaN(numPrice) && numPrice > 0;
+  return seasonValidation.isValid.value;
 });
 
 const handleSubmit = (): void => {
@@ -125,6 +138,7 @@ watch(
       weeklyNightRate.value = '';
       minNights.value = 3;
     }
+    seasonValidation.resetTouched();
   },
   { immediate: true }
 );
@@ -140,10 +154,15 @@ watch(
           v-model="name"
           type="text"
           class="form-input"
+          :class="{ 'has-error': seasonValidation.hasFieldError('name') }"
           placeholder="Ex: Haute saison"
           :disabled="submitting"
           autofocus
+          @blur="seasonValidation.touchField('name')"
         />
+        <p v-if="seasonValidation.fieldError('name')" class="field-error">
+          {{ seasonValidation.fieldError('name') }}
+        </p>
       </div>
 
       <div class="form-group">
@@ -154,13 +173,18 @@ watch(
             v-model="pricePerNight"
             type="number"
             class="form-input"
+            :class="{ 'has-error': seasonValidation.hasFieldError('pricePerNight') }"
             placeholder="0"
             min="1"
             step="1"
             :disabled="submitting"
+            @blur="seasonValidation.touchField('pricePerNight')"
           />
           <span class="price-suffix">EUR / nuit</span>
         </div>
+        <p v-if="seasonValidation.fieldError('pricePerNight')" class="field-error">
+          {{ seasonValidation.fieldError('pricePerNight') }}
+        </p>
       </div>
 
       <div class="form-group">

@@ -1,13 +1,35 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { useNewBookingFormStore } from '../../stores/newBookingForm';
+import { useNewBookingFormStore, type ClientFormData } from '../../stores/newBookingForm';
 import { bookingsApi } from '../../lib/api';
 import DatePicker from '../../components/admin/DatePicker.vue';
 import { formatDateLong, formatPrice } from '../../utils/formatting';
+import { required, email, phone, postalCode } from '../../utils/validation';
+import { COUNTRIES } from '../../constants/property';
+import {
+  useFormValidation,
+  type UseFormValidationReturn,
+} from '../../composables/useFormValidation';
+import type { ValidationSchema } from '../../utils/validation';
 
 const router = useRouter();
 const formStore = useNewBookingFormStore();
+
+const clientSchema: ValidationSchema<ClientFormData> = {
+  firstName: [required('Le prénom est obligatoire')],
+  lastName: [required('Le nom est obligatoire')],
+  address: [required("L'adresse est obligatoire")],
+  postalCode: [required('Le code postal est obligatoire'), postalCode()],
+  city: [required('La ville est obligatoire')],
+  phone: [required('Le téléphone est obligatoire'), phone()],
+  email: [required("L'email est obligatoire"), email()],
+};
+
+const step2Validation: UseFormValidationReturn<ClientFormData> = useFormValidation({
+  schema: clientSchema,
+  formData: () => formStore.primaryClient,
+});
 
 const loading = ref(false);
 const error = ref<string | null>(null);
@@ -70,6 +92,11 @@ const handleNext = async (): Promise<void> => {
     }
   }
 
+  // Validation de l'etape 2 (client) avec feedback inline
+  if (currentStep.value === 2) {
+    if (!step2Validation.attemptSubmit()) return;
+  }
+
   // Calculer le prix suggere quand on passe a l'etape 5
   if (currentStep.value === 4) {
     await formStore.calculateSuggestedPrice();
@@ -107,6 +134,7 @@ const handleSubmit = async (): Promise<void> => {
 
 const handleReset = (): void => {
   formStore.reset();
+  step2Validation.resetTouched();
   error.value = null;
 };
 
@@ -262,82 +290,203 @@ onMounted(() => {
 
         <div class="form-row">
           <div class="form-group">
-            <label for="firstName" class="form-label">Prénom</label>
+            <label for="firstName" class="form-label"
+              >Prénom<span class="form-required">*</span></label
+            >
             <input
               id="firstName"
               v-model="formStore.primaryClient.firstName"
               type="text"
               class="form-input"
+              :class="{ 'form-input--error': step2Validation.hasFieldError('firstName') }"
               placeholder="Jean"
+              :aria-invalid="step2Validation.hasFieldError('firstName') ? 'true' : undefined"
+              :aria-describedby="
+                step2Validation.hasFieldError('firstName')
+                  ? step2Validation.errorId('firstName')
+                  : undefined
+              "
+              @blur="step2Validation.touchField('firstName')"
             />
+            <p
+              v-if="step2Validation.fieldError('firstName')"
+              :id="step2Validation.errorId('firstName')"
+              class="form-field-error"
+              role="alert"
+            >
+              {{ step2Validation.fieldError('firstName') }}
+            </p>
           </div>
           <div class="form-group">
-            <label for="lastName" class="form-label">Nom</label>
+            <label for="lastName" class="form-label">Nom<span class="form-required">*</span></label>
             <input
               id="lastName"
               v-model="formStore.primaryClient.lastName"
               type="text"
               class="form-input"
+              :class="{ 'form-input--error': step2Validation.hasFieldError('lastName') }"
               placeholder="Dupont"
+              :aria-invalid="step2Validation.hasFieldError('lastName') ? 'true' : undefined"
+              :aria-describedby="
+                step2Validation.hasFieldError('lastName')
+                  ? step2Validation.errorId('lastName')
+                  : undefined
+              "
+              @blur="step2Validation.touchField('lastName')"
             />
+            <p
+              v-if="step2Validation.fieldError('lastName')"
+              :id="step2Validation.errorId('lastName')"
+              class="form-field-error"
+              role="alert"
+            >
+              {{ step2Validation.fieldError('lastName') }}
+            </p>
           </div>
         </div>
 
         <div class="form-group">
-          <label for="address" class="form-label">Adresse</label>
+          <label for="address" class="form-label"
+            >Adresse<span class="form-required">*</span></label
+          >
           <input
             id="address"
             v-model="formStore.primaryClient.address"
             type="text"
             class="form-input"
+            :class="{ 'form-input--error': step2Validation.hasFieldError('address') }"
             placeholder="12 rue de la Paix"
+            :aria-invalid="step2Validation.hasFieldError('address') ? 'true' : undefined"
+            :aria-describedby="
+              step2Validation.hasFieldError('address')
+                ? step2Validation.errorId('address')
+                : undefined
+            "
+            @blur="step2Validation.touchField('address')"
           />
+          <p
+            v-if="step2Validation.fieldError('address')"
+            :id="step2Validation.errorId('address')"
+            class="form-field-error"
+            role="alert"
+          >
+            {{ step2Validation.fieldError('address') }}
+          </p>
+        </div>
+
+        <div class="form-group">
+          <label for="country" class="form-label">Pays<span class="form-required">*</span></label>
+          <select id="country" v-model="formStore.primaryClient.country" class="form-input">
+            <option v-for="c in COUNTRIES" :key="c" :value="c">{{ c }}</option>
+          </select>
         </div>
 
         <div class="form-row">
           <div class="form-group form-group--small">
-            <label for="postalCode" class="form-label">Code postal</label>
+            <label for="postalCode" class="form-label"
+              >Code postal<span class="form-required">*</span></label
+            >
             <input
               id="postalCode"
               v-model="formStore.primaryClient.postalCode"
               type="text"
               class="form-input"
+              :class="{ 'form-input--error': step2Validation.hasFieldError('postalCode') }"
               placeholder="75001"
-              maxlength="5"
+              maxlength="10"
+              :aria-invalid="step2Validation.hasFieldError('postalCode') ? 'true' : undefined"
+              :aria-describedby="
+                step2Validation.hasFieldError('postalCode')
+                  ? step2Validation.errorId('postalCode')
+                  : undefined
+              "
+              @blur="step2Validation.touchField('postalCode')"
             />
+            <p
+              v-if="step2Validation.fieldError('postalCode')"
+              :id="step2Validation.errorId('postalCode')"
+              class="form-field-error"
+              role="alert"
+            >
+              {{ step2Validation.fieldError('postalCode') }}
+            </p>
           </div>
           <div class="form-group">
-            <label for="city" class="form-label">Ville</label>
+            <label for="city" class="form-label">Ville<span class="form-required">*</span></label>
             <input
               id="city"
               v-model="formStore.primaryClient.city"
               type="text"
               class="form-input"
+              :class="{ 'form-input--error': step2Validation.hasFieldError('city') }"
               placeholder="Paris"
+              :aria-invalid="step2Validation.hasFieldError('city') ? 'true' : undefined"
+              :aria-describedby="
+                step2Validation.hasFieldError('city') ? step2Validation.errorId('city') : undefined
+              "
+              @blur="step2Validation.touchField('city')"
             />
+            <p
+              v-if="step2Validation.fieldError('city')"
+              :id="step2Validation.errorId('city')"
+              class="form-field-error"
+              role="alert"
+            >
+              {{ step2Validation.fieldError('city') }}
+            </p>
           </div>
         </div>
 
         <div class="form-group">
-          <label for="phone" class="form-label">Téléphone</label>
+          <label for="phone" class="form-label"
+            >Téléphone<span class="form-required">*</span></label
+          >
           <input
             id="phone"
             v-model="formStore.primaryClient.phone"
             type="tel"
             class="form-input"
+            :class="{ 'form-input--error': step2Validation.hasFieldError('phone') }"
             placeholder="+33 6 12 34 56 78"
+            :aria-invalid="step2Validation.hasFieldError('phone') ? 'true' : undefined"
+            :aria-describedby="
+              step2Validation.hasFieldError('phone') ? step2Validation.errorId('phone') : undefined
+            "
+            @blur="step2Validation.touchField('phone')"
           />
+          <p
+            v-if="step2Validation.fieldError('phone')"
+            :id="step2Validation.errorId('phone')"
+            class="form-field-error"
+            role="alert"
+          >
+            {{ step2Validation.fieldError('phone') }}
+          </p>
         </div>
 
         <div class="form-group">
-          <label for="email" class="form-label">Email</label>
+          <label for="email" class="form-label">Email<span class="form-required">*</span></label>
           <input
             id="email"
             v-model="formStore.primaryClient.email"
             type="email"
             class="form-input"
+            :class="{ 'form-input--error': step2Validation.hasFieldError('email') }"
             placeholder="jean.dupont@email.fr"
+            :aria-invalid="step2Validation.hasFieldError('email') ? 'true' : undefined"
+            :aria-describedby="
+              step2Validation.hasFieldError('email') ? step2Validation.errorId('email') : undefined
+            "
+            @blur="step2Validation.touchField('email')"
           />
+          <p
+            v-if="step2Validation.fieldError('email')"
+            :id="step2Validation.errorId('email')"
+            class="form-field-error"
+            role="alert"
+          >
+            {{ step2Validation.fieldError('email') }}
+          </p>
         </div>
 
         <!-- Client secondaire -->
@@ -685,7 +834,8 @@ onMounted(() => {
             <p><strong>Nom :</strong> {{ formStore.clientFullName }}</p>
             <p>
               <strong>Adresse :</strong> {{ formStore.primaryClient.address }},
-              {{ formStore.primaryClient.postalCode }} {{ formStore.primaryClient.city }}
+              {{ formStore.primaryClient.postalCode }} {{ formStore.primaryClient.city }},
+              {{ formStore.primaryClient.country }}
             </p>
             <p><strong>Téléphone :</strong> {{ formStore.primaryClient.phone }}</p>
             <p><strong>Email :</strong> {{ formStore.primaryClient.email }}</p>
@@ -756,7 +906,7 @@ onMounted(() => {
       <button
         v-if="currentStep < 6"
         class="nav-btn nav-btn--next"
-        :disabled="!formStore.canProceed"
+        :disabled="currentStep === 2 ? false : !formStore.canProceed"
         @click="handleNext"
       >
         Suivant
@@ -846,7 +996,7 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  flex-shrink: 0;
+  flex: 1;
 }
 
 .step-circle {
@@ -1020,6 +1170,27 @@ onMounted(() => {
   font-size: 16px;
   color: #717171;
   font-weight: 500;
+}
+
+.form-input--error {
+  border-color: #ef4444 !important;
+}
+
+.form-input--error:focus {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.form-field-error {
+  font-size: 14px;
+  color: #dc2626;
+  margin-top: 6px;
+  margin-bottom: 0;
+}
+
+.form-required {
+  color: #ef4444;
+  margin-left: 2px;
 }
 
 .form-error {

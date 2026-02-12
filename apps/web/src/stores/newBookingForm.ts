@@ -1,6 +1,12 @@
 import { defineStore } from 'pinia';
 import { pricingApi, type PriceDetail } from '../lib/api';
 import { OPTION_PRICES, PAYMENT_PERCENTAGES, getFallbackPricePerNight } from '../constants/pricing';
+import {
+  required,
+  email as emailRule,
+  postalCode as postalCodeRule,
+  validate,
+} from '../utils/validation';
 
 export interface ClientFormData {
   firstName: string;
@@ -151,24 +157,22 @@ export const useNewBookingFormStore = defineStore('newBookingForm', {
 
     isStep2Valid(): boolean {
       const p = this.primaryClient;
-      const hasRequired =
-        p.firstName.trim() !== '' &&
-        p.lastName.trim() !== '' &&
-        p.address.trim() !== '' &&
-        p.postalCode.trim() !== '' &&
-        p.city.trim() !== '' &&
-        p.phone.trim() !== '' &&
-        p.email.trim() !== '';
+      const fields: (keyof ClientFormData)[] = [
+        'firstName',
+        'lastName',
+        'address',
+        'postalCode',
+        'city',
+        'phone',
+        'email',
+      ];
 
-      if (!hasRequired) return false;
+      for (const field of fields) {
+        if (validate(p[field], [required()]) !== null) return false;
+      }
 
-      // Validation email basique
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(p.email)) return false;
-
-      // Validation code postal (5 chiffres)
-      const postalRegex = /^\d{5}$/;
-      if (!postalRegex.test(p.postalCode)) return false;
+      if (validate(p.email, [emailRule()]) !== null) return false;
+      if (validate(p.postalCode, [postalCodeRule()]) !== null) return false;
 
       return true;
     },

@@ -139,6 +139,7 @@ export class EmailService implements OnModuleInit {
         </div>
         <div style="background-color: #f7f7f7; padding: 15px; text-align: center; font-size: 12px; color: #999;">
           <p style="margin: 0;">Ce message a été envoyé depuis le système de gestion Maison Dalhias 19.</p>
+          <p style="margin: 8px 0 0 0;">Merci de ne pas répondre à cet email (adresse no-reply). Pour toute question, contactez-nous au +33 7 87 86 43 58.</p>
         </div>
       </div>
     `;

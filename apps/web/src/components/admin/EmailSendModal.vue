@@ -7,6 +7,7 @@ import {
   type EmailLog,
   type SendDocumentEmailRequest,
 } from '../../lib/api';
+import { isValidEmail as checkEmail } from '../../utils/validation';
 
 interface Props {
   booking: Booking;
@@ -71,7 +72,7 @@ const subject = computed((): string => {
 
 const isValidEmail = computed((): boolean => {
   if (recipientType.value !== 'custom') return true;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customEmail.value);
+  return checkEmail(customEmail.value);
 });
 
 const canSend = computed((): boolean => {

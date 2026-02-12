@@ -4,6 +4,8 @@ import type { DatePeriod, Season } from '../../lib/api';
 import { formatPrice, formatDateForInput, countDays } from '../../utils/formatting';
 import BaseModal from './BaseModal.vue';
 import DatePicker from './DatePicker.vue';
+import { required, custom } from '../../utils/validation';
+import { useFormValidation } from '../../composables/useFormValidation';
 
 interface Props {
   period?: DatePeriod | null;
@@ -27,6 +29,39 @@ const startDate = ref('');
 const endDate = ref('');
 const seasonId = ref('');
 
+const periodFormData = computed(() => ({
+  startDate: startDate.value,
+  endDate: endDate.value,
+  seasonId: seasonId.value,
+}));
+
+const periodValidation = useFormValidation({
+  schema: {
+    startDate: [required('La date de début est obligatoire')],
+    endDate: [
+      required('La date de fin est obligatoire'),
+      custom((value: unknown): string | null => {
+        if (!value || !startDate.value) return null;
+        const start = new Date(startDate.value);
+        const end = new Date(value as string);
+        if (end <= start) return 'La date de fin doit être après la date de début';
+        return null;
+      }),
+    ],
+    seasonId: [required('La saison est obligatoire')],
+  },
+  formData: periodFormData,
+});
+
+// Toucher les champs date quand ils changent (pas de @blur natif sur DatePicker)
+watch(startDate, () => {
+  if (startDate.value) periodValidation.touchField('startDate');
+});
+
+watch(endDate, () => {
+  if (endDate.value) periodValidation.touchField('endDate');
+});
+
 const isEditing = computed((): boolean => !!props.period);
 
 const modalTitle = computed((): string => {
@@ -38,12 +73,7 @@ const selectedSeason = computed((): Season | undefined => {
 });
 
 const isValid = computed((): boolean => {
-  if (!startDate.value || !endDate.value || !seasonId.value) return false;
-
-  const start = new Date(startDate.value);
-  const end = new Date(endDate.value);
-
-  return start < end;
+  return periodValidation.isValid.value;
 });
 
 const daysCount = computed((): number => {
@@ -57,7 +87,7 @@ const estimatedTotal = computed((): number => {
 });
 
 const handleSubmit = (): void => {
-  if (!isValid.value || props.submitting) return;
+  if (!periodValidation.attemptSubmit() || props.submitting) return;
 
   emit('save', {
     startDate: startDate.value,
@@ -89,6 +119,7 @@ watch(
         seasonId.value = props.seasons[0].id;
       }
     }
+    periodValidation.resetTouched();
   },
   { immediate: true }
 );
@@ -109,6 +140,9 @@ watch(
             placeholder="Choisir la date de début"
             :disabled="submitting"
           />
+          <p v-if="periodValidation.fieldError('startDate')" class="field-error">
+            {{ periodValidation.fieldError('startDate') }}
+          </p>
         </div>
         <div class="form-group">
           <DatePicker
@@ -118,6 +152,9 @@ watch(
             :min-date="startDate"
             :disabled="submitting || !startDate"
           />
+          <p v-if="periodValidation.fieldError('endDate')" class="field-error">
+            {{ periodValidation.fieldError('endDate') }}
+          </p>
         </div>
       </div>
 
@@ -139,12 +176,16 @@ watch(
           class="form-select"
           :disabled="submitting"
           required
+          @change="periodValidation.touchField('seasonId')"
         >
           <option value="" disabled>Sélectionnez une saison</option>
           <option v-for="season in seasons" :key="season.id" :value="season.id">
             {{ season.name }} - {{ formatPrice(season.pricePerNight) }}/nuit
           </option>
         </select>
+        <p v-if="periodValidation.fieldError('seasonId')" class="field-error">
+          {{ periodValidation.fieldError('seasonId') }}
+        </p>
       </div>
 
       <!-- Preview -->
@@ -251,6 +292,12 @@ watch(
   color: #6b7280;
   margin-bottom: 20px;
   text-align: center;
+}
+
+.field-error {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #ef4444;
 }
 
 .no-seasons-warning {

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { contactsApi } from '../lib/api';
+import { required, email as emailRule, phone as phoneRule } from '../utils/validation';
+import { useFormValidation } from '../composables/useFormValidation';
 
 const form = ref({
   name: '',
@@ -10,12 +12,15 @@ const form = ref({
   message: '',
 });
 
-const formErrors = ref({
-  name: '',
-  email: '',
-  phone: '',
-  subject: '',
-  message: '',
+const validation = useFormValidation({
+  schema: {
+    name: [required('Le nom est requis')],
+    email: [required("L'email est requis"), emailRule()],
+    phone: [required('Le numéro de téléphone est requis'), phoneRule()],
+    subject: [required('Le sujet est requis')],
+    message: [required('Le message est requis')],
+  },
+  formData: form,
 });
 
 const loading = ref(false);
@@ -25,51 +30,7 @@ const showSnackbar = ref(false);
 const snackbarMessage = ref('');
 const snackbarClass = ref('bg-primary');
 
-const validateForm = () => {
-  let isValid = true;
-  formErrors.value = {
-    name: '',
-    email: '',
-    phone: '',
-    subject: '',
-    message: '',
-  };
-
-  if (!form.value.name.trim()) {
-    formErrors.value.name = 'Le nom est requis';
-    isValid = false;
-  }
-
-  if (!form.value.email.trim()) {
-    formErrors.value.email = "L'email est requis";
-    isValid = false;
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.value.email)) {
-    formErrors.value.email = "L'email n'est pas valide";
-    isValid = false;
-  }
-
-  if (!form.value.phone.trim()) {
-    formErrors.value.phone = 'Le numéro de téléphone est requis';
-    isValid = false;
-  } else if (!/^(\+33|0)[1-9](\d{2}){4}$/.test(form.value.phone.replace(/\s/g, ''))) {
-    formErrors.value.phone = "Le numéro de téléphone n'est pas valide";
-    isValid = false;
-  }
-
-  if (!form.value.subject.trim()) {
-    formErrors.value.subject = 'Le sujet est requis';
-    isValid = false;
-  }
-
-  if (!form.value.message.trim()) {
-    formErrors.value.message = 'Le message est requis';
-    isValid = false;
-  }
-
-  return isValid;
-};
-
-const showNotification = (message: string, isError = false) => {
+const showNotification = (message: string, isError = false): void => {
   snackbarMessage.value = message;
   showSnackbar.value = true;
   snackbarClass.value = isError ? 'bg-red-500' : 'bg-green-500';
@@ -78,10 +39,8 @@ const showNotification = (message: string, isError = false) => {
   }, 5000);
 };
 
-const handleSubmit = async () => {
-  if (!validateForm()) {
-    return;
-  }
+const handleSubmit = async (): Promise<void> => {
+  if (!validation.attemptSubmit()) return;
 
   try {
     loading.value = true;
@@ -107,6 +66,7 @@ const handleSubmit = async () => {
       subject: '',
       message: '',
     };
+    validation.resetTouched();
   } catch (err: unknown) {
     console.error('Error sending message:', err);
     error.value =
@@ -180,11 +140,13 @@ onMounted(() => {
               id="name"
               v-model="form.name"
               type="text"
-              :class="{ 'border-red-500 focus:ring-red-500': formErrors.name }"
+              :class="{ 'border-red-500 focus:ring-red-500': validation.hasFieldError('name') }"
               class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              required
+              @blur="validation.touchField('name')"
             />
-            <p v-if="formErrors.name" class="mt-1 text-sm text-red-500">{{ formErrors.name }}</p>
+            <p v-if="validation.fieldError('name')" class="mt-1 text-sm text-red-500">
+              {{ validation.fieldError('name') }}
+            </p>
           </div>
 
           <div>
@@ -195,11 +157,13 @@ onMounted(() => {
               id="email"
               v-model="form.email"
               type="email"
-              :class="{ 'border-red-500 focus:ring-red-500': formErrors.email }"
+              :class="{ 'border-red-500 focus:ring-red-500': validation.hasFieldError('email') }"
               class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              required
+              @blur="validation.touchField('email')"
             />
-            <p v-if="formErrors.email" class="mt-1 text-sm text-red-500">{{ formErrors.email }}</p>
+            <p v-if="validation.fieldError('email')" class="mt-1 text-sm text-red-500">
+              {{ validation.fieldError('email') }}
+            </p>
           </div>
 
           <div>
@@ -210,12 +174,14 @@ onMounted(() => {
               id="phone"
               v-model="form.phone"
               type="tel"
-              :class="{ 'border-red-500 focus:ring-red-500': formErrors.phone }"
+              :class="{ 'border-red-500 focus:ring-red-500': validation.hasFieldError('phone') }"
               class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
               placeholder="Ex: 0612345678"
-              required
+              @blur="validation.touchField('phone')"
             />
-            <p v-if="formErrors.phone" class="mt-1 text-sm text-red-500">{{ formErrors.phone }}</p>
+            <p v-if="validation.fieldError('phone')" class="mt-1 text-sm text-red-500">
+              {{ validation.fieldError('phone') }}
+            </p>
           </div>
 
           <div>
@@ -226,12 +192,12 @@ onMounted(() => {
               id="subject"
               v-model="form.subject"
               type="text"
-              :class="{ 'border-red-500 focus:ring-red-500': formErrors.subject }"
+              :class="{ 'border-red-500 focus:ring-red-500': validation.hasFieldError('subject') }"
               class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              required
+              @blur="validation.touchField('subject')"
             />
-            <p v-if="formErrors.subject" class="mt-1 text-sm text-red-500">
-              {{ formErrors.subject }}
+            <p v-if="validation.fieldError('subject')" class="mt-1 text-sm text-red-500">
+              {{ validation.fieldError('subject') }}
             </p>
           </div>
 
@@ -242,13 +208,13 @@ onMounted(() => {
             <textarea
               id="message"
               v-model="form.message"
-              :class="{ 'border-red-500 focus:ring-red-500': formErrors.message }"
+              :class="{ 'border-red-500 focus:ring-red-500': validation.hasFieldError('message') }"
               rows="8"
               class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary"
-              required
+              @blur="validation.touchField('message')"
             ></textarea>
-            <p v-if="formErrors.message" class="mt-1 text-sm text-red-500">
-              {{ formErrors.message }}
+            <p v-if="validation.fieldError('message')" class="mt-1 text-sm text-red-500">
+              {{ validation.fieldError('message') }}
             </p>
           </div>
 

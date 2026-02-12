@@ -10,6 +10,14 @@ import {
   type PriceCalculation,
 } from '../../lib/api';
 import { OPTION_PRICES, BOOKING_CONSTRAINTS } from '../../constants/pricing';
+import {
+  required,
+  email as emailRule,
+  postalCode as postalCodeRule,
+  phone as phoneRule,
+} from '../../utils/validation';
+import { useFormValidation } from '../../composables/useFormValidation';
+import { COUNTRIES } from '../../constants/property';
 
 interface Props {
   booking: Booking;
@@ -68,6 +76,29 @@ const form = ref({
   cleaningIncluded: props.booking.cleaningIncluded,
   linenIncluded: props.booking.linenIncluded,
   manualPrice: true,
+});
+
+const clientValidation = useFormValidation({
+  schema: {
+    firstName: [required('Le prénom est obligatoire')],
+    lastName: [required('Le nom est obligatoire')],
+    address: [required("L'adresse est obligatoire")],
+    postalCode: [required('Le code postal est obligatoire'), postalCodeRule()],
+    city: [required('La ville est obligatoire')],
+    phone: [required('Le téléphone est obligatoire'), phoneRule()],
+    email: [emailRule()],
+  },
+  formData: () =>
+    form.value.primaryClient ?? {
+      firstName: '',
+      lastName: '',
+      address: '',
+      postalCode: '',
+      city: '',
+      country: 'France',
+      phone: '',
+      email: '',
+    },
 });
 
 // Backup pour annuler l'edition d'une section
@@ -202,6 +233,7 @@ const cancelEditing = (): void => {
   if (editingSection.value && sectionBackup.value) {
     Object.assign(form.value, sectionBackup.value);
   }
+  clientValidation.resetTouched();
   editingSection.value = null;
 };
 
@@ -267,19 +299,8 @@ const validateForm = (): string | null => {
   }
 
   if (form.value.primaryClient) {
-    const c = form.value.primaryClient;
-    if (
-      !c.firstName.trim() ||
-      !c.lastName.trim() ||
-      !c.address.trim() ||
-      !c.city.trim() ||
-      !c.postalCode.trim() ||
-      !c.phone.trim()
-    ) {
-      return 'Tous les champs du client principal doivent etre remplis.';
-    }
-    if (c.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)) {
-      return "L'adresse email du client principal est invalide.";
+    if (!clientValidation.attemptSubmit()) {
+      return 'Veuillez corriger les erreurs du client principal.';
     }
   }
 
@@ -457,7 +478,7 @@ const handleSubmit = async (): Promise<void> => {
           >
           <span class="edit-section-detail"
             >{{ form.primaryClient.address }}, {{ form.primaryClient.postalCode }}
-            {{ form.primaryClient.city }}</span
+            {{ form.primaryClient.city }}, {{ form.primaryClient.country }}</span
           >
           <span class="edit-section-detail">{{ form.primaryClient.phone }}</span>
           <span v-if="form.primaryClient.email" class="edit-section-detail">{{
@@ -471,30 +492,91 @@ const handleSubmit = async (): Promise<void> => {
           <div class="form-row">
             <div class="form-field">
               <label class="form-label">Prenom</label>
-              <input v-model="form.primaryClient.firstName" type="text" class="form-input" />
+              <input
+                v-model="form.primaryClient.firstName"
+                type="text"
+                class="form-input"
+                :class="{ 'form-input--error': clientValidation.hasFieldError('firstName') }"
+                @blur="clientValidation.touchField('firstName')"
+              />
+              <p v-if="clientValidation.fieldError('firstName')" class="form-field-error">
+                {{ clientValidation.fieldError('firstName') }}
+              </p>
             </div>
             <div class="form-field">
               <label class="form-label">Nom</label>
-              <input v-model="form.primaryClient.lastName" type="text" class="form-input" />
+              <input
+                v-model="form.primaryClient.lastName"
+                type="text"
+                class="form-input"
+                :class="{ 'form-input--error': clientValidation.hasFieldError('lastName') }"
+                @blur="clientValidation.touchField('lastName')"
+              />
+              <p v-if="clientValidation.fieldError('lastName')" class="form-field-error">
+                {{ clientValidation.fieldError('lastName') }}
+              </p>
             </div>
           </div>
           <div class="form-field">
             <label class="form-label">Adresse</label>
-            <input v-model="form.primaryClient.address" type="text" class="form-input" />
+            <input
+              v-model="form.primaryClient.address"
+              type="text"
+              class="form-input"
+              :class="{ 'form-input--error': clientValidation.hasFieldError('address') }"
+              @blur="clientValidation.touchField('address')"
+            />
+            <p v-if="clientValidation.fieldError('address')" class="form-field-error">
+              {{ clientValidation.fieldError('address') }}
+            </p>
+          </div>
+          <div class="form-field">
+            <label class="form-label">Pays</label>
+            <select v-model="form.primaryClient.country" class="form-input">
+              <option v-for="c in COUNTRIES" :key="c" :value="c">{{ c }}</option>
+            </select>
           </div>
           <div class="form-row">
             <div class="form-field">
               <label class="form-label">Code postal</label>
-              <input v-model="form.primaryClient.postalCode" type="text" class="form-input" />
+              <input
+                v-model="form.primaryClient.postalCode"
+                type="text"
+                class="form-input"
+                maxlength="10"
+                :class="{ 'form-input--error': clientValidation.hasFieldError('postalCode') }"
+                @blur="clientValidation.touchField('postalCode')"
+              />
+              <p v-if="clientValidation.fieldError('postalCode')" class="form-field-error">
+                {{ clientValidation.fieldError('postalCode') }}
+              </p>
             </div>
             <div class="form-field">
               <label class="form-label">Ville</label>
-              <input v-model="form.primaryClient.city" type="text" class="form-input" />
+              <input
+                v-model="form.primaryClient.city"
+                type="text"
+                class="form-input"
+                :class="{ 'form-input--error': clientValidation.hasFieldError('city') }"
+                @blur="clientValidation.touchField('city')"
+              />
+              <p v-if="clientValidation.fieldError('city')" class="form-field-error">
+                {{ clientValidation.fieldError('city') }}
+              </p>
             </div>
           </div>
           <div class="form-field">
             <label class="form-label">Telephone</label>
-            <input v-model="form.primaryClient.phone" type="tel" class="form-input" />
+            <input
+              v-model="form.primaryClient.phone"
+              type="tel"
+              class="form-input"
+              :class="{ 'form-input--error': clientValidation.hasFieldError('phone') }"
+              @blur="clientValidation.touchField('phone')"
+            />
+            <p v-if="clientValidation.fieldError('phone')" class="form-field-error">
+              {{ clientValidation.fieldError('phone') }}
+            </p>
           </div>
           <div class="form-field">
             <label class="form-label" for="edit-client-email">Email (optionnel)</label>
@@ -503,9 +585,14 @@ const handleSubmit = async (): Promise<void> => {
               v-model="form.primaryClient.email"
               type="email"
               class="form-input"
+              :class="{ 'form-input--error': clientValidation.hasFieldError('email') }"
               placeholder="email@exemple.com"
               aria-label="Email du client principal"
+              @blur="clientValidation.touchField('email')"
             />
+            <p v-if="clientValidation.fieldError('email')" class="form-field-error">
+              {{ clientValidation.fieldError('email') }}
+            </p>
           </div>
         </template>
       </div>
@@ -967,6 +1054,22 @@ const handleSubmit = async (): Promise<void> => {
 .form-input:focus {
   outline: none;
   border-color: #ff385c;
+}
+
+.form-input--error {
+  border-color: #ef4444 !important;
+}
+
+.form-input--error:focus {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.form-field-error {
+  font-size: 13px;
+  color: #dc2626;
+  margin-top: 4px;
+  margin-bottom: 0;
 }
 
 .form-input--price {
