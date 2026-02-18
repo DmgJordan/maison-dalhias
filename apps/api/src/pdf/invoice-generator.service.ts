@@ -27,7 +27,11 @@ export interface InvoiceGenerateData {
   depositAmount: number;
   balanceAmount: number;
   cleaningPrice: number;
+  cleaningIncluded: boolean;
+  cleaningOffered: boolean;
   linenPrice: number;
+  linenIncluded: boolean;
+  linenOffered: boolean;
   touristTaxPrice: number;
   priceDetails?: PriceDetailForInvoice[];
 }
@@ -81,6 +85,7 @@ function formatPrice(price: number): string {
 interface InvoiceLine {
   designation: string;
   montant: number;
+  isOffered?: boolean;
 }
 
 function drawHeader(doc: jsPDF, pageWidth: number, margin: number): number {
@@ -197,7 +202,16 @@ function drawTable(
     doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
     const designationLines = line.designation.split('\n');
     doc.text(designationLines[0], colDesignation + 8, y);
-    doc.text(formatPrice(line.montant), colMontant + 25, y, { align: 'right' });
+
+    if (line.isOffered) {
+      doc.setFont('Roboto', 'bold');
+      doc.setTextColor(16, 185, 129);
+      doc.text('Offert', colMontant + 25, y, { align: 'right' });
+      doc.setFont('Roboto', 'normal');
+      doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
+    } else {
+      doc.text(formatPrice(line.montant), colMontant + 25, y, { align: 'right' });
+    }
 
     if (designationLines.length > 1) {
       doc.setFontSize(9);
@@ -308,19 +322,30 @@ export class InvoiceGeneratorService {
         designation: locationDesignation,
         montant: data.rentalPrice,
       },
-      {
+    ];
+
+    if (data.cleaningIncluded) {
+      lines.push({
         designation: `Ménage ${String(TARIFS.menage)} € (sauf coin cuisine)`,
-        montant: cleaningPrice,
-      },
-      {
+        montant: data.cleaningOffered ? 0 : cleaningPrice,
+        isOffered: data.cleaningOffered,
+      });
+    }
+
+    if (data.linenIncluded) {
+      lines.push({
         designation: `Linge de lit et serviettes de toilettes ${String(TARIFS.linge)} €/personne`,
-        montant: linenPrice,
-      },
-      {
+        montant: data.linenOffered ? 0 : linenPrice,
+        isOffered: data.linenOffered,
+      });
+    }
+
+    if (touristTaxPrice > 0) {
+      lines.push({
         designation: `Taxe de séjour ${String(TARIFS.taxeSejour)} €/pers/jour sauf mineur`,
         montant: touristTaxPrice,
-      },
-    ];
+      });
+    }
 
     y = drawTable(doc, lines, totalPrice, pageWidth, margin, y);
 

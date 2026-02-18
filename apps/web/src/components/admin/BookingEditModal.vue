@@ -74,7 +74,9 @@ const form = ref({
   rentalPrice: parseFloat(String(props.booking.rentalPrice)),
   touristTaxIncluded: props.booking.touristTaxIncluded,
   cleaningIncluded: props.booking.cleaningIncluded,
+  cleaningOffered: props.booking.cleaningOffered,
   linenIncluded: props.booking.linenIncluded,
+  linenOffered: props.booking.linenOffered,
   manualPrice: true,
 });
 
@@ -113,11 +115,12 @@ const nightsCount = computed((): number => {
 });
 
 const cleaningPrice = computed((): number => {
-  return form.value.cleaningIncluded ? OPTION_PRICES.CLEANING : 0;
+  if (!form.value.cleaningIncluded || form.value.cleaningOffered) return 0;
+  return OPTION_PRICES.CLEANING;
 });
 
 const linenPrice = computed((): number => {
-  if (!form.value.linenIncluded) return 0;
+  if (!form.value.linenIncluded || form.value.linenOffered) return 0;
   return OPTION_PRICES.LINEN_PER_PERSON * form.value.occupantsCount;
 });
 
@@ -161,7 +164,9 @@ const hasChanges = computed((): boolean => {
     form.value.rentalPrice !== originalRentalPrice ||
     form.value.touristTaxIncluded !== original.touristTaxIncluded ||
     form.value.cleaningIncluded !== original.cleaningIncluded ||
+    form.value.cleaningOffered !== original.cleaningOffered ||
     form.value.linenIncluded !== original.linenIncluded ||
+    form.value.linenOffered !== original.linenOffered ||
     hasClientChanged('primary') ||
     hasClientChanged('secondary')
   );
@@ -218,7 +223,9 @@ const startEditing = (section: string): void => {
     sectionBackup.value = {
       touristTaxIncluded: form.value.touristTaxIncluded,
       cleaningIncluded: form.value.cleaningIncluded,
+      cleaningOffered: form.value.cleaningOffered,
       linenIncluded: form.value.linenIncluded,
+      linenOffered: form.value.linenOffered,
     };
   } else if (section === 'price') {
     sectionBackup.value = {
@@ -272,6 +279,21 @@ watch(datesChanged, (changed) => {
     void handleRecalculatePrice();
   }
 });
+
+// Reinitialiser offered quand l'option est decochee
+watch(
+  () => form.value.cleaningIncluded,
+  (included) => {
+    if (!included) form.value.cleaningOffered = false;
+  }
+);
+
+watch(
+  () => form.value.linenIncluded,
+  (included) => {
+    if (!included) form.value.linenOffered = false;
+  }
+);
 
 // Ajuster adultsCount si occupantsCount diminue
 watch(
@@ -351,8 +373,12 @@ const handleSubmit = async (): Promise<void> => {
       updateData.touristTaxIncluded = form.value.touristTaxIncluded;
     if (form.value.cleaningIncluded !== original.cleaningIncluded)
       updateData.cleaningIncluded = form.value.cleaningIncluded;
+    if (form.value.cleaningOffered !== original.cleaningOffered)
+      updateData.cleaningOffered = form.value.cleaningOffered;
     if (form.value.linenIncluded !== original.linenIncluded)
       updateData.linenIncluded = form.value.linenIncluded;
+    if (form.value.linenOffered !== original.linenOffered)
+      updateData.linenOffered = form.value.linenOffered;
 
     if (hasClientChanged('primary') && form.value.primaryClient) {
       updateData.primaryClient = form.value.primaryClient;
@@ -718,12 +744,16 @@ const handleSubmit = async (): Promise<void> => {
           <span class="option-item" :class="{ 'option-item--active': form.cleaningIncluded }">
             {{ form.cleaningIncluded ? 'Menage' : 'Menage non inclus' }}
             <template v-if="form.cleaningIncluded">
-              ({{ formatPrice(OPTION_PRICES.CLEANING) }})</template
+              ({{
+                form.cleaningOffered ? 'Offert' : formatPrice(OPTION_PRICES.CLEANING)
+              }})</template
             >
           </span>
           <span class="option-item" :class="{ 'option-item--active': form.linenIncluded }">
             {{ form.linenIncluded ? 'Linge' : 'Linge non inclus' }}
-            <template v-if="form.linenIncluded"> ({{ formatPrice(linenPrice) }})</template>
+            <template v-if="form.linenIncluded">
+              ({{ form.linenOffered ? 'Offert' : formatPrice(linenPrice) }})</template
+            >
           </span>
           <span class="option-item" :class="{ 'option-item--active': form.touristTaxIncluded }">
             {{ form.touristTaxIncluded ? 'Taxe de sejour' : 'Taxe non incluse' }}
@@ -741,6 +771,12 @@ const handleSubmit = async (): Promise<void> => {
             <span class="toggle-price">{{ formatPrice(OPTION_PRICES.CLEANING) }}</span>
           </span>
         </label>
+        <div v-if="form.cleaningIncluded" class="offer-inline-toggle">
+          <label class="offer-inline-label">
+            <input v-model="form.cleaningOffered" type="checkbox" class="offer-inline-checkbox" />
+            <span>Offrir cette option</span>
+          </label>
+        </div>
         <label class="toggle-option">
           <input v-model="form.linenIncluded" type="checkbox" class="toggle-checkbox" />
           <span class="toggle-label">
@@ -748,6 +784,12 @@ const handleSubmit = async (): Promise<void> => {
             <span class="toggle-price">{{ OPTION_PRICES.LINEN_PER_PERSON }} €/personne</span>
           </span>
         </label>
+        <div v-if="form.linenIncluded" class="offer-inline-toggle">
+          <label class="offer-inline-label">
+            <input v-model="form.linenOffered" type="checkbox" class="offer-inline-checkbox" />
+            <span>Offrir cette option</span>
+          </label>
+        </div>
         <label class="toggle-option">
           <input v-model="form.touristTaxIncluded" type="checkbox" class="toggle-checkbox" />
           <span class="toggle-label">
@@ -793,13 +835,15 @@ const handleSubmit = async (): Promise<void> => {
             <span>Location ({{ nightsCount }} nuits)</span>
             <span class="price-summary-value">{{ formatPrice(form.rentalPrice) }}</span>
           </div>
-          <div v-if="cleaningPrice > 0" class="price-summary-line">
+          <div v-if="form.cleaningIncluded" class="price-summary-line">
             <span>Menage</span>
-            <span class="price-summary-value">{{ formatPrice(cleaningPrice) }}</span>
+            <span v-if="form.cleaningOffered" class="price-offered">Offert</span>
+            <span v-else class="price-summary-value">{{ formatPrice(cleaningPrice) }}</span>
           </div>
-          <div v-if="linenPrice > 0" class="price-summary-line">
+          <div v-if="form.linenIncluded" class="price-summary-line">
             <span>Linge</span>
-            <span class="price-summary-value">{{ formatPrice(linenPrice) }}</span>
+            <span v-if="form.linenOffered" class="price-offered">Offert</span>
+            <span v-else class="price-summary-value">{{ formatPrice(linenPrice) }}</span>
           </div>
           <div v-if="touristTaxPrice > 0" class="price-summary-line">
             <span>Taxe de sejour</span>
@@ -1212,6 +1256,34 @@ const handleSubmit = async (): Promise<void> => {
 .option-item--active {
   background-color: #d1fae5;
   color: #059669;
+}
+
+/* Offer inline toggle */
+.offer-inline-toggle {
+  padding: 6px 12px 6px 46px;
+  margin-top: -4px;
+  margin-bottom: 8px;
+}
+
+.offer-inline-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #059669;
+  cursor: pointer;
+}
+
+.offer-inline-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #10b981;
+}
+
+.price-offered {
+  color: #10b981;
+  font-weight: 600;
+  font-size: 14px;
 }
 
 /* Price summary */

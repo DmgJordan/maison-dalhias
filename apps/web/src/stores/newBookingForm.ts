@@ -35,7 +35,9 @@ export interface NewBookingFormState {
 
   // Etape 4 : Options
   cleaningIncluded: boolean;
+  cleaningOffered: boolean;
   linenIncluded: boolean;
+  linenOffered: boolean;
 
   // Etape 5 : Tarif
   rentalPrice: number;
@@ -74,7 +76,9 @@ const getInitialState = (): NewBookingFormState => ({
   occupantsCount: 1,
   adultsCount: 1,
   cleaningIncluded: true,
+  cleaningOffered: false,
   linenIncluded: true,
+  linenOffered: false,
   rentalPrice: 0,
   pricePerNight: 0,
   priceDetails: [],
@@ -100,11 +104,13 @@ export const useNewBookingFormStore = defineStore('newBookingForm', {
     },
 
     cleaningPrice(): number {
-      return this.cleaningIncluded ? OPTION_PRICES.CLEANING : 0;
+      if (!this.cleaningIncluded || this.cleaningOffered) return 0;
+      return OPTION_PRICES.CLEANING;
     },
 
     linenPrice(): number {
-      return this.linenIncluded ? OPTION_PRICES.LINEN_PER_PERSON * this.occupantsCount : 0;
+      if (!this.linenIncluded || this.linenOffered) return 0;
+      return OPTION_PRICES.LINEN_PER_PERSON * this.occupantsCount;
     },
 
     touristTaxPrice(): number {
@@ -298,7 +304,9 @@ export const useNewBookingFormStore = defineStore('newBookingForm', {
       this.occupantsCount = initial.occupantsCount;
       this.adultsCount = initial.adultsCount;
       this.cleaningIncluded = initial.cleaningIncluded;
+      this.cleaningOffered = initial.cleaningOffered;
       this.linenIncluded = initial.linenIncluded;
+      this.linenOffered = initial.linenOffered;
       this.rentalPrice = initial.rentalPrice;
       this.pricePerNight = initial.pricePerNight;
       this.priceDetails = initial.priceDetails;
@@ -321,7 +329,9 @@ export const useNewBookingFormStore = defineStore('newBookingForm', {
       rentalPrice: number;
       touristTaxIncluded: boolean;
       cleaningIncluded: boolean;
+      cleaningOffered: boolean;
       linenIncluded: boolean;
+      linenOffered: boolean;
     } {
       const data: ReturnType<typeof this.getBookingData> = {
         startDate: this.startDate,
@@ -341,7 +351,9 @@ export const useNewBookingFormStore = defineStore('newBookingForm', {
         rentalPrice: this.rentalPrice,
         touristTaxIncluded: true,
         cleaningIncluded: this.cleaningIncluded,
+        cleaningOffered: this.cleaningOffered,
         linenIncluded: this.linenIncluded,
+        linenOffered: this.linenOffered,
       };
 
       if (this.hasSecondaryClient && this.secondaryClient.firstName) {

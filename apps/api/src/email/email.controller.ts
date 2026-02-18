@@ -66,8 +66,16 @@ export class EmailController {
       (new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) /
         (1000 * 60 * 60 * 24)
     );
-    const cleaningPrice = booking.cleaningIncluded ? TARIFS.menage : 0;
-    const linenPrice = booking.linenIncluded ? TARIFS.linge * booking.occupantsCount : 0;
+    const cleaningPrice = booking.cleaningIncluded
+      ? booking.cleaningOffered
+        ? 0
+        : TARIFS.menage
+      : 0;
+    const linenPrice = booking.linenIncluded
+      ? booking.linenOffered
+        ? 0
+        : TARIFS.linge * booking.occupantsCount
+      : 0;
     const touristTaxPrice = booking.touristTaxIncluded
       ? TARIFS.taxeSejour * booking.adultsCount * nightsCount
       : 0;
@@ -116,7 +124,9 @@ export class EmailController {
             occupantsCount: booking.occupantsCount,
             rentalPrice: booking.rentalPrice,
             cleaningIncluded: booking.cleaningIncluded,
+            cleaningOffered: booking.cleaningOffered,
             linenIncluded: booking.linenIncluded,
+            linenOffered: booking.linenOffered,
             touristTaxIncluded: booking.touristTaxIncluded,
             depositAmount,
           },
@@ -137,7 +147,9 @@ export class EmailController {
             rentalPrice: booking.rentalPrice,
             nightsCount,
             cleaningPrice: cleaningPrice > 0 ? cleaningPrice : null,
+            cleaningOffered: booking.cleaningOffered,
             linenPrice: linenPrice > 0 ? linenPrice : null,
+            linenOffered: booking.linenOffered,
             touristTaxPrice: touristTaxPrice > 0 ? touristTaxPrice : null,
             totalPrice,
             depositAmount,
@@ -177,6 +189,8 @@ export class EmailController {
           cleaningPrice,
           linenPrice,
           touristTaxPrice,
+          cleaningOffered: booking.cleaningOffered,
+          linenOffered: booking.linenOffered,
         };
         contractPdf = this.pdfService.generateContract(contractData);
       }
@@ -198,7 +212,11 @@ export class EmailController {
           depositAmount,
           balanceAmount,
           cleaningPrice,
+          cleaningIncluded: booking.cleaningIncluded,
+          cleaningOffered: booking.cleaningOffered,
           linenPrice,
+          linenIncluded: booking.linenIncluded,
+          linenOffered: booking.linenOffered,
           touristTaxPrice,
           priceDetails: priceDetailsJson,
         };

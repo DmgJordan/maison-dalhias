@@ -122,7 +122,9 @@ export class BookingsService {
         rentalPrice: createBookingDto.rentalPrice,
         touristTaxIncluded: createBookingDto.touristTaxIncluded,
         cleaningIncluded: createBookingDto.cleaningIncluded,
+        cleaningOffered: createBookingDto.cleaningOffered,
         linenIncluded: createBookingDto.linenIncluded,
+        linenOffered: createBookingDto.linenOffered,
       },
       include: {
         primaryClient: true,
@@ -217,8 +219,12 @@ export class BookingsService {
       updateData.touristTaxIncluded = updateBookingDto.touristTaxIncluded;
     if (updateBookingDto.cleaningIncluded !== undefined)
       updateData.cleaningIncluded = updateBookingDto.cleaningIncluded;
+    if (updateBookingDto.cleaningOffered !== undefined)
+      updateData.cleaningOffered = updateBookingDto.cleaningOffered;
     if (updateBookingDto.linenIncluded !== undefined)
       updateData.linenIncluded = updateBookingDto.linenIncluded;
+    if (updateBookingDto.linenOffered !== undefined)
+      updateData.linenOffered = updateBookingDto.linenOffered;
 
     return this.prisma.booking.update({
       where: { id },

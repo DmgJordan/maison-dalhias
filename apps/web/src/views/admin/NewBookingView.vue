@@ -138,6 +138,21 @@ const handleReset = (): void => {
   error.value = null;
 };
 
+// Reinitialiser offered quand l'option est decochee
+watch(
+  () => formStore.cleaningIncluded,
+  (included) => {
+    if (!included) formStore.cleaningOffered = false;
+  }
+);
+
+watch(
+  () => formStore.linenIncluded,
+  (included) => {
+    if (!included) formStore.linenOffered = false;
+  }
+);
+
 // Mettre a jour adultsCount quand occupantsCount change
 watch(
   () => formStore.occupantsCount,
@@ -602,7 +617,7 @@ onMounted(() => {
               </svg>
             </button>
           </div>
-          <p class="form-hint">Les mineurs sont exemptés de taxe de séjour (1 €/nuit/adulte)</p>
+          <p class="form-hint">Les mineurs sont exemptés de taxe de séjour (0,80 €/nuit/adulte)</p>
         </div>
       </div>
 
@@ -614,13 +629,17 @@ onMounted(() => {
         <div class="options-list">
           <label
             class="option-card"
-            :class="{ 'option-card--selected': formStore.cleaningIncluded }"
+            :class="{
+              'option-card--selected': formStore.cleaningIncluded,
+              'option-card--offered': formStore.cleaningIncluded && formStore.cleaningOffered,
+            }"
           >
             <input v-model="formStore.cleaningIncluded" type="checkbox" class="option-input" />
             <div class="option-content">
               <div class="option-header">
                 <span class="option-name">Ménage fin de séjour</span>
-                <span class="option-price">80 €</span>
+                <span v-if="formStore.cleaningOffered" class="option-badge-offered">Offert</span>
+                <span v-else class="option-price">80 €</span>
               </div>
               <p class="option-description">Nettoyage complet (hors vaisselle et cuisine)</p>
             </div>
@@ -637,12 +656,48 @@ onMounted(() => {
             </div>
           </label>
 
-          <label class="option-card" :class="{ 'option-card--selected': formStore.linenIncluded }">
+          <Transition name="fade">
+            <div v-if="formStore.cleaningIncluded" class="offer-toggle">
+              <label class="offer-toggle-label">
+                <input
+                  v-model="formStore.cleaningOffered"
+                  type="checkbox"
+                  class="offer-toggle-input"
+                />
+                <span class="offer-toggle-text">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="gift-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <polyline points="20 12 20 22 4 22 4 12" />
+                    <rect x="2" y="7" width="20" height="5" />
+                    <line x1="12" y1="22" x2="12" y2="7" />
+                    <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+                    <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                  </svg>
+                  Offrir cette option
+                </span>
+              </label>
+            </div>
+          </Transition>
+
+          <label
+            class="option-card"
+            :class="{
+              'option-card--selected': formStore.linenIncluded,
+              'option-card--offered': formStore.linenIncluded && formStore.linenOffered,
+            }"
+          >
             <input v-model="formStore.linenIncluded" type="checkbox" class="option-input" />
             <div class="option-content">
               <div class="option-header">
                 <span class="option-name">Linge de maison</span>
-                <span class="option-price">15 €/personne</span>
+                <span v-if="formStore.linenOffered" class="option-badge-offered">Offert</span>
+                <span v-else class="option-price">15 €/personne</span>
               </div>
               <p class="option-description">Draps, serviettes et torchons fournis</p>
             </div>
@@ -658,6 +713,35 @@ onMounted(() => {
               </svg>
             </div>
           </label>
+
+          <Transition name="fade">
+            <div v-if="formStore.linenIncluded" class="offer-toggle">
+              <label class="offer-toggle-label">
+                <input
+                  v-model="formStore.linenOffered"
+                  type="checkbox"
+                  class="offer-toggle-input"
+                />
+                <span class="offer-toggle-text">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="gift-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <polyline points="20 12 20 22 4 22 4 12" />
+                    <rect x="2" y="7" width="20" height="5" />
+                    <line x1="12" y1="22" x2="12" y2="7" />
+                    <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+                    <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                  </svg>
+                  Offrir cette option
+                </span>
+              </label>
+            </div>
+          </Transition>
         </div>
 
         <div class="options-info">
@@ -673,7 +757,7 @@ onMounted(() => {
             <line x1="12" y1="16" x2="12" y2="12" />
             <line x1="12" y1="8" x2="12.01" y2="8" />
           </svg>
-          <p>La taxe de séjour (1 €/nuit/adulte) est automatiquement incluse.</p>
+          <p>La taxe de séjour (0,80 €/nuit/adulte) est automatiquement incluse.</p>
         </div>
       </div>
 
@@ -797,11 +881,13 @@ onMounted(() => {
           </div>
           <div v-if="formStore.cleaningIncluded" class="breakdown-line">
             <span>Ménage</span>
-            <span>{{ formatPrice(formStore.cleaningPrice) }}</span>
+            <span v-if="formStore.cleaningOffered" class="breakdown-offered">Offert</span>
+            <span v-else>{{ formatPrice(formStore.cleaningPrice) }}</span>
           </div>
           <div v-if="formStore.linenIncluded" class="breakdown-line">
             <span>Linge ({{ formStore.occupantsCount }} pers.)</span>
-            <span>{{ formatPrice(formStore.linenPrice) }}</span>
+            <span v-if="formStore.linenOffered" class="breakdown-offered">Offert</span>
+            <span v-else>{{ formatPrice(formStore.linenPrice) }}</span>
           </div>
           <div class="breakdown-line">
             <span>Taxe de séjour</span>
@@ -857,9 +943,15 @@ onMounted(() => {
         <div class="recap-section">
           <h3 class="recap-title">Options</h3>
           <div class="recap-content">
-            <p v-if="formStore.cleaningIncluded">Ménage fin de séjour : 80 €</p>
+            <p v-if="formStore.cleaningIncluded">
+              Ménage fin de séjour :
+              <template v-if="formStore.cleaningOffered">Offert</template>
+              <template v-else>80 €</template>
+            </p>
             <p v-if="formStore.linenIncluded">
-              Linge de maison : {{ formatPrice(formStore.linenPrice) }}
+              Linge de maison :
+              <template v-if="formStore.linenOffered">Offert</template>
+              <template v-else>{{ formatPrice(formStore.linenPrice) }}</template>
             </p>
             <p v-if="!formStore.cleaningIncluded && !formStore.linenIncluded">Aucune option</p>
           </div>
@@ -1337,6 +1429,20 @@ onMounted(() => {
   background-color: #fff8f9;
 }
 
+.option-card--offered {
+  border-color: #10b981;
+  background-color: #ecfdf5;
+}
+
+.option-badge-offered {
+  font-size: 13px;
+  font-weight: 700;
+  color: #10b981;
+  background-color: #d1fae5;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
 .option-input {
   display: none;
 }
@@ -1397,6 +1503,54 @@ onMounted(() => {
 
 .option-card--selected .option-check svg {
   opacity: 1;
+}
+
+.option-card--offered .option-check {
+  border-color: #10b981;
+  background-color: #10b981;
+}
+
+/* Toggle Offrir */
+.offer-toggle {
+  margin-top: -4px;
+  margin-bottom: 12px;
+  padding: 10px 16px;
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+}
+
+.offer-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.offer-toggle-input {
+  width: 18px;
+  height: 18px;
+  accent-color: #10b981;
+}
+
+.offer-toggle-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #059669;
+  font-weight: 500;
+}
+
+.gift-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.breakdown-offered {
+  color: #10b981;
+  font-weight: 600;
 }
 
 .options-info {

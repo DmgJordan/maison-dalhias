@@ -54,11 +54,12 @@ const adultsCount = computed((): number => {
 });
 
 const cleaningPrice = computed((): number => {
-  return booking.value?.cleaningIncluded ? OPTION_PRICES.CLEANING : 0;
+  if (!booking.value?.cleaningIncluded || booking.value.cleaningOffered) return 0;
+  return OPTION_PRICES.CLEANING;
 });
 
 const linenPrice = computed((): number => {
-  if (!booking.value?.linenIncluded) return 0;
+  if (!booking.value?.linenIncluded || booking.value.linenOffered) return 0;
   return OPTION_PRICES.LINEN_PER_PERSON * (booking.value.occupantsCount ?? 0);
 });
 
@@ -609,13 +610,15 @@ onMounted(async () => {
               </div>
               <div v-if="booking.cleaningIncluded" class="price-line">
                 <span class="price-label">Menage fin de sejour</span>
-                <span class="price-value">{{ formatPrice(cleaningPrice) }}</span>
+                <span v-if="booking.cleaningOffered" class="price-offered">Offert</span>
+                <span v-else class="price-value">{{ formatPrice(cleaningPrice) }}</span>
               </div>
               <div v-if="booking.linenIncluded" class="price-line">
                 <span class="price-label"
                   >Linge de maison ({{ booking.occupantsCount }} pers.)</span
                 >
-                <span class="price-value">{{ formatPrice(linenPrice) }}</span>
+                <span v-if="booking.linenOffered" class="price-offered">Offert</span>
+                <span v-else class="price-value">{{ formatPrice(linenPrice) }}</span>
               </div>
               <div v-if="booking.touristTaxIncluded" class="price-line">
                 <span class="price-label">Taxe de sejour</span>
@@ -1449,6 +1452,12 @@ onMounted(async () => {
   font-size: 14px;
   font-weight: 500;
   color: #222222;
+}
+
+.price-offered {
+  font-size: 14px;
+  font-weight: 600;
+  color: #10b981;
 }
 
 .price-line--total .price-label,

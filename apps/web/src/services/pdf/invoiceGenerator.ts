@@ -155,6 +155,7 @@ function drawClientInfo(
 interface InvoiceLine {
   designation: string;
   montant: number;
+  isOffered?: boolean;
 }
 
 /**
@@ -202,7 +203,16 @@ function drawTable(
     doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
     const designationLines = line.designation.split('\n');
     doc.text(designationLines[0], colDesignation + 8, y);
-    doc.text(formatPrice(line.montant), colMontant + 25, y, { align: 'right' });
+
+    if (line.isOffered) {
+      doc.setFont('Roboto', 'bold');
+      doc.setTextColor(16, 185, 129);
+      doc.text('Offert', colMontant + 25, y, { align: 'right' });
+      doc.setFont('Roboto', 'normal');
+      doc.setTextColor(COLORS.primary.r, COLORS.primary.g, COLORS.primary.b);
+    } else {
+      doc.text(formatPrice(line.montant), colMontant + 25, y, { align: 'right' });
+    }
 
     // Sous-lignes (detail par saison)
     if (designationLines.length > 1) {
@@ -336,19 +346,30 @@ export async function generateInvoice(data: InvoiceData): Promise<void> {
       designation: locationDesignation,
       montant: rentalPrice,
     },
-    {
+  ];
+
+  if (booking.cleaningIncluded) {
+    lines.push({
       designation: `Ménage ${String(TARIFS.menage)} € (sauf coin cuisine)`,
-      montant: cleaningPrice,
-    },
-    {
+      montant: booking.cleaningOffered ? 0 : cleaningPrice,
+      isOffered: booking.cleaningOffered,
+    });
+  }
+
+  if (booking.linenIncluded) {
+    lines.push({
       designation: `Linge de lit et serviettes de toilettes ${String(TARIFS.linge)} €/personne`,
-      montant: linenPrice,
-    },
-    {
+      montant: booking.linenOffered ? 0 : linenPrice,
+      isOffered: booking.linenOffered,
+    });
+  }
+
+  if (touristTaxPrice > 0) {
+    lines.push({
       designation: `Taxe de séjour ${String(TARIFS.taxeSejour)} €/pers/jour sauf mineur`,
       montant: touristTaxPrice,
-    },
-  ];
+    });
+  }
 
   y = drawTable(doc, lines, totalPrice, pageWidth, margin, y);
 

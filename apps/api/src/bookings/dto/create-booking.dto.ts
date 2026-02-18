@@ -54,5 +54,13 @@ export class CreateBookingDto {
 
   @IsOptional()
   @IsBoolean()
+  cleaningOffered?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
   linenIncluded?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  linenOffered?: boolean;
 }

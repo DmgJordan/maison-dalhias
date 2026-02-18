@@ -57,7 +57,9 @@ export interface Booking {
   rentalPrice: number;
   touristTaxIncluded: boolean;
   cleaningIncluded: boolean;
+  cleaningOffered: boolean;
   linenIncluded: boolean;
+  linenOffered: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -95,7 +97,9 @@ export interface CreateBookingData {
   rentalPrice?: number;
   touristTaxIncluded?: boolean;
   cleaningIncluded?: boolean;
+  cleaningOffered?: boolean;
   linenIncluded?: boolean;
+  linenOffered?: boolean;
 }
 
 export interface UpdateBookingData {
@@ -108,7 +112,9 @@ export interface UpdateBookingData {
   rentalPrice?: number;
   touristTaxIncluded?: boolean;
   cleaningIncluded?: boolean;
+  cleaningOffered?: boolean;
   linenIncluded?: boolean;
+  linenOffered?: boolean;
   recalculatePrice?: boolean;
 }
 
