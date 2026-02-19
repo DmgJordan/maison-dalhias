@@ -4,12 +4,11 @@ import { useRoute, useRouter } from 'vue-router';
 import {
   bookingsApi,
   emailApi,
+  pdfApi,
   type Booking,
   type PriceCalculation,
   type EmailLog,
 } from '../../lib/api';
-import { generateContract } from '../../services/pdf/contractGenerator';
-import { generateInvoice, generateInvoiceNumber } from '../../services/pdf/invoiceGenerator';
 import { OPTION_PRICES, PAYMENT_PERCENTAGES } from '../../constants/pricing';
 import BookingEditModal from '../../components/admin/BookingEditModal.vue';
 import EmailSendModal from '../../components/admin/EmailSendModal.vue';
@@ -291,18 +290,7 @@ const handleGenerateContract = async (): Promise<void> => {
   try {
     generatingContract.value = true;
     error.value = null;
-
-    await generateContract({
-      booking: booking.value,
-      nightsCount: nightsCount.value,
-      totalPrice: totalPrice.value,
-      depositAmount: depositAmount.value,
-      balanceAmount: balanceAmount.value,
-      cleaningPrice: cleaningPrice.value,
-      linenPrice: linenPrice.value,
-      touristTaxPrice: touristTaxPrice.value,
-    });
-
+    await pdfApi.downloadContract(booking.value.id);
     showSuccess('Contrat telecharge !');
   } catch (err: unknown) {
     console.error('Erreur lors de la generation du contrat:', err);
@@ -318,28 +306,7 @@ const handleGenerateInvoice = async (): Promise<void> => {
   try {
     generatingInvoice.value = true;
     error.value = null;
-
-    // Generer une reference basee sur la date de sejour et le nom du client
-    const invoiceNumber = generateInvoiceNumber(booking.value);
-
-    await generateInvoice({
-      booking: booking.value,
-      invoiceNumber,
-      nightsCount: nightsCount.value,
-      totalPrice: totalPrice.value,
-      depositAmount: depositAmount.value,
-      balanceAmount: balanceAmount.value,
-      cleaningPrice: cleaningPrice.value,
-      linenPrice: linenPrice.value,
-      touristTaxPrice: touristTaxPrice.value,
-      priceDetails: priceCalculation.value?.details.map((d) => ({
-        nights: d.nights,
-        seasonName: d.seasonName,
-        pricePerNight: d.pricePerNight,
-        subtotal: d.subtotal,
-      })),
-    });
-
+    await pdfApi.downloadInvoice(booking.value.id);
     showSuccess('Facture telechargee !');
   } catch (err: unknown) {
     console.error('Erreur lors de la generation de la facture:', err);

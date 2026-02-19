@@ -7,21 +7,19 @@ import {
   UseGuards,
   BadRequestException,
   ParseUUIDPipe,
-  Logger,
 } from '@nestjs/common';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { PrismaService } from '../prisma/prisma.service';
-import { BookingsService } from '../bookings/bookings.service';
+import { BookingPriceComputeService } from '../bookings/booking-price-compute.service';
 import { PdfService } from '../pdf/pdf.service';
 import { EmailService } from './email.service';
 import { SendDocumentEmailDto } from './dto/send-document-email.dto';
 import { buildEmailSubject } from './email.service';
 import { generateInvoiceNumber } from '../pdf/invoice-generator.service';
 import type { ContractGenerateData } from '../pdf/contract-generator.service';
-import type { InvoiceGenerateData, PriceDetailForInvoice } from '../pdf/invoice-generator.service';
-import { TARIFS } from '../pdf/constants/property';
+import type { InvoiceGenerateData } from '../pdf/invoice-generator.service';
 import { EmailLog, ContractSnapshot, InvoiceSnapshot, Prisma } from '@prisma/client';
 
 interface EmailLogWithSnapshots extends EmailLog {
@@ -31,10 +29,8 @@ interface EmailLogWithSnapshots extends EmailLog {
 
 @Controller('emails')
 export class EmailController {
-  private readonly logger = new Logger(EmailController.name);
-
   constructor(
-    private bookingsService: BookingsService,
+    private bookingPriceComputeService: BookingPriceComputeService,
     private pdfService: PdfService,
     private emailService: EmailService,
     private prisma: PrismaService
@@ -44,8 +40,16 @@ export class EmailController {
   @UseGuards(JwtAuthGuard, AdminGuard, ThrottlerGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async sendDocumentEmail(@Body() dto: SendDocumentEmailDto): Promise<EmailLogWithSnapshots> {
-    // 1. Fetch booking with relations
-    const booking = await this.bookingsService.findById(dto.bookingId);
+    // 1. Compute prices (also validates client exists)
+    const includePriceDetails = dto.documentTypes.includes('invoice');
+    const prices = await this.bookingPriceComputeService.computeForBooking(
+      dto.bookingId,
+      includePriceDetails
+    );
+
+    const { booking } = prices;
+    // Client is guaranteed to exist by computeForBooking validation
+    const client = booking.primaryClient as NonNullable<typeof booking.primaryClient>;
 
     // 2. Validate booking status
     if (booking.status === 'CANCELLED') {
@@ -54,55 +58,7 @@ export class EmailController {
       );
     }
 
-    // 3. Validate client data
-    const client = booking.primaryClient;
-    if (!client) {
-      throw new BadRequestException('Aucun client principal associé à cette réservation');
-    }
-
-    // Compute prices
-    const rentalPrice = Number(booking.rentalPrice);
-    const nightsCount = Math.ceil(
-      (new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) /
-        (1000 * 60 * 60 * 24)
-    );
-    const cleaningPrice = booking.cleaningIncluded
-      ? booking.cleaningOffered
-        ? 0
-        : TARIFS.menage
-      : 0;
-    const linenPrice = booking.linenIncluded
-      ? booking.linenOffered
-        ? 0
-        : TARIFS.linge * booking.occupantsCount
-      : 0;
-    const touristTaxPrice = booking.touristTaxIncluded
-      ? TARIFS.taxeSejour * booking.adultsCount * nightsCount
-      : 0;
-    const totalPrice = rentalPrice + cleaningPrice + linenPrice + touristTaxPrice;
-    const depositPercentage = TARIFS.acompte / 100;
-    const depositAmount = Math.round(totalPrice * depositPercentage);
-    const balanceAmount = totalPrice - depositAmount;
-
-    // 4. Create snapshots in transaction
-    let priceDetailsJson: PriceDetailForInvoice[] | undefined;
-
-    if (dto.documentTypes.includes('invoice')) {
-      try {
-        const priceCalc = await this.bookingsService.recalculatePrice(booking.id);
-        if (priceCalc.details.length > 0) {
-          priceDetailsJson = priceCalc.details.map((d) => ({
-            nights: d.nights,
-            seasonName: d.seasonName,
-            pricePerNight: d.pricePerNight,
-            subtotal: d.subtotal,
-          }));
-        }
-      } catch (err) {
-        this.logger.warn(`Échec du recalcul de prix pour la réservation ${booking.id}`, err);
-      }
-    }
-
+    // 3. Create snapshots in transaction
     const { contractSnapshotId, invoiceSnapshotId } = await this.prisma.$transaction(async (tx) => {
       let contractId: string | undefined;
       let invoiceId: string | undefined;
@@ -128,7 +84,7 @@ export class EmailController {
             linenIncluded: booking.linenIncluded,
             linenOffered: booking.linenOffered,
             touristTaxIncluded: booking.touristTaxIncluded,
-            depositAmount,
+            depositAmount: prices.depositAmount,
           },
         });
         contractId = snapshot.id;
@@ -145,17 +101,17 @@ export class EmailController {
             clientPostalCode: client.postalCode,
             clientCountry: client.country,
             rentalPrice: booking.rentalPrice,
-            nightsCount,
-            cleaningPrice: cleaningPrice > 0 ? cleaningPrice : null,
+            nightsCount: prices.nightsCount,
+            cleaningPrice: prices.cleaningPrice > 0 ? prices.cleaningPrice : null,
             cleaningOffered: booking.cleaningOffered,
-            linenPrice: linenPrice > 0 ? linenPrice : null,
+            linenPrice: prices.linenPrice > 0 ? prices.linenPrice : null,
             linenOffered: booking.linenOffered,
-            touristTaxPrice: touristTaxPrice > 0 ? touristTaxPrice : null,
-            totalPrice,
-            depositAmount,
-            balanceAmount,
-            priceDetailsJson: priceDetailsJson
-              ? (priceDetailsJson as unknown as Prisma.InputJsonValue)
+            touristTaxPrice: prices.touristTaxPrice > 0 ? prices.touristTaxPrice : null,
+            totalPrice: prices.totalPrice,
+            depositAmount: prices.depositAmount,
+            balanceAmount: prices.balanceAmount,
+            priceDetailsJson: prices.priceDetails
+              ? (prices.priceDetails as unknown as Prisma.InputJsonValue)
               : undefined,
           },
         });
@@ -165,7 +121,7 @@ export class EmailController {
       return { contractSnapshotId: contractId, invoiceSnapshotId: invoiceId };
     });
 
-    // 5. Generate PDFs
+    // 4. Generate PDFs
     let contractPdf: Buffer | undefined;
     let invoicePdf: Buffer | undefined;
 
@@ -182,13 +138,13 @@ export class EmailController {
           startDate: new Date(booking.startDate),
           endDate: new Date(booking.endDate),
           occupantsCount: booking.occupantsCount,
-          rentalPrice,
-          totalPrice,
-          depositAmount,
-          balanceAmount,
-          cleaningPrice,
-          linenPrice,
-          touristTaxPrice,
+          rentalPrice: prices.rentalPrice,
+          totalPrice: prices.totalPrice,
+          depositAmount: prices.depositAmount,
+          balanceAmount: prices.balanceAmount,
+          cleaningPrice: prices.cleaningPrice,
+          linenPrice: prices.linenPrice,
+          touristTaxPrice: prices.touristTaxPrice,
           cleaningOffered: booking.cleaningOffered,
           linenOffered: booking.linenOffered,
         };
@@ -206,19 +162,19 @@ export class EmailController {
           invoiceNumber: generateInvoiceNumber(new Date(booking.startDate), client.lastName),
           startDate: new Date(booking.startDate),
           endDate: new Date(booking.endDate),
-          rentalPrice,
-          nightsCount,
-          totalPrice,
-          depositAmount,
-          balanceAmount,
-          cleaningPrice,
+          rentalPrice: prices.rentalPrice,
+          nightsCount: prices.nightsCount,
+          totalPrice: prices.totalPrice,
+          depositAmount: prices.depositAmount,
+          balanceAmount: prices.balanceAmount,
+          cleaningPrice: prices.cleaningPrice,
           cleaningIncluded: booking.cleaningIncluded,
           cleaningOffered: booking.cleaningOffered,
-          linenPrice,
+          linenPrice: prices.linenPrice,
           linenIncluded: booking.linenIncluded,
           linenOffered: booking.linenOffered,
-          touristTaxPrice,
-          priceDetails: priceDetailsJson,
+          touristTaxPrice: prices.touristTaxPrice,
+          priceDetails: prices.priceDetails,
         };
         invoicePdf = this.pdfService.generateInvoice(invoiceData);
       }
@@ -253,7 +209,7 @@ export class EmailController {
       });
     }
 
-    // 6. Send email
+    // 5. Send email
     let resendMessageId: string | undefined;
     let status: 'SENT' | 'FAILED' = 'SENT';
     let failureReason: string | undefined;
@@ -276,7 +232,7 @@ export class EmailController {
         error instanceof Error ? `Erreur d'envoi: ${error.message}` : "Erreur d'envoi inconnue";
     }
 
-    // 7. Create EmailLog
+    // 6. Create EmailLog
     const emailLog = await this.prisma.emailLog.create({
       data: {
         bookingId: booking.id,

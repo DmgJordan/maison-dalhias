@@ -474,6 +474,43 @@ export const settingsApi = {
   },
 };
 
+// PDF API
+export const pdfApi = {
+  async downloadContract(bookingId: string): Promise<void> {
+    const response = await api.get(`/pdf/bookings/${bookingId}/contract`, {
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data as BlobPart], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const disposition = response.headers['content-disposition'] as string | undefined;
+    const filename = disposition?.match(/filename="(.+)"/)?.[1] ?? `contrat-${bookingId}.pdf`;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
+
+  async downloadInvoice(bookingId: string): Promise<void> {
+    const response = await api.get(`/pdf/bookings/${bookingId}/invoice`, {
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data as BlobPart], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const disposition = response.headers['content-disposition'] as string | undefined;
+    const filename = disposition?.match(/filename="(.+)"/)?.[1] ?? `facture-${bookingId}.pdf`;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
+};
+
 // Email API
 export const emailApi = {
   async send(data: SendDocumentEmailRequest): Promise<EmailLog> {
