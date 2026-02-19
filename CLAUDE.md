@@ -274,7 +274,7 @@ Fonctions de formatage : `formatPrice`, `formatDateShort`, `formatDateFr`, `form
 
 ### Constantes métier (`apps/web/src/constants/`)
 - `property.ts` : Données bailleur, logement, tarifs, équipements, couleurs PDF
-- `pricing.ts` : Prix par saison (fallback), options (ménage 80€, linge 15€/pers, taxe séjour 1€/nuit, dépôt 500€), contraintes (min 3 nuits, max 6 occupants)
+- `pricing.ts` : Prix par saison (fallback), options (ménage 80€, linge 15€/pers, taxe séjour 0,80€/nuit, dépôt 500€), contraintes (min 3 nuits, max 6 occupants)
 
 ### Services PDF (`apps/web/src/services/pdf/`)
 Générateurs : `contractGenerator.ts`, `invoiceGenerator.ts`, `posterGenerator.ts`, `pricingGridGenerator.ts`, `fontLoader.ts`.
@@ -398,7 +398,7 @@ colors: {
 - Minimum 3 nuits (configurable par saison, 7 pour haute/très haute)
 - Vérification conflits en temps réel
 - Calcul automatique selon période tarifaire (tarifs nuit + hebdo)
-- Options : ménage (80€), linge (15€/pers), taxe séjour (1€/nuit/adulte)
+- Options : ménage (80€), linge (15€/pers), taxe séjour (0,80€/nuit/adulte)
 - Acompte 30%, solde 15 jours avant arrivée, dépôt garantie 500€
 
 ## Informations propriété
@@ -439,7 +439,7 @@ Créer une interface **mobile-first** et **user-friendly** pour des utilisateurs
 |--------|-------|
 | Ménage fin de séjour | 80 € |
 | Linge de maison | 15 €/personne |
-| Taxe de séjour | 1 €/jour/adulte |
+| Taxe de séjour | 0,80 €/jour/adulte |
 | Dépôt de garantie | 500 € (fixe) |
 | Acompte | 30% du total |
 | Solde | 15 jours avant arrivée |

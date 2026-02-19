@@ -110,7 +110,7 @@ export const LOGEMENT: Logement = {
 export const TARIFS: Tarifs = {
   menage: 80,
   linge: 15,
-  taxeSejour: 1,
+  taxeSejour: 0.8,
   caution: 500,
   acompte: 30,
 };

@@ -46,9 +46,9 @@ Du [DATE_DEBUT] au [DATE_FIN]
 - Taxe de séjour : [TAXE_SEJOUR] € (à régler sur place)  
 
 **Modalités de paiement :**  
-- Acompte de 30% à la signature : [MONTANT_ACOMPTE] €  
-- Solde 30 jours avant l'arrivée : [MONTANT_SOLDE] €  
-- Caution : [MONTANT_CAUTION] € (remboursée sous 7 jours)  
+- Acompte de 30% dans les 15 jours suivant la réception du contrat : [MONTANT_ACOMPTE] €
+- Solde 15 jours avant l'arrivée : [MONTANT_SOLDE] €
+- Caution : [MONTANT_CAUTION] € (à remettre au plus tard à la récupération des clés, remboursée sous 15 jours)  
 
 ---
 

@@ -14,7 +14,7 @@ export const FALLBACK_PRICES = {
 export const OPTION_PRICES = {
   CLEANING: 80, // Ménage fin de séjour
   LINEN_PER_PERSON: 15, // Linge de maison par personne
-  TOURIST_TAX_PER_ADULT_PER_NIGHT: 1, // Taxe de séjour par adulte par nuit
+  TOURIST_TAX_PER_ADULT_PER_NIGHT: 0.8, // Taxe de séjour par adulte par nuit
   SECURITY_DEPOSIT: 500, // Dépôt de garantie (non encaissé)
 } as const;
 
