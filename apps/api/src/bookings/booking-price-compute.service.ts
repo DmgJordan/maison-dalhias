@@ -30,6 +30,10 @@ export class BookingPriceComputeService {
       throw new BadRequestException('Aucun client principal associé à cette réservation');
     }
 
+    if (booking.rentalPrice === null || booking.occupantsCount === null) {
+      throw new BadRequestException('Données de tarification incomplètes pour cette réservation');
+    }
+
     const rentalPrice = Number(booking.rentalPrice);
     const nightsCount = Math.ceil(
       (new Date(booking.endDate).getTime() - new Date(booking.startDate).getTime()) /

@@ -196,18 +196,28 @@ model User {
 }
 
 model Booking {
-  id                   String   @id @default(uuid())
+  id                   String          @id @default(uuid())
   startDate            DateTime
   endDate              DateTime
-  status               Status   @default(PENDING)  // PENDING | CONFIRMED | CANCELLED
+  status               Status          @default(PENDING)  // PENDING | CONFIRMED | CANCELLED
   userId               String
+  bookingType          BookingType     @default(DIRECT)   // DIRECT | EXTERNAL | PERSONAL
+  source               BookingSource?  // ABRITEL | AIRBNB | BOOKING_COM | PERSONNEL | FAMILLE | OTHER
+  sourceCustomName     String?
+  label                String?
+  externalAmount       Decimal?        @db.Decimal(10, 2)
+  notes                String?
+  paymentStatus        PaymentStatus?  // PENDING | PARTIAL | PAID | FREE
   primaryClientId      String?
   secondaryClientId    String?
-  occupantsCount       Int      @default(1)
-  rentalPrice          Decimal  @db.Decimal(10, 2)
-  touristTaxIncluded   Boolean  @default(false)
-  cleaningIncluded     Boolean  @default(false)
-  linenIncluded        Boolean  @default(false)
+  occupantsCount       Int?
+  adultsCount          Int             @default(1)
+  rentalPrice          Decimal?        @db.Decimal(10, 2)
+  touristTaxIncluded   Boolean         @default(false)
+  cleaningIncluded     Boolean         @default(false)
+  cleaningOffered      Boolean         @default(false)
+  linenIncluded        Boolean         @default(false)
+  linenOffered         Boolean         @default(false)
 }
 
 model Client {

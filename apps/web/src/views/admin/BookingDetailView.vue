@@ -69,10 +69,8 @@ const touristTaxPrice = computed((): number => {
 
 const totalPrice = computed((): number => {
   if (!booking.value) return 0;
-  const rental =
-    typeof booking.value.rentalPrice === 'string'
-      ? parseFloat(booking.value.rentalPrice)
-      : booking.value.rentalPrice;
+  const raw = booking.value.rentalPrice;
+  const rental = raw == null ? 0 : typeof raw === 'string' ? parseFloat(raw) : raw;
   return rental + cleaningPrice.value + linenPrice.value + touristTaxPrice.value;
 });
 
@@ -182,10 +180,9 @@ const checkPriceConsistency = async (): Promise<void> => {
   try {
     const result = await bookingsApi.recalculatePrice(booking.value.id);
     priceCalculation.value = result;
+    const rawPrice = booking.value.rentalPrice;
     const storedPrice =
-      typeof booking.value.rentalPrice === 'string'
-        ? parseFloat(booking.value.rentalPrice)
-        : booking.value.rentalPrice;
+      rawPrice == null ? 0 : typeof rawPrice === 'string' ? parseFloat(rawPrice) : rawPrice;
     priceMismatch.value = Math.abs(storedPrice - result.totalPrice) > 0.01;
   } catch {
     // Silencieux si erreur
@@ -546,8 +543,8 @@ onMounted(async () => {
                   <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                 </svg>
                 <span
-                  >{{ booking.occupantsCount }} personne{{
-                    booking.occupantsCount > 1 ? 's' : ''
+                  >{{ booking.occupantsCount ?? '-' }} personne{{
+                    (booking.occupantsCount ?? 0) > 1 ? 's' : ''
                   }}</span
                 >
               </div>
@@ -582,7 +579,7 @@ onMounted(async () => {
               </div>
               <div v-if="booking.linenIncluded" class="price-line">
                 <span class="price-label"
-                  >Linge de maison ({{ booking.occupantsCount }} pers.)</span
+                  >Linge de maison ({{ booking.occupantsCount ?? '-' }} pers.)</span
                 >
                 <span v-if="booking.linenOffered" class="price-offered">Offert</span>
                 <span v-else class="price-value">{{ formatPrice(linenPrice) }}</span>

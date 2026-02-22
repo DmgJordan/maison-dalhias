@@ -51,6 +51,15 @@ export class EmailController {
     // Client is guaranteed to exist by computeForBooking validation
     const client = booking.primaryClient as NonNullable<typeof booking.primaryClient>;
 
+    // 1b. Validate pricing fields are available (null for non-DIRECT bookings)
+    if (booking.occupantsCount === null || booking.rentalPrice === null) {
+      throw new BadRequestException(
+        'Données de tarification incomplètes pour générer les documents'
+      );
+    }
+    const occupantsCount = booking.occupantsCount;
+    const rentalPrice = booking.rentalPrice;
+
     // 2. Validate booking status
     if (booking.status === 'CANCELLED') {
       throw new BadRequestException(
@@ -77,8 +86,8 @@ export class EmailController {
             clientPhone: client.phone,
             startDate: booking.startDate,
             endDate: booking.endDate,
-            occupantsCount: booking.occupantsCount,
-            rentalPrice: booking.rentalPrice,
+            occupantsCount,
+            rentalPrice,
             cleaningIncluded: booking.cleaningIncluded,
             cleaningOffered: booking.cleaningOffered,
             linenIncluded: booking.linenIncluded,
@@ -100,7 +109,7 @@ export class EmailController {
             clientCity: client.city,
             clientPostalCode: client.postalCode,
             clientCountry: client.country,
-            rentalPrice: booking.rentalPrice,
+            rentalPrice,
             nightsCount: prices.nightsCount,
             cleaningPrice: prices.cleaningPrice > 0 ? prices.cleaningPrice : null,
             cleaningOffered: booking.cleaningOffered,
@@ -137,7 +146,7 @@ export class EmailController {
           clientPhone: client.phone,
           startDate: new Date(booking.startDate),
           endDate: new Date(booking.endDate),
-          occupantsCount: booking.occupantsCount,
+          occupantsCount,
           rentalPrice: prices.rentalPrice,
           totalPrice: prices.totalPrice,
           depositAmount: prices.depositAmount,

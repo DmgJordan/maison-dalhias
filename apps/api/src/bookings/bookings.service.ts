@@ -4,10 +4,11 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { Booking, Client } from '@prisma/client';
+import { Booking, BookingSource, BookingType, Client } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PricingService, PriceCalculation } from '../pricing/pricing.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { CreateQuickBookingDto } from './dto/create-quick-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 
 export interface BookingWithRelations extends Booking {
@@ -23,9 +24,19 @@ export interface DeleteResponse {
   message: string;
 }
 
+export interface ConflictDetail {
+  id: string;
+  source: BookingSource | null;
+  label: string | null;
+  clientName: string | null;
+  startDate: Date;
+  endDate: Date;
+}
+
 export interface ConflictCheckResult {
   hasConflict: boolean;
   minNightsRequired: number;
+  conflictDetail?: ConflictDetail;
 }
 
 @Injectable()
@@ -305,13 +316,121 @@ export class BookingsService {
     endDate: Date,
     excludeBookingId?: string
   ): Promise<ConflictCheckResult> {
-    const hasConflict = await this.checkConflicts(startDate, endDate, excludeBookingId);
+    const conflicting = await this.checkConflictsDetailed(startDate, endDate, excludeBookingId);
     const minNightsRequired = await this.pricingService.getMinNightsForPeriod(startDate, endDate);
 
-    return {
-      hasConflict,
+    const result: ConflictCheckResult = {
+      hasConflict: conflicting !== null,
       minNightsRequired,
     };
+
+    if (conflicting) {
+      const clientName = conflicting.primaryClient
+        ? `${conflicting.primaryClient.firstName} ${conflicting.primaryClient.lastName}`
+        : null;
+      result.conflictDetail = {
+        id: conflicting.id,
+        source: conflicting.source,
+        label: conflicting.label,
+        clientName,
+        startDate: conflicting.startDate,
+        endDate: conflicting.endDate,
+      };
+    }
+
+    return result;
+  }
+
+  private mapSourceToType(source: BookingSource): BookingType {
+    switch (source) {
+      case BookingSource.ABRITEL:
+      case BookingSource.AIRBNB:
+      case BookingSource.BOOKING_COM:
+      case BookingSource.OTHER:
+        return BookingType.EXTERNAL;
+      case BookingSource.PERSONNEL:
+      case BookingSource.FAMILLE:
+        return BookingType.PERSONAL;
+    }
+  }
+
+  async checkConflictsDetailed(
+    startDate: Date,
+    endDate: Date,
+    excludeBookingId?: string
+  ): Promise<BookingWithRelations | null> {
+    const conflicting = await this.prisma.booking.findFirst({
+      where: {
+        id: excludeBookingId ? { not: excludeBookingId } : undefined,
+        status: { not: 'CANCELLED' },
+        startDate: { lte: endDate },
+        endDate: { gte: startDate },
+      },
+      include: {
+        user: { select: { id: true, email: true } },
+        primaryClient: true,
+        secondaryClient: true,
+      },
+    });
+    return conflicting as BookingWithRelations | null;
+  }
+
+  async createQuick(userId: string, dto: CreateQuickBookingDto): Promise<BookingWithRelations> {
+    const startDate = new Date(dto.startDate);
+    const endDate = new Date(dto.endDate);
+
+    if (endDate <= startDate) {
+      throw new BadRequestException('La date de fin doit être postérieure à la date de début');
+    }
+
+    const bookingType = this.mapSourceToType(dto.source);
+
+    return this.prisma.$transaction(async (tx) => {
+      const conflicting = await tx.booking.findFirst({
+        where: {
+          status: { not: 'CANCELLED' },
+          startDate: { lte: endDate },
+          endDate: { gte: startDate },
+        },
+      });
+
+      if (conflicting) {
+        throw new ConflictException({
+          message: 'Ces dates chevauchent une réservation existante',
+          conflictingBooking: {
+            id: conflicting.id,
+            source: conflicting.source,
+            label: conflicting.label,
+            startDate: conflicting.startDate,
+            endDate: conflicting.endDate,
+          },
+        });
+      }
+
+      const booking = await tx.booking.create({
+        data: {
+          startDate,
+          endDate,
+          bookingType,
+          source: dto.source,
+          sourceCustomName: dto.sourceCustomName ?? null,
+          label: dto.label ?? null,
+          externalAmount: dto.externalAmount ?? null,
+          occupantsCount: dto.occupantsCount ?? null,
+          adultsCount: dto.adultsCount ?? 1,
+          notes: dto.notes ?? null,
+          userId,
+          status: 'PENDING',
+        },
+        include: {
+          user: { select: { id: true, email: true } },
+          primaryClient: true,
+          secondaryClient: true,
+        },
+      });
+
+      return booking as BookingWithRelations;
+    });
   }
 
   async getBookedDates(): Promise<string[]> {

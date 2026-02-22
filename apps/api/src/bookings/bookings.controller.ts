@@ -9,9 +9,16 @@ import {
   UseGuards,
   Request,
 } from '@nestjs/common';
-import { BookingsService, BookingWithRelations, DeleteResponse } from './bookings.service';
+import {
+  BookingsService,
+  BookingWithRelations,
+  DeleteResponse,
+  ConflictCheckResult,
+} from './bookings.service';
 import { PriceCalculation } from '../pricing/pricing.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { CreateQuickBookingDto } from './dto/create-quick-booking.dto';
+import { CheckConflictsDto } from './dto/check-conflicts.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
@@ -19,11 +26,6 @@ import { Booking } from '@prisma/client';
 
 interface AuthenticatedRequest {
   user: { id: string };
-}
-
-interface ConflictResponse {
-  hasConflict: boolean;
-  minNightsRequired: number;
 }
 
 @Controller('bookings')
@@ -38,6 +40,15 @@ export class BookingsController {
   @Get('dates')
   getBookedDates(): Promise<string[]> {
     return this.bookingsService.getBookedDates();
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Post('quick')
+  createQuick(
+    @Request() req: AuthenticatedRequest,
+    @Body() dto: CreateQuickBookingDto
+  ): Promise<BookingWithRelations> {
+    return this.bookingsService.createQuick(req.user.id, dto);
   }
 
   @Get(':id')
@@ -88,14 +99,11 @@ export class BookingsController {
   }
 
   @Post('check-conflicts')
-  async checkConflicts(
-    @Body() body: { startDate: string; endDate: string; bookingId?: string }
-  ): Promise<ConflictResponse> {
-    const result = await this.bookingsService.checkConflictsWithMinNights(
-      new Date(body.startDate),
-      new Date(body.endDate),
-      body.bookingId
+  async checkConflicts(@Body() dto: CheckConflictsDto): Promise<ConflictCheckResult> {
+    return this.bookingsService.checkConflictsWithMinNights(
+      new Date(dto.startDate),
+      new Date(dto.endDate),
+      dto.bookingId
     );
-    return result;
   }
 }

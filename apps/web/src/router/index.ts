@@ -14,6 +14,14 @@ const MessagesView = (): Promise<typeof import('../views/admin/MessagesView.vue'
   import('../views/admin/MessagesView.vue');
 const NewBookingView = (): Promise<typeof import('../views/admin/NewBookingView.vue')> =>
   import('../views/admin/NewBookingView.vue');
+const BookingTypeSelector = (): Promise<typeof import('../views/admin/BookingTypeSelector.vue')> =>
+  import('../views/admin/BookingTypeSelector.vue');
+const QuickBookingStep1 = (): Promise<typeof import('../views/admin/QuickBookingStep1.vue')> =>
+  import('../views/admin/QuickBookingStep1.vue');
+const QuickBookingStep2 = (): Promise<typeof import('../views/admin/QuickBookingStep2.vue')> =>
+  import('../views/admin/QuickBookingStep2.vue');
+const QuickBookingSuccess = (): Promise<typeof import('../views/admin/QuickBookingSuccess.vue')> =>
+  import('../views/admin/QuickBookingSuccess.vue');
 const PricingView = (): Promise<typeof import('../views/admin/PricingView.vue')> =>
   import('../views/admin/PricingView.vue');
 
@@ -55,7 +63,27 @@ const routes = [
       {
         path: 'nouveau',
         name: 'AdminNewBooking',
+        component: BookingTypeSelector,
+      },
+      {
+        path: 'nouveau/direct',
+        name: 'AdminNewBookingDirect',
         component: NewBookingView,
+      },
+      {
+        path: 'nouveau/rapide/1',
+        name: 'AdminQuickBookingStep1',
+        component: QuickBookingStep1,
+      },
+      {
+        path: 'nouveau/rapide/2',
+        name: 'AdminQuickBookingStep2',
+        component: QuickBookingStep2,
+      },
+      {
+        path: 'nouveau/rapide/succes',
+        name: 'AdminQuickBookingSuccess',
+        component: QuickBookingSuccess,
       },
       {
         path: 'tarifs',

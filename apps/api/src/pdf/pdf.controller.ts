@@ -1,4 +1,12 @@
-import { Controller, Get, Param, ParseUUIDPipe, Res, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
@@ -23,6 +31,10 @@ export class PdfController {
   ): Promise<void> {
     const prices = await this.bookingPriceComputeService.computeForBooking(bookingId);
     const client = prices.booking.primaryClient as NonNullable<typeof prices.booking.primaryClient>;
+
+    if (prices.booking.occupantsCount === null || prices.booking.rentalPrice === null) {
+      throw new BadRequestException('Données de tarification incomplètes pour générer le contrat');
+    }
 
     const contractData: ContractGenerateData = {
       clientFirstName: client.firstName,

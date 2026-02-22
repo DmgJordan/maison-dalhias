@@ -69,9 +69,10 @@ const form = ref({
         phone: props.booking.secondaryClient.phone,
       }
     : null,
-  occupantsCount: props.booking.occupantsCount,
+  occupantsCount: props.booking.occupantsCount ?? 1,
   adultsCount: props.booking.adultsCount,
-  rentalPrice: parseFloat(String(props.booking.rentalPrice)),
+  rentalPrice:
+    props.booking.rentalPrice != null ? parseFloat(String(props.booking.rentalPrice)) : 0,
   touristTaxIncluded: props.booking.touristTaxIncluded,
   cleaningIncluded: props.booking.cleaningIncluded,
   cleaningOffered: props.booking.cleaningOffered,
@@ -154,12 +155,14 @@ const hasChanges = computed((): boolean => {
   const original = props.booking;
   const originalStart = original.startDate.split('T')[0];
   const originalEnd = original.endDate.split('T')[0];
-  const originalRentalPrice = parseFloat(String(original.rentalPrice));
+  const originalOccupantsCount = original.occupantsCount ?? 1;
+  const originalRentalPrice =
+    original.rentalPrice != null ? parseFloat(String(original.rentalPrice)) : 0;
 
   return (
     form.value.startDate !== originalStart ||
     form.value.endDate !== originalEnd ||
-    form.value.occupantsCount !== original.occupantsCount ||
+    form.value.occupantsCount !== originalOccupantsCount ||
     form.value.adultsCount !== original.adultsCount ||
     form.value.rentalPrice !== originalRentalPrice ||
     form.value.touristTaxIncluded !== original.touristTaxIncluded ||

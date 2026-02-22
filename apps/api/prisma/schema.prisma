@@ -24,6 +24,28 @@ enum Role {
   ADMIN
 }
 
+enum BookingType {
+  DIRECT
+  EXTERNAL
+  PERSONAL
+}
+
+enum BookingSource {
+  ABRITEL
+  AIRBNB
+  BOOKING_COM
+  PERSONNEL
+  FAMILLE
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  FREE
+}
+
 model Booking {
   id                   String              @id @default(uuid())
   startDate            DateTime            @map("start_date")
@@ -31,13 +53,20 @@ model Booking {
   status               Status              @default(PENDING)
   userId               String              @map("user_id")
   user                 User                @relation(fields: [userId], references: [id])
+  bookingType          BookingType         @default(DIRECT) @map("booking_type")
+  source               BookingSource?      @map("source")
+  sourceCustomName     String?             @map("source_custom_name")
+  label                String?             @map("label")
+  externalAmount       Decimal?            @map("external_amount") @db.Decimal(10, 2)
+  notes                String?             @map("notes")
+  paymentStatus        PaymentStatus?      @map("payment_status")
   primaryClientId      String?             @map("primary_client_id")
   primaryClient        Client?             @relation("PrimaryClient", fields: [primaryClientId], references: [id])
   secondaryClientId    String?             @map("secondary_client_id")
   secondaryClient      Client?             @relation("SecondaryClient", fields: [secondaryClientId], references: [id])
-  occupantsCount       Int                 @default(1) @map("occupants_count")
+  occupantsCount       Int?                @map("occupants_count")
   adultsCount          Int                 @default(1) @map("adults_count")
-  rentalPrice          Decimal             @default(0) @map("rental_price") @db.Decimal(10, 2)
+  rentalPrice          Decimal?            @map("rental_price") @db.Decimal(10, 2)
   touristTaxIncluded   Boolean             @default(false) @map("tourist_tax_included")
   cleaningIncluded     Boolean             @default(false) @map("cleaning_included")
   cleaningOffered      Boolean             @default(false) @map("cleaning_offered")

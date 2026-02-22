@@ -44,17 +44,34 @@ export interface LoginResponse {
   user: User;
 }
 
+export type BookingType = 'DIRECT' | 'EXTERNAL' | 'PERSONAL';
+export type BookingSource =
+  | 'ABRITEL'
+  | 'AIRBNB'
+  | 'BOOKING_COM'
+  | 'PERSONNEL'
+  | 'FAMILLE'
+  | 'OTHER';
+export type PaymentStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'FREE';
+
 export interface Booking {
   id: string;
   startDate: string;
   endDate: string;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
   userId: string;
+  bookingType: BookingType;
+  source?: BookingSource;
+  sourceCustomName?: string;
+  label?: string;
+  externalAmount?: number;
+  notes?: string;
+  paymentStatus?: PaymentStatus;
   primaryClient?: Client;
   secondaryClient?: Client;
-  occupantsCount: number;
+  occupantsCount?: number;
   adultsCount: number;
-  rentalPrice: number;
+  rentalPrice?: number;
   touristTaxIncluded: boolean;
   cleaningIncluded: boolean;
   cleaningOffered: boolean;
@@ -194,9 +211,31 @@ export interface PublicPricingGrid {
   periods: PublicPricingPeriod[];
 }
 
+export interface ConflictDetail {
+  id: string;
+  source: BookingSource | null;
+  label: string | null;
+  clientName: string | null;
+  startDate: string;
+  endDate: string;
+}
+
+export interface CreateQuickBookingData {
+  startDate: string;
+  endDate: string;
+  source: BookingSource;
+  sourceCustomName?: string;
+  label?: string;
+  externalAmount?: number;
+  occupantsCount?: number;
+  adultsCount?: number;
+  notes?: string;
+}
+
 export interface ConflictCheckResult {
   hasConflict: boolean;
   minNightsRequired: number;
+  conflictDetail?: ConflictDetail;
 }
 
 export interface Settings {
@@ -307,6 +346,11 @@ export const bookingsApi = {
 
   async delete(id: string): Promise<void> {
     await api.delete(`/bookings/${id}`);
+  },
+
+  async createQuick(data: CreateQuickBookingData): Promise<Booking> {
+    const { data: result } = await api.post<Booking>('/bookings/quick', data);
+    return result;
   },
 
   async checkConflicts(
