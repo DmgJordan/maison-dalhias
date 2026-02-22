@@ -39,6 +39,7 @@ apps/api/prisma/*.db-journal
 .claude/skills/
 .plans/
 
-# BMAD (installation locale, outputs trackés)
+# BMAD (installation locale et outputs)
 _bmad/
+_bmad-output/
 .claude/commands/bmad-*

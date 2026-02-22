@@ -23,7 +23,7 @@
     "format": "prettier --write \"apps/**/*.{ts,vue,js,json}\"",
     "format:check": "prettier --check \"apps/**/*.{ts,vue,js,json}\"",
     "typecheck": "npm run typecheck:web && npm run typecheck:api",
-    "typecheck:web": "vue-tsc -b --noEmit -p apps/web/tsconfig.app.json",
+    "typecheck:web": "vue-tsc --noEmit -p apps/web/tsconfig.app.json",
     "typecheck:api": "tsc --noEmit -p apps/api/tsconfig.json",
     "prepare": "husky"
   },
