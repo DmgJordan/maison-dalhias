@@ -158,6 +158,19 @@ const sourceDisplayName = computed((): string => {
   return SOURCE_LABELS[booking.value.source] ?? 'la plateforme';
 });
 
+const canGenerateContract = computed((): boolean => {
+  if (!booking.value) return false;
+  return (
+    booking.value.primaryClient != null &&
+    booking.value.rentalPrice != null &&
+    booking.value.occupantsCount != null
+  );
+});
+
+const canGenerateInvoice = computed((): boolean => {
+  return canGenerateContract.value;
+});
+
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
   return date.toLocaleDateString('fr-FR', {
@@ -317,7 +330,7 @@ const handleBookingUpdated = async (updatedBooking: Booking): Promise<void> => {
 };
 
 const handleGenerateContract = async (): Promise<void> => {
-  if (!booking.value) return;
+  if (!booking.value || !canGenerateContract.value) return;
 
   try {
     generatingContract.value = true;
@@ -333,7 +346,7 @@ const handleGenerateContract = async (): Promise<void> => {
 };
 
 const handleGenerateInvoice = async (): Promise<void> => {
-  if (!booking.value) return;
+  if (!booking.value || !canGenerateInvoice.value) return;
 
   try {
     generatingInvoice.value = true;
@@ -950,54 +963,71 @@ onMounted(async () => {
             <!-- Document buttons (hidden during success screen) -->
             <template v-if="!showSuccessScreen">
               <div class="documents-grid">
-                <button
-                  class="document-btn document-btn--active"
-                  :disabled="generatingContract"
-                  @click="handleGenerateContract"
-                >
-                  <svg
-                    v-if="!generatingContract"
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="document-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
+                <div class="document-item">
+                  <button
+                    :class="['document-btn', { 'document-btn--active': canGenerateContract }]"
+                    :disabled="generatingContract || !canGenerateContract"
+                    @click="handleGenerateContract"
                   >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  <div v-else class="document-spinner"></div>
-                  <span class="document-label">Contrat de location</span>
-                  <span class="document-status document-status--ready">
-                    {{ generatingContract ? 'Generation...' : 'Telecharger' }}
+                    <svg
+                      v-if="!generatingContract"
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="document-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    <div v-else class="document-spinner"></div>
+                    <span class="document-label">Contrat de location</span>
+                    <span
+                      :class="[
+                        'document-status',
+                        { 'document-status--ready': canGenerateContract },
+                      ]"
+                    >
+                      {{ generatingContract ? 'Generation...' : 'Telecharger' }}
+                    </span>
+                  </button>
+                  <span v-if="!canGenerateContract" class="document-disabled-reason">
+                    Informations client et tarification requises
                   </span>
-                </button>
-                <button
-                  class="document-btn document-btn--active"
-                  :disabled="generatingInvoice"
-                  @click="handleGenerateInvoice"
-                >
-                  <svg
-                    v-if="!generatingInvoice"
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="document-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
+                </div>
+                <div class="document-item">
+                  <button
+                    :class="['document-btn', { 'document-btn--active': canGenerateInvoice }]"
+                    :disabled="generatingInvoice || !canGenerateInvoice"
+                    @click="handleGenerateInvoice"
                   >
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  <div v-else class="document-spinner"></div>
-                  <span class="document-label">Facture</span>
-                  <span class="document-status document-status--ready">
-                    {{ generatingInvoice ? 'Generation...' : 'Telecharger' }}
+                    <svg
+                      v-if="!generatingInvoice"
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="document-icon"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                      <polyline points="7 10 12 15 17 10" />
+                      <line x1="12" y1="15" x2="12" y2="3" />
+                    </svg>
+                    <div v-else class="document-spinner"></div>
+                    <span class="document-label">Facture</span>
+                    <span
+                      :class="['document-status', { 'document-status--ready': canGenerateInvoice }]"
+                    >
+                      {{ generatingInvoice ? 'Generation...' : 'Telecharger' }}
+                    </span>
+                  </button>
+                  <span v-if="!canGenerateInvoice" class="document-disabled-reason">
+                    Informations client et tarification requises
                   </span>
-                </button>
+                </div>
               </div>
 
               <!-- Email send buttons (section already hidden when CANCELLED) -->
@@ -1011,7 +1041,7 @@ onMounted(async () => {
               <div class="email-send-buttons">
                 <button
                   class="email-btn"
-                  :disabled="!hasClientEmail"
+                  :disabled="!hasClientEmail || !canGenerateContract"
                   @click="openEmailModal(['contract'])"
                 >
                   <svg
@@ -1031,7 +1061,7 @@ onMounted(async () => {
                 </button>
                 <button
                   class="email-btn"
-                  :disabled="!hasClientEmail"
+                  :disabled="!hasClientEmail || !canGenerateInvoice"
                   @click="openEmailModal(['invoice'])"
                 >
                   <svg
@@ -1051,7 +1081,7 @@ onMounted(async () => {
                 </button>
                 <button
                   class="email-btn email-btn--both"
-                  :disabled="!hasClientEmail"
+                  :disabled="!hasClientEmail || !canGenerateInvoice"
                   @click="openEmailModal(['contract', 'invoice'])"
                 >
                   <svg
@@ -1713,6 +1743,18 @@ onMounted(async () => {
   gap: 12px;
 }
 
+.document-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.document-disabled-reason {
+  font-size: 12px;
+  color: #a3a3a3;
+  text-align: center;
+}
+
 .document-btn {
   display: flex;
   flex-direction: column;
@@ -1722,12 +1764,13 @@ onMounted(async () => {
   background-color: #f7f7f7;
   border: 2px dashed #d4d4d4;
   border-radius: 12px;
-  cursor: not-allowed;
+  cursor: default;
   transition: all 0.2s;
 }
 
 .document-btn:disabled {
   opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .document-btn--active {
@@ -1744,6 +1787,11 @@ onMounted(async () => {
 
 .document-btn--active:active:not(:disabled) {
   transform: translateY(0);
+}
+
+.document-btn--active:focus-visible {
+  outline: 2px solid #ff385c;
+  outline-offset: 2px;
 }
 
 .document-btn--active .document-icon {
