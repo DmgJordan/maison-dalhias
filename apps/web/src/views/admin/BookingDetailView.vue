@@ -10,9 +10,12 @@ import {
   type EmailLog,
 } from '../../lib/api';
 import { OPTION_PRICES, PAYMENT_PERCENTAGES } from '../../constants/pricing';
+import { SOURCE_LABELS } from '../../constants/booking';
 import BookingEditModal from '../../components/admin/BookingEditModal.vue';
 import EmailSendModal from '../../components/admin/EmailSendModal.vue';
 import EmailHistoryCard from '../../components/admin/EmailHistoryCard.vue';
+import SourceBadge from '../../components/admin/SourceBadge.vue';
+import PaymentStatusBadge from '../../components/admin/PaymentStatusBadge.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -123,6 +126,38 @@ const modifiedSinceLastSend = computed((): boolean => {
   return new Date(booking.value.updatedAt) > new Date(lastLog.sentAt);
 });
 
+// Adaptive display helpers (Story 2.2)
+const hasClient = computed((): boolean => {
+  return !!booking.value?.primaryClient;
+});
+
+const hasRentalPrice = computed((): boolean => {
+  return booking.value?.rentalPrice != null;
+});
+
+const hasExternalAmount = computed((): boolean => {
+  return booking.value?.externalAmount != null;
+});
+
+const hasNotes = computed((): boolean => {
+  return !!booking.value?.notes;
+});
+
+const displayName = computed((): string | null => {
+  if (booking.value?.primaryClient) {
+    return formatClientName(booking.value.primaryClient);
+  }
+  return booking.value?.label ?? null;
+});
+
+const sourceDisplayName = computed((): string => {
+  if (!booking.value?.source) return 'la plateforme';
+  if (booking.value.source === 'OTHER' && booking.value.sourceCustomName) {
+    return booking.value.sourceCustomName;
+  }
+  return SOURCE_LABELS[booking.value.source] ?? 'la plateforme';
+});
+
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
   return date.toLocaleDateString('fr-FR', {
@@ -142,7 +177,7 @@ const formatShortDate = (dateString: string): string => {
   });
 };
 
-const formatPrice = (price: number | string | undefined): string => {
+const formatPrice = (price: number | string | null | undefined): string => {
   if (price === undefined || price === null) return '-';
   const numPrice = typeof price === 'string' ? parseFloat(price) : price;
   return new Intl.NumberFormat('fr-FR', {
@@ -349,7 +384,11 @@ const handleResend = (emailLog: EmailLog): void => {
 
 onMounted(async () => {
   await fetchBooking();
-  await Promise.all([checkPriceConsistency(), fetchEmailHistory()]);
+  const tasks: Promise<void>[] = [fetchEmailHistory()];
+  if (booking.value?.rentalPrice != null) {
+    tasks.push(checkPriceConsistency());
+  }
+  await Promise.all(tasks);
 });
 </script>
 
@@ -419,15 +458,26 @@ onMounted(async () => {
       <!-- En-tete avec statut -->
       <div class="detail-header">
         <div class="header-top">
-          <span class="status-badge" :class="statusClass">
-            {{ statusLabel }}
-          </span>
+          <div class="header-badges">
+            <span class="status-badge" :class="statusClass">
+              {{ statusLabel }}
+            </span>
+            <SourceBadge
+              :source="booking.source ?? 'DIRECT'"
+              :booking-type="booking.bookingType ?? 'DIRECT'"
+              size="sm"
+            />
+            <PaymentStatusBadge v-if="booking.paymentStatus" :status="booking.paymentStatus" />
+          </div>
           <span class="booking-id">Ref. {{ booking.id.slice(0, 8) }}</span>
         </div>
         <h1 class="detail-title">
           {{ formatShortDate(booking.startDate) }} - {{ formatShortDate(booking.endDate) }}
         </h1>
-        <p class="detail-subtitle">{{ nightsCount }} nuit{{ nightsCount > 1 ? 's' : '' }}</p>
+        <p class="detail-subtitle">
+          {{ nightsCount }} nuit{{ nightsCount > 1 ? 's' : '' }}
+          <span v-if="!hasClient && displayName" class="header-label"> · {{ displayName }}</span>
+        </p>
       </div>
 
       <!-- Layout 2 colonnes desktop -->
@@ -466,8 +516,53 @@ onMounted(async () => {
             </div>
           </section>
 
+          <!-- Occupants standalone (quick booking sans client) -->
+          <div v-if="!hasClient && booking.occupantsCount" class="standalone-occupants">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="occupants-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            <span
+              >{{ booking.occupantsCount }} personne{{
+                booking.occupantsCount > 1 ? 's' : ''
+              }}</span
+            >
+          </div>
+
+          <!-- Section Notes -->
+          <section v-if="hasNotes" class="detail-section">
+            <h2 class="section-title">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="section-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+              </svg>
+              Notes
+            </h2>
+            <div class="notes-card">
+              <p class="notes-text">{{ booking.notes }}</p>
+            </div>
+          </section>
+
           <!-- Section Client -->
-          <section class="detail-section">
+          <section v-if="hasClient" class="detail-section">
             <h2 class="section-title">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -528,7 +623,7 @@ onMounted(async () => {
                 <span class="secondary-label">Accompagne de :</span>
                 <span class="secondary-name">{{ formatClientName(booking.secondaryClient) }}</span>
               </div>
-              <div class="occupants-info">
+              <div v-if="booking.occupantsCount" class="occupants-info">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   class="occupants-icon"
@@ -543,16 +638,16 @@ onMounted(async () => {
                   <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                 </svg>
                 <span
-                  >{{ booking.occupantsCount ?? '-' }} personne{{
-                    (booking.occupantsCount ?? 0) > 1 ? 's' : ''
+                  >{{ booking.occupantsCount }} personne{{
+                    booking.occupantsCount > 1 ? 's' : ''
                   }}</span
                 >
               </div>
             </div>
           </section>
 
-          <!-- Section Tarifs -->
-          <section class="detail-section">
+          <!-- Section Tarifs (adaptive) -->
+          <section v-if="hasRentalPrice || hasExternalAmount" class="detail-section">
             <h2 class="section-title">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -565,95 +660,109 @@ onMounted(async () => {
                 <line x1="12" y1="1" x2="12" y2="23" />
                 <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
               </svg>
-              Tarifs
+              {{ hasRentalPrice ? 'Tarifs' : 'Montant' }}
             </h2>
-            <div class="price-card">
-              <div class="price-line">
-                <span class="price-label">Location ({{ nightsCount }} nuits)</span>
-                <span class="price-value">{{ formatPrice(booking.rentalPrice) }}</span>
-              </div>
-              <div v-if="booking.cleaningIncluded" class="price-line">
-                <span class="price-label">Menage fin de sejour</span>
-                <span v-if="booking.cleaningOffered" class="price-offered">Offert</span>
-                <span v-else class="price-value">{{ formatPrice(cleaningPrice) }}</span>
-              </div>
-              <div v-if="booking.linenIncluded" class="price-line">
-                <span class="price-label"
-                  >Linge de maison ({{ booking.occupantsCount ?? '-' }} pers.)</span
-                >
-                <span v-if="booking.linenOffered" class="price-offered">Offert</span>
-                <span v-else class="price-value">{{ formatPrice(linenPrice) }}</span>
-              </div>
-              <div v-if="booking.touristTaxIncluded" class="price-line">
-                <span class="price-label">Taxe de sejour</span>
-                <span class="price-value">{{ formatPrice(touristTaxPrice) }}</span>
-              </div>
-              <div class="price-line price-line--total">
-                <span class="price-label">Total</span>
-                <span class="price-value">{{ formatPrice(totalPrice) }}</span>
-              </div>
-            </div>
 
-            <!-- Avertissement prix incoherent -->
-            <div
-              v-if="priceMismatch && priceCalculation && booking.status === 'PENDING'"
-              class="price-warning"
-            >
-              <div class="price-warning-text">
-                <strong>Prix potentiellement incorrect</strong>
-                <p>
-                  Prix stocke : {{ formatPrice(booking.rentalPrice) }} | Prix recalcule :
-                  {{ formatPrice(priceCalculation.totalPrice) }}
+            <!-- Full price breakdown (DIRECT bookings with rentalPrice) -->
+            <template v-if="hasRentalPrice">
+              <div class="price-card">
+                <div class="price-line">
+                  <span class="price-label">Location ({{ nightsCount }} nuits)</span>
+                  <span class="price-value">{{ formatPrice(booking.rentalPrice) }}</span>
+                </div>
+                <div v-if="booking.cleaningIncluded" class="price-line">
+                  <span class="price-label">Menage fin de sejour</span>
+                  <span v-if="booking.cleaningOffered" class="price-offered">Offert</span>
+                  <span v-else class="price-value">{{ formatPrice(cleaningPrice) }}</span>
+                </div>
+                <div v-if="booking.linenIncluded" class="price-line">
+                  <span class="price-label"
+                    >Linge de maison ({{ booking.occupantsCount ?? '-' }} pers.)</span
+                  >
+                  <span v-if="booking.linenOffered" class="price-offered">Offert</span>
+                  <span v-else class="price-value">{{ formatPrice(linenPrice) }}</span>
+                </div>
+                <div v-if="booking.touristTaxIncluded" class="price-line">
+                  <span class="price-label">Taxe de sejour</span>
+                  <span class="price-value">{{ formatPrice(touristTaxPrice) }}</span>
+                </div>
+                <div class="price-line price-line--total">
+                  <span class="price-label">Total</span>
+                  <span class="price-value">{{ formatPrice(totalPrice) }}</span>
+                </div>
+              </div>
+
+              <!-- Avertissement prix incoherent -->
+              <div
+                v-if="priceMismatch && priceCalculation && booking.status === 'PENDING'"
+                class="price-warning"
+              >
+                <div class="price-warning-text">
+                  <strong>Prix potentiellement incorrect</strong>
+                  <p>
+                    Prix stocke : {{ formatPrice(booking.rentalPrice) }} | Prix recalcule :
+                    {{ formatPrice(priceCalculation.totalPrice) }}
+                  </p>
+                </div>
+                <button class="price-warning-btn" :disabled="loading" @click="handleUpdatePrice">
+                  Mettre a jour
+                </button>
+              </div>
+
+              <!-- Detail tarifaire -->
+              <div
+                v-if="priceCalculation && priceCalculation.details.length > 0"
+                class="price-breakdown"
+              >
+                <h3 class="breakdown-title">Detail du calcul</h3>
+                <div
+                  v-for="detail in priceCalculation.details"
+                  :key="detail.seasonId + detail.startDate"
+                  class="breakdown-line"
+                >
+                  <span
+                    >{{ detail.nights }} nuit{{ detail.nights > 1 ? 's' : '' }}
+                    {{ detail.seasonName }}</span
+                  >
+                  <span
+                    >{{ detail.nights }} x {{ formatPrice(detail.pricePerNight) }}/nuit =
+                    {{ formatPrice(detail.subtotal) }}</span
+                  >
+                </div>
+                <p v-if="priceCalculation.isWeeklyRate" class="breakdown-note">
+                  Tarif hebdomadaire applique
                 </p>
               </div>
-              <button class="price-warning-btn" :disabled="loading" @click="handleUpdatePrice">
-                Mettre a jour
-              </button>
-            </div>
 
-            <!-- Detail tarifaire -->
-            <div
-              v-if="priceCalculation && priceCalculation.details.length > 0"
-              class="price-breakdown"
-            >
-              <h3 class="breakdown-title">Detail du calcul</h3>
-              <div
-                v-for="detail in priceCalculation.details"
-                :key="detail.seasonId + detail.startDate"
-                class="breakdown-line"
-              >
-                <span
-                  >{{ detail.nights }} nuit{{ detail.nights > 1 ? 's' : '' }}
-                  {{ detail.seasonName }}</span
-                >
-                <span
-                  >{{ detail.nights }} x {{ formatPrice(detail.pricePerNight) }}/nuit =
-                  {{ formatPrice(detail.subtotal) }}</span
-                >
+              <!-- Echeances -->
+              <div class="payment-schedule">
+                <h3 class="schedule-title">Echeances de paiement</h3>
+                <div class="schedule-item">
+                  <span class="schedule-label">Acompte (30%)</span>
+                  <span class="schedule-value">{{ formatPrice(depositAmount) }}</span>
+                </div>
+                <div class="schedule-item">
+                  <span class="schedule-label">Solde (15 jours avant)</span>
+                  <span class="schedule-value">{{ formatPrice(balanceAmount) }}</span>
+                </div>
+                <div class="schedule-item schedule-item--deposit">
+                  <span class="schedule-label">Depot de garantie</span>
+                  <span class="schedule-value"
+                    >{{ OPTION_PRICES.SECURITY_DEPOSIT }} € (cheque non encaisse)</span
+                  >
+                </div>
               </div>
-              <p v-if="priceCalculation.isWeeklyRate" class="breakdown-note">
-                Tarif hebdomadaire applique
-              </p>
-            </div>
+            </template>
 
-            <!-- Echeances -->
-            <div class="payment-schedule">
-              <h3 class="schedule-title">Echeances de paiement</h3>
-              <div class="schedule-item">
-                <span class="schedule-label">Acompte (30%)</span>
-                <span class="schedule-value">{{ formatPrice(depositAmount) }}</span>
+            <!-- Simplified external amount (quick bookings without rentalPrice) -->
+            <template v-else-if="hasExternalAmount">
+              <div class="price-card">
+                <div class="price-line">
+                  <span class="price-label">Recu de {{ sourceDisplayName }}</span>
+                  <span class="price-value">{{ formatPrice(booking.externalAmount) }}</span>
+                </div>
               </div>
-              <div class="schedule-item">
-                <span class="schedule-label">Solde (15 jours avant)</span>
-                <span class="schedule-value">{{ formatPrice(balanceAmount) }}</span>
-              </div>
-              <div class="schedule-item schedule-item--deposit">
-                <span class="schedule-label">Depot de garantie</span>
-                <span class="schedule-value"
-                  >{{ OPTION_PRICES.SECURITY_DEPOSIT }} € (cheque non encaisse)</span
-                >
-              </div>
-            </div>
+            </template>
           </section>
         </div>
 
@@ -765,8 +874,8 @@ onMounted(async () => {
             </div>
           </section>
 
-          <!-- Section Documents PDF -->
-          <section class="detail-section">
+          <!-- Section Documents PDF (hidden when CANCELLED — FR28) -->
+          <section v-if="booking.status !== 'CANCELLED'" class="detail-section">
             <h2 class="section-title">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -891,79 +1000,84 @@ onMounted(async () => {
                 </button>
               </div>
 
-              <!-- Email send buttons -->
-              <template v-if="booking.status !== 'CANCELLED'">
-                <div v-if="!hasClientEmail" class="email-warning">
-                  Adresse email du client requise pour l'envoi.
-                </div>
-                <div class="email-send-buttons">
-                  <button
-                    class="email-btn"
-                    :disabled="!hasClientEmail"
-                    @click="openEmailModal(['contract'])"
+              <!-- Email send buttons (section already hidden when CANCELLED) -->
+              <div v-if="!hasClientEmail" class="email-warning">
+                {{
+                  hasClient
+                    ? "Adresse email du client requise pour l'envoi."
+                    : 'Client non renseigne — envoi par email impossible.'
+                }}
+              </div>
+              <div class="email-send-buttons">
+                <button
+                  class="email-btn"
+                  :disabled="!hasClientEmail"
+                  @click="openEmailModal(['contract'])"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="email-btn-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="email-btn-icon"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path
-                        d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-                      />
-                      <polyline points="22,6 12,13 2,6" />
-                    </svg>
-                    Envoyer le contrat par email
-                  </button>
-                  <button
-                    class="email-btn"
-                    :disabled="!hasClientEmail"
-                    @click="openEmailModal(['invoice'])"
+                    <path
+                      d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+                    />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
+                  Envoyer le contrat par email
+                </button>
+                <button
+                  class="email-btn"
+                  :disabled="!hasClientEmail"
+                  @click="openEmailModal(['invoice'])"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="email-btn-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="email-btn-icon"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path
-                        d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-                      />
-                      <polyline points="22,6 12,13 2,6" />
-                    </svg>
-                    Envoyer la facture par email
-                  </button>
-                  <button
-                    class="email-btn email-btn--both"
-                    :disabled="!hasClientEmail"
-                    @click="openEmailModal(['contract', 'invoice'])"
+                    <path
+                      d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+                    />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
+                  Envoyer la facture par email
+                </button>
+                <button
+                  class="email-btn email-btn--both"
+                  :disabled="!hasClientEmail"
+                  @click="openEmailModal(['contract', 'invoice'])"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="email-btn-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="email-btn-icon"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path
-                        d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-                      />
-                      <polyline points="22,6 12,13 2,6" />
-                    </svg>
-                    Envoyer les deux par email
-                  </button>
-                </div>
-              </template>
+                    <path
+                      d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+                    />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
+                  Envoyer les deux par email
+                </button>
+              </div>
             </template>
           </section>
 
-          <!-- Email History Section -->
-          <section v-if="emailLogs.length > 0" class="detail-section">
+          <!-- Email History Section (hidden when CANCELLED) -->
+          <section
+            v-if="emailLogs.length > 0 && booking.status !== 'CANCELLED'"
+            class="detail-section"
+          >
             <h2 class="section-title">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -1208,6 +1322,13 @@ onMounted(async () => {
   color: #dc2626;
 }
 
+.header-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .booking-id {
   font-size: 13px;
   color: #717171;
@@ -1225,6 +1346,39 @@ onMounted(async () => {
   font-size: 15px;
   color: #717171;
   margin: 0;
+}
+
+.header-label {
+  color: #484848;
+  font-weight: 500;
+}
+
+/* Standalone occupants (quick booking without client) */
+.standalone-occupants {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background-color: #f9f9f9;
+  border-radius: 12px;
+  font-size: 15px;
+  color: #484848;
+  margin-bottom: 16px;
+}
+
+/* Notes */
+.notes-card {
+  padding: 16px;
+  background-color: #f9f9f9;
+  border-radius: 12px;
+}
+
+.notes-text {
+  font-size: 15px;
+  color: #484848;
+  line-height: 1.6;
+  margin: 0;
+  white-space: pre-wrap;
 }
 
 /* Sections */
