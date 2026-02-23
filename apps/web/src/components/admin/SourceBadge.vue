@@ -24,6 +24,9 @@ function getBadgeClasses(bookingType: BookingType): string {
 }
 
 function getDisplayName(): string {
+  if (props.source === 'DIRECT') {
+    return 'Direct';
+  }
   const source = props.source as BookingSource;
   if (source in SOURCE_LABELS) {
     return SOURCE_LABELS[source];

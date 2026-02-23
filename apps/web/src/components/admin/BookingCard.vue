@@ -2,6 +2,9 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import type { Booking } from '../../lib/api';
+import SourceBadge from './SourceBadge.vue';
+import PaymentStatusBadge from './PaymentStatusBadge.vue';
+import { SOURCE_LABELS } from '../../constants/booking';
 
 interface Props {
   booking: Booking;
@@ -24,7 +27,7 @@ const router = useRouter();
 const showDeleteConfirm = ref(false);
 
 const goToDetail = (): void => {
-  router.push(`/admin/reservations/${props.booking.id}`);
+  router.push({ name: 'AdminBookingDetail', params: { id: props.booking.id } });
 };
 
 const formatDate = (dateString: string): string => {
@@ -101,7 +104,7 @@ const handleDelete = (): void => {
 };
 
 const formatPrice = (price: number | string | undefined): string => {
-  if (!price) return '-';
+  if (price == null) return '-';
   const numPrice = typeof price === 'string' ? parseFloat(price) : price;
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
@@ -111,8 +114,18 @@ const formatPrice = (price: number | string | undefined): string => {
 };
 
 const clientName = computed((): string => {
-  if (!props.booking.primaryClient) return '';
-  return `${props.booking.primaryClient.firstName} ${props.booking.primaryClient.lastName}`;
+  if (props.booking.primaryClient) {
+    return `${props.booking.primaryClient.firstName} ${props.booking.primaryClient.lastName}`;
+  }
+  return props.booking.label ?? 'Sans nom';
+});
+
+const sourceDisplayName = computed((): string => {
+  if (!props.booking.source) return 'la plateforme';
+  if (props.booking.source === 'OTHER' && props.booking.sourceCustomName) {
+    return props.booking.sourceCustomName;
+  }
+  return SOURCE_LABELS[props.booking.source] ?? 'la plateforme';
 });
 </script>
 
@@ -120,9 +133,16 @@ const clientName = computed((): string => {
   <div class="booking-card" :class="{ 'booking-card--cancelled': booking.status === 'CANCELLED' }">
     <!-- En-tête avec statut -->
     <div class="card-header">
-      <span class="status-badge" :class="statusClass">
-        {{ statusLabel }}
-      </span>
+      <div class="card-header-badges">
+        <span class="status-badge" :class="statusClass">
+          {{ statusLabel }}
+        </span>
+        <SourceBadge
+          :source="booking.source ?? 'DIRECT'"
+          :booking-type="booking.bookingType ?? 'DIRECT'"
+          size="sm"
+        />
+      </div>
       <span class="nights-count">{{ nightsCount }} nuit{{ nightsCount > 1 ? 's' : '' }}</span>
     </div>
 
@@ -200,6 +220,22 @@ const clientName = computed((): string => {
         </svg>
         <span>{{ formatPrice(booking.rentalPrice) }}</span>
       </div>
+      <div v-else-if="booking.externalAmount != null" class="info-item info-item--price">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="info-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <line x1="12" y1="1" x2="12" y2="23" />
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+        </svg>
+        <span>{{ formatPrice(booking.externalAmount) }}</span>
+        <span class="price-label">reçu de {{ sourceDisplayName }}</span>
+      </div>
+      <PaymentStatusBadge v-if="booking.paymentStatus" :status="booking.paymentStatus" />
     </div>
 
     <!-- Bouton voir details -->
@@ -335,6 +371,13 @@ const clientName = computed((): string => {
   margin-bottom: 16px;
 }
 
+.card-header-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .status-badge {
   padding: 6px 12px;
   border-radius: 20px;
@@ -426,6 +469,12 @@ const clientName = computed((): string => {
 .info-item--price {
   font-weight: 600;
   color: #222222;
+}
+
+.price-label {
+  font-size: 12px;
+  font-weight: 400;
+  color: #9ca3af;
 }
 
 /* Bouton details */

@@ -1,4 +1,4 @@
-import type { BookingSource } from '../lib/api';
+import type { BookingSource, PaymentStatus } from '../lib/api';
 
 export const SOURCE_LABELS: Record<BookingSource, string> = {
   ABRITEL: 'Abritel',
@@ -7,4 +7,11 @@ export const SOURCE_LABELS: Record<BookingSource, string> = {
   PERSONNEL: 'Personnel',
   FAMILLE: 'Famille',
   OTHER: 'Autre',
+};
+
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  PENDING: 'En attente',
+  PARTIAL: 'Partiel',
+  PAID: 'Payé',
+  FREE: 'Gratuit',
 };
