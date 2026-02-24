@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsNumber,
   IsBoolean,
+  IsString,
   ValidateNested,
   Min,
   Max,
@@ -69,4 +70,8 @@ export class UpdateBookingDto {
   @IsOptional()
   @IsBoolean()
   recalculatePrice?: boolean;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
 }

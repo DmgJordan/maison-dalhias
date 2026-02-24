@@ -10,6 +10,7 @@ import { PricingService, PriceCalculation } from '../pricing/pricing.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateQuickBookingDto } from './dto/create-quick-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
+import { UpdateQuickBookingDto } from './dto/update-quick-booking.dto';
 
 export interface BookingWithRelations extends Booking {
   user?: {
@@ -147,7 +148,23 @@ export class BookingsService {
   async update(id: string, updateBookingDto: UpdateBookingDto): Promise<BookingWithRelations> {
     const booking = await this.findById(id);
 
-    if (booking.status !== 'PENDING') {
+    // Allow notes-only updates regardless of booking status
+    const hasNonNotesChanges =
+      updateBookingDto.startDate !== undefined ||
+      updateBookingDto.endDate !== undefined ||
+      updateBookingDto.primaryClient !== undefined ||
+      updateBookingDto.secondaryClient !== undefined ||
+      updateBookingDto.occupantsCount !== undefined ||
+      updateBookingDto.adultsCount !== undefined ||
+      updateBookingDto.rentalPrice !== undefined ||
+      updateBookingDto.touristTaxIncluded !== undefined ||
+      updateBookingDto.cleaningIncluded !== undefined ||
+      updateBookingDto.cleaningOffered !== undefined ||
+      updateBookingDto.linenIncluded !== undefined ||
+      updateBookingDto.linenOffered !== undefined ||
+      updateBookingDto.recalculatePrice !== undefined;
+
+    if (booking.status !== 'PENDING' && hasNonNotesChanges) {
       throw new BadRequestException('Seules les réservations en attente peuvent être modifiées');
     }
 
@@ -236,6 +253,7 @@ export class BookingsService {
       updateData.linenIncluded = updateBookingDto.linenIncluded;
     if (updateBookingDto.linenOffered !== undefined)
       updateData.linenOffered = updateBookingDto.linenOffered;
+    if (updateBookingDto.notes !== undefined) updateData.notes = updateBookingDto.notes;
 
     return this.prisma.booking.update({
       where: { id },
@@ -431,6 +449,105 @@ export class BookingsService {
 
       return booking as BookingWithRelations;
     });
+  }
+
+  async updateQuick(id: string, dto: UpdateQuickBookingDto): Promise<BookingWithRelations> {
+    const booking = await this.findById(id); // throws 404 if not found
+
+    // Only EXTERNAL/PERSONAL bookings — reject DIRECT
+    if (booking.bookingType === BookingType.DIRECT) {
+      throw new BadRequestException(
+        'Cet endpoint est réservé aux réservations rapides (EXTERNAL/PERSONAL)'
+      );
+    }
+
+    const startDate = dto.startDate !== undefined ? new Date(dto.startDate) : booking.startDate;
+    const endDate = dto.endDate !== undefined ? new Date(dto.endDate) : booking.endDate;
+
+    // Validate dates if modified
+    if (dto.startDate !== undefined || dto.endDate !== undefined) {
+      if (endDate <= startDate) {
+        throw new BadRequestException('La date de fin doit être postérieure à la date de début');
+      }
+    }
+
+    // Build update data — only include provided fields (partial update)
+    const updateData: Record<string, unknown> = {};
+    if (dto.startDate !== undefined) updateData.startDate = startDate;
+    if (dto.endDate !== undefined) updateData.endDate = endDate;
+    if (dto.source !== undefined) updateData.source = dto.source;
+    if (dto.sourceCustomName !== undefined) updateData.sourceCustomName = dto.sourceCustomName;
+    if (dto.label !== undefined) updateData.label = dto.label;
+    if (dto.externalAmount !== undefined) updateData.externalAmount = dto.externalAmount;
+    if (dto.occupantsCount !== undefined) updateData.occupantsCount = dto.occupantsCount;
+    if (dto.adultsCount !== undefined) updateData.adultsCount = dto.adultsCount;
+    if (dto.notes !== undefined) updateData.notes = dto.notes;
+    if (dto.paymentStatus !== undefined) updateData.paymentStatus = dto.paymentStatus;
+    // NEVER include bookingType — it is immutable (NFR8)
+
+    // sourceCustomName coherence: only meaningful when source is OTHER
+    const effectiveSource = dto.source ?? booking.source;
+    if (dto.sourceCustomName !== undefined && effectiveSource !== BookingSource.OTHER) {
+      delete updateData.sourceCustomName; // ignore when effective source is not OTHER
+    }
+    if (dto.source !== undefined && dto.source !== BookingSource.OTHER) {
+      updateData.sourceCustomName = null; // clear stale value when source changes away from OTHER
+    }
+
+    // Short-circuit — nothing to update
+    if (Object.keys(updateData).length === 0) {
+      return booking;
+    }
+
+    // If dates changed: atomic conflict check + update in transaction
+    if (dto.startDate !== undefined || dto.endDate !== undefined) {
+      return this.prisma.$transaction(async (tx) => {
+        const conflicting = await tx.booking.findFirst({
+          where: {
+            id: { not: id },
+            status: { not: 'CANCELLED' },
+            startDate: { lte: endDate },
+            endDate: { gte: startDate },
+          },
+        });
+
+        if (conflicting) {
+          throw new ConflictException({
+            message: 'Ces dates chevauchent une réservation existante',
+            conflictingBooking: {
+              id: conflicting.id,
+              source: conflicting.source,
+              label: conflicting.label,
+              startDate: conflicting.startDate,
+              endDate: conflicting.endDate,
+            },
+          });
+        }
+
+        const updated = await tx.booking.update({
+          where: { id },
+          data: updateData,
+          include: {
+            user: { select: { id: true, email: true } },
+            primaryClient: true,
+            secondaryClient: true,
+          },
+        });
+        return updated as BookingWithRelations;
+      });
+    }
+
+    // No date changes — update directly
+    const updated = await this.prisma.booking.update({
+      where: { id },
+      data: updateData,
+      include: {
+        user: { select: { id: true, email: true } },
+        primaryClient: true,
+        secondaryClient: true,
+      },
+    });
+    return updated as BookingWithRelations;
   }
 
   async getBookedDates(): Promise<string[]> {

@@ -20,6 +20,7 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateQuickBookingDto } from './dto/create-quick-booking.dto';
 import { CheckConflictsDto } from './dto/check-conflicts.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
+import { UpdateQuickBookingDto } from './dto/update-quick-booking.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
 import { Booking } from '@prisma/client';
@@ -78,6 +79,15 @@ export class BookingsController {
     @Body() updateBookingDto: UpdateBookingDto
   ): Promise<BookingWithRelations> {
     return this.bookingsService.update(id, updateBookingDto);
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Patch(':id/quick')
+  updateQuick(
+    @Param('id') id: string,
+    @Body() dto: UpdateQuickBookingDto
+  ): Promise<BookingWithRelations> {
+    return this.bookingsService.updateQuick(id, dto);
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)

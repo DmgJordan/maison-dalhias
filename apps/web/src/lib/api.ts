@@ -133,6 +133,7 @@ export interface UpdateBookingData {
   linenIncluded?: boolean;
   linenOffered?: boolean;
   recalculatePrice?: boolean;
+  notes?: string;
 }
 
 export interface CreateContactData {
@@ -230,6 +231,19 @@ export interface CreateQuickBookingData {
   occupantsCount?: number;
   adultsCount?: number;
   notes?: string;
+}
+
+export interface UpdateQuickBookingData {
+  startDate?: string;
+  endDate?: string;
+  source?: BookingSource;
+  sourceCustomName?: string;
+  label?: string;
+  externalAmount?: number;
+  occupantsCount?: number;
+  adultsCount?: number;
+  notes?: string;
+  paymentStatus?: PaymentStatus;
 }
 
 export interface ConflictCheckResult {
@@ -350,6 +364,11 @@ export const bookingsApi = {
 
   async createQuick(data: CreateQuickBookingData): Promise<Booking> {
     const { data: result } = await api.post<Booking>('/bookings/quick', data);
+    return result;
+  },
+
+  async updateQuick(id: string, data: UpdateQuickBookingData): Promise<Booking> {
+    const { data: result } = await api.patch<Booking>(`/bookings/${id}/quick`, data);
     return result;
   },
 

@@ -5,23 +5,26 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  Min,
   Max,
+  Min,
   ValidateIf,
 } from 'class-validator';
-import { BookingSource } from '@prisma/client';
+import { BookingSource, PaymentStatus } from '@prisma/client';
 
-export class CreateQuickBookingDto {
+export class UpdateQuickBookingDto {
+  @IsOptional()
   @IsDateString()
-  startDate: string;
+  startDate?: string;
 
+  @IsOptional()
   @IsDateString()
-  endDate: string;
+  endDate?: string;
 
+  @IsOptional()
   @IsEnum(BookingSource)
-  source: BookingSource;
+  source?: BookingSource;
 
-  @ValidateIf((o: CreateQuickBookingDto) => o.source === BookingSource.OTHER)
+  @ValidateIf((o: UpdateQuickBookingDto) => o.source === BookingSource.OTHER)
   @IsString()
   @IsNotEmpty()
   sourceCustomName?: string;
@@ -50,4 +53,8 @@ export class CreateQuickBookingDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @IsOptional()
+  @IsEnum(PaymentStatus)
+  paymentStatus?: PaymentStatus;
 }

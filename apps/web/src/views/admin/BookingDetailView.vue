@@ -12,6 +12,7 @@ import {
 import { OPTION_PRICES, PAYMENT_PERCENTAGES } from '../../constants/pricing';
 import { SOURCE_LABELS } from '../../constants/booking';
 import BookingEditModal from '../../components/admin/BookingEditModal.vue';
+import QuickBookingEditModal from '../../components/admin/QuickBookingEditModal.vue';
 import EmailSendModal from '../../components/admin/EmailSendModal.vue';
 import EmailHistoryCard from '../../components/admin/EmailHistoryCard.vue';
 import SourceBadge from '../../components/admin/SourceBadge.vue';
@@ -26,11 +27,17 @@ const error = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
 const showDeleteConfirm = ref(false);
 const showEditModal = ref(false);
+const showQuickEditModal = ref(false);
 const generatingContract = ref(false);
 const generatingInvoice = ref(false);
 const bookedDates = ref<string[]>([]);
 const priceCalculation = ref<PriceCalculation | null>(null);
 const priceMismatch = ref(false);
+
+// Notes editing state
+const isEditingNotes = ref(false);
+const editingNotesText = ref('');
+const isSavingNotes = ref(false);
 
 // Email state
 const emailLogs = ref<EmailLog[]>([]);
@@ -141,6 +148,10 @@ const hasExternalAmount = computed((): boolean => {
 
 const hasNotes = computed((): boolean => {
   return !!booking.value?.notes;
+});
+
+const isQuickBooking = computed((): boolean => {
+  return booking.value?.bookingType === 'EXTERNAL' || booking.value?.bookingType === 'PERSONAL';
 });
 
 const displayName = computed((): string | null => {
@@ -319,12 +330,17 @@ const handleOpenEdit = async (): Promise<void> => {
   } catch {
     // Continuer sans les dates réservées
   }
-  showEditModal.value = true;
+  if (isQuickBooking.value) {
+    showQuickEditModal.value = true;
+  } else {
+    showEditModal.value = true;
+  }
 };
 
 const handleBookingUpdated = async (updatedBooking: Booking): Promise<void> => {
   booking.value = updatedBooking;
   showEditModal.value = false;
+  showQuickEditModal.value = false;
   showSuccess('Reservation modifiee !');
   await fetchBooking();
 };
@@ -393,6 +409,39 @@ const dismissSuccessScreen = (): void => {
 const handleResend = (emailLog: EmailLog): void => {
   emailModalDocTypes.value = emailLog.documentTypes;
   showEmailModal.value = true;
+};
+
+const handleStartEditNotes = (): void => {
+  editingNotesText.value = booking.value?.notes ?? '';
+  isEditingNotes.value = true;
+};
+
+const handleCancelEditNotes = (): void => {
+  isEditingNotes.value = false;
+  editingNotesText.value = '';
+};
+
+const handleSaveNotes = async (): Promise<void> => {
+  if (!booking.value) return;
+  isSavingNotes.value = true;
+  try {
+    if (isQuickBooking.value) {
+      booking.value = await bookingsApi.updateQuick(booking.value.id, {
+        notes: editingNotesText.value,
+      });
+    } else {
+      booking.value = await bookingsApi.update(booking.value.id, {
+        notes: editingNotesText.value,
+      });
+    }
+    isEditingNotes.value = false;
+    showSuccess('Notes enregistrees');
+  } catch (err: unknown) {
+    console.error('Erreur lors de la sauvegarde des notes:', err);
+    error.value = 'Impossible de sauvegarder les notes. Veuillez reessayer.';
+  } finally {
+    isSavingNotes.value = false;
+  }
 };
 
 onMounted(async () => {
@@ -551,8 +600,8 @@ onMounted(async () => {
             >
           </div>
 
-          <!-- Section Notes -->
-          <section v-if="hasNotes" class="detail-section">
+          <!-- Section Notes (all booking types) -->
+          <section class="detail-section">
             <h2 class="section-title">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -568,10 +617,64 @@ onMounted(async () => {
                 <line x1="16" y1="17" x2="8" y2="17" />
               </svg>
               Notes
+              <button
+                v-if="!isEditingNotes && hasNotes"
+                class="notes-edit-btn"
+                @click="handleStartEditNotes"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="notes-edit-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </button>
             </h2>
-            <div class="notes-card">
-              <p class="notes-text">{{ booking.notes }}</p>
-            </div>
+
+            <!-- Display mode -->
+            <template v-if="!isEditingNotes">
+              <div v-if="hasNotes" class="notes-card">
+                <p class="notes-text">{{ booking.notes }}</p>
+              </div>
+              <div v-else class="notes-empty">
+                <span class="notes-placeholder">Aucune note</span>
+                <button class="notes-add-btn" @click="handleStartEditNotes">Ajouter</button>
+              </div>
+            </template>
+
+            <!-- Edit mode -->
+            <template v-else>
+              <div class="notes-edit-area">
+                <textarea
+                  v-model="editingNotesText"
+                  class="notes-textarea"
+                  rows="4"
+                  placeholder="Ajouter des notes..."
+                  :disabled="isSavingNotes"
+                ></textarea>
+                <div class="notes-edit-actions">
+                  <button
+                    class="notes-btn notes-btn--cancel"
+                    :disabled="isSavingNotes"
+                    @click="handleCancelEditNotes"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    class="notes-btn notes-btn--save"
+                    :disabled="isSavingNotes"
+                    @click="handleSaveNotes"
+                  >
+                    {{ isSavingNotes ? 'En cours...' : 'Enregistrer' }}
+                  </button>
+                </div>
+              </div>
+            </template>
           </section>
 
           <!-- Section Client -->
@@ -1166,12 +1269,20 @@ onMounted(async () => {
       </Transition>
     </Teleport>
 
-    <!-- Modal de modification -->
+    <!-- Modal de modification (DIRECT bookings) -->
     <BookingEditModal
       v-if="showEditModal && booking"
       :booking="booking"
       :booked-dates="bookedDates"
       @close="showEditModal = false"
+      @updated="handleBookingUpdated"
+    />
+
+    <!-- Modal de modification (Quick bookings: EXTERNAL/PERSONAL) -->
+    <QuickBookingEditModal
+      v-if="showQuickEditModal && booking"
+      :booking="booking"
+      @close="showQuickEditModal = false"
       @updated="handleBookingUpdated"
     />
 
@@ -1409,6 +1520,136 @@ onMounted(async () => {
   line-height: 1.6;
   margin: 0;
   white-space: pre-wrap;
+}
+
+.notes-edit-btn {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background-color: transparent;
+  color: #717171;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.notes-edit-btn:hover {
+  background-color: #f3f4f6;
+  color: #ff385c;
+}
+
+.notes-edit-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.notes-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background-color: #f9f9f9;
+  border-radius: 12px;
+}
+
+.notes-placeholder {
+  font-size: 14px;
+  color: #b0b0b0;
+  font-style: italic;
+}
+
+.notes-add-btn {
+  padding: 8px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  background-color: white;
+  color: #484848;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.notes-add-btn:hover {
+  background-color: #f7f7f7;
+  border-color: #d4d4d4;
+}
+
+.notes-edit-area {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notes-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 15px;
+  color: #222222;
+  background-color: white;
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+  line-height: 1.6;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.notes-textarea:focus {
+  outline: none;
+  border-color: #ff385c;
+  box-shadow: 0 0 0 2px rgba(255, 56, 92, 0.1);
+}
+
+.notes-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.notes-edit-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.notes-btn {
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.notes-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.notes-btn--cancel {
+  border: 1px solid #e0e0e0;
+  background-color: white;
+  color: #484848;
+}
+
+.notes-btn--cancel:hover:not(:disabled) {
+  background-color: #f7f7f7;
+}
+
+.notes-btn--save {
+  border: none;
+  background-color: #ff385c;
+  color: white;
+}
+
+.notes-btn--save:hover:not(:disabled) {
+  background-color: #e0314f;
 }
 
 /* Sections */
