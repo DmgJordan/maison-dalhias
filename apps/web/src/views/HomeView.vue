@@ -71,7 +71,7 @@ const accommodationFeatures = [
         </p>
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
           <button class="btn-primary text-lg px-8 py-4" @click="scrollToElement('disponibilites')">
-            Demande de reservation
+            Demande de réservation
           </button>
           <button
             class="bg-white/90 hover:bg-white text-dark px-8 py-4 rounded-lg font-medium transition-all duration-200 flex items-center justify-center gap-2"

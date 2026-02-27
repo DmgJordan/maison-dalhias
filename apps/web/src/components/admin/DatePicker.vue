@@ -13,7 +13,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   label: '',
-  placeholder: 'Selectionnez une date',
+  placeholder: 'Sélectionnez une date',
   minDate: '',
   maxDate: '',
   disabledDates: () => [],
@@ -63,17 +63,17 @@ const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
 const monthNames = [
   'Janvier',
-  'Fevrier',
+  'Février',
   'Mars',
   'Avril',
   'Mai',
   'Juin',
   'Juillet',
-  'Aout',
+  'Août',
   'Septembre',
   'Octobre',
   'Novembre',
-  'Decembre',
+  'Décembre',
 ];
 
 const currentMonthLabel = computed((): string => {

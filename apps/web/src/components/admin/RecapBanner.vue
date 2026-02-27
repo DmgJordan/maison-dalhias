@@ -16,23 +16,62 @@ const emit = defineEmits<{ edit: [] }>();
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-gray-50 p-4">
-    <div class="flex flex-wrap items-center gap-3">
+  <div class="recap-banner">
+    <div class="recap-banner__info">
       <SourceBadge :source="source" :booking-type="bookingType" />
-      <span class="text-sm text-dark">
+      <span class="recap-banner__dates">
         {{ formatDateShort(startDate) }} — {{ formatDateShort(endDate) }}
       </span>
-      <span class="text-sm text-gray-500">
+      <span class="recap-banner__nights">
         {{ nightsCount }} nuit{{ nightsCount > 1 ? 's' : '' }}
       </span>
     </div>
-    <button
-      type="button"
-      class="text-sm font-medium text-primary hover:underline"
-      style="min-height: 48px"
-      @click="emit('edit')"
-    >
-      Modifier
-    </button>
+    <button type="button" class="recap-banner__edit" @click="emit('edit')">Modifier</button>
   </div>
 </template>
+
+<style scoped>
+.recap-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background-color: #f7f7f7;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.recap-banner__info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.recap-banner__dates {
+  font-size: 15px;
+  color: #484848;
+}
+
+.recap-banner__nights {
+  font-size: 14px;
+  color: #717171;
+}
+
+.recap-banner__edit {
+  font-size: 14px;
+  font-weight: 500;
+  color: #ff385c;
+  background: none;
+  border: none;
+  cursor: pointer;
+  min-height: 48px;
+  padding: 0 4px;
+  transition: all 0.2s;
+}
+
+.recap-banner__edit:hover {
+  text-decoration: underline;
+}
+</style>

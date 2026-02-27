@@ -22,6 +22,8 @@ const QuickBookingStep2 = (): Promise<typeof import('../views/admin/QuickBooking
   import('../views/admin/QuickBookingStep2.vue');
 const QuickBookingSuccess = (): Promise<typeof import('../views/admin/QuickBookingSuccess.vue')> =>
   import('../views/admin/QuickBookingSuccess.vue');
+const EnrichmentWizard = (): Promise<typeof import('../views/admin/EnrichmentWizard.vue')> =>
+  import('../views/admin/EnrichmentWizard.vue');
 const PricingView = (): Promise<typeof import('../views/admin/PricingView.vue')> =>
   import('../views/admin/PricingView.vue');
 
@@ -54,6 +56,11 @@ const routes = [
         path: 'reservations/:id',
         name: 'AdminBookingDetail',
         component: BookingDetailView,
+      },
+      {
+        path: 'reservations/:id/enrichir',
+        name: 'AdminBookingEnrich',
+        component: EnrichmentWizard,
       },
       {
         path: 'messages',

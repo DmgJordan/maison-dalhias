@@ -246,6 +246,22 @@ export interface UpdateQuickBookingData {
   paymentStatus?: PaymentStatus;
 }
 
+/** Omit fields to preserve existing values. Do NOT send null. */
+export interface EnrichBookingData {
+  primaryClientId?: string;
+  primaryClient?: Omit<Client, 'id'>;
+  secondaryClientId?: string;
+  secondaryClient?: Omit<Client, 'id'>;
+  rentalPrice?: number;
+  cleaningIncluded?: boolean;
+  cleaningOffered?: boolean;
+  linenIncluded?: boolean;
+  linenOffered?: boolean;
+  touristTaxIncluded?: boolean;
+  occupantsCount?: number;
+  adultsCount?: number;
+}
+
 export interface ConflictCheckResult {
   hasConflict: boolean;
   minNightsRequired: number;
@@ -369,6 +385,11 @@ export const bookingsApi = {
 
   async updateQuick(id: string, data: UpdateQuickBookingData): Promise<Booking> {
     const { data: result } = await api.patch<Booking>(`/bookings/${id}/quick`, data);
+    return result;
+  },
+
+  async enrich(id: string, data: EnrichBookingData): Promise<Booking> {
+    const { data: result } = await api.patch<Booking>(`/bookings/${id}/enrich`, data);
     return result;
   },
 

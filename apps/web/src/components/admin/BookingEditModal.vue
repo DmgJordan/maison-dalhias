@@ -310,17 +310,17 @@ watch(
 
 const validateForm = (): string | null => {
   if (!form.value.startDate || !form.value.endDate) {
-    return 'Les dates de debut et de fin sont obligatoires.';
+    return 'Les dates de début et de fin sont obligatoires.';
   }
 
   const start = new Date(form.value.startDate);
   const end = new Date(form.value.endDate);
   if (start >= end) {
-    return "La date de depart doit etre posterieure a la date d'arrivee.";
+    return "La date de départ doit être postérieure à la date d'arrivée.";
   }
 
   if (nightsCount.value < BOOKING_CONSTRAINTS.MIN_NIGHTS) {
-    return `Le sejour doit comporter au minimum ${String(BOOKING_CONSTRAINTS.MIN_NIGHTS)} nuits.`;
+    return `Le séjour doit comporter au minimum ${String(BOOKING_CONSTRAINTS.MIN_NIGHTS)} nuits.`;
   }
 
   if (form.value.primaryClient) {
@@ -333,15 +333,15 @@ const validateForm = (): string | null => {
     form.value.occupantsCount < 1 ||
     form.value.occupantsCount > BOOKING_CONSTRAINTS.MAX_OCCUPANTS
   ) {
-    return `Le nombre d'occupants doit etre entre 1 et ${String(BOOKING_CONSTRAINTS.MAX_OCCUPANTS)}.`;
+    return `Le nombre d'occupants doit être entre 1 et ${String(BOOKING_CONSTRAINTS.MAX_OCCUPANTS)}.`;
   }
 
   if (form.value.adultsCount < 1 || form.value.adultsCount > form.value.occupantsCount) {
-    return "Le nombre d'adultes doit etre entre 1 et le nombre total d'occupants.";
+    return "Le nombre d'adultes doit être entre 1 et le nombre total d'occupants.";
   }
 
   if (form.value.rentalPrice < 0) {
-    return 'Le prix de location ne peut pas etre negatif.';
+    return 'Le prix de location ne peut pas être négatif.';
   }
 
   return null;
@@ -395,7 +395,7 @@ const handleSubmit = async (): Promise<void> => {
   } catch (err: unknown) {
     const error = err as { response?: { data?: { message?: string } } };
     errorMessage.value =
-      error.response?.data?.message ?? 'Impossible de modifier la reservation. Veuillez reessayer.';
+      error.response?.data?.message ?? 'Impossible de modifier la réservation. Veuillez réessayer.';
   } finally {
     submitting.value = false;
   }
@@ -404,7 +404,7 @@ const handleSubmit = async (): Promise<void> => {
 
 <template>
   <BaseModal
-    title="Modifier la reservation"
+    title="Modifier la réservation"
     :submitting="submitting"
     max-width="560px"
     @close="emit('close')"
@@ -454,12 +454,12 @@ const handleSubmit = async (): Promise<void> => {
         <div class="date-fields">
           <DatePicker
             v-model="form.startDate"
-            label="Date d'arrivee"
+            label="Date d'arrivée"
             :disabled-dates="filteredBookedDates"
           />
           <DatePicker
             v-model="form.endDate"
-            label="Date de depart"
+            label="Date de départ"
             :min-date="form.startDate"
             :disabled-dates="filteredBookedDates"
           />
@@ -514,13 +514,13 @@ const handleSubmit = async (): Promise<void> => {
             form.primaryClient.email
           }}</span>
         </template>
-        <span v-else class="edit-section-detail">Non renseigne</span>
+        <span v-else class="edit-section-detail">Non renseigné</span>
       </div>
       <div v-else class="edit-section-form">
         <template v-if="form.primaryClient">
           <div class="form-row">
             <div class="form-field">
-              <label class="form-label">Prenom</label>
+              <label class="form-label">Prénom</label>
               <input
                 v-model="form.primaryClient.firstName"
                 type="text"
@@ -595,7 +595,7 @@ const handleSubmit = async (): Promise<void> => {
             </div>
           </div>
           <div class="form-field">
-            <label class="form-label">Telephone</label>
+            <label class="form-label">Téléphone</label>
             <input
               v-model="form.primaryClient.phone"
               type="tel"
@@ -690,7 +690,7 @@ const handleSubmit = async (): Promise<void> => {
           </button>
         </div>
         <p class="counter-hint">Maximum {{ BOOKING_CONSTRAINTS.MAX_OCCUPANTS }} personnes</p>
-        <p class="counter-section-label">Dont adultes (pour la taxe de sejour)</p>
+        <p class="counter-section-label">Dont adultes (pour la taxe de séjour)</p>
         <div class="counter-control">
           <button
             class="counter-btn"
@@ -745,7 +745,7 @@ const handleSubmit = async (): Promise<void> => {
       <div v-if="editingSection !== 'options'" class="edit-section-summary">
         <div class="options-list">
           <span class="option-item" :class="{ 'option-item--active': form.cleaningIncluded }">
-            {{ form.cleaningIncluded ? 'Menage' : 'Menage non inclus' }}
+            {{ form.cleaningIncluded ? 'Ménage' : 'Ménage non inclus' }}
             <template v-if="form.cleaningIncluded">
               ({{
                 form.cleaningOffered ? 'Offert' : formatPrice(OPTION_PRICES.CLEANING)
@@ -759,7 +759,7 @@ const handleSubmit = async (): Promise<void> => {
             >
           </span>
           <span class="option-item" :class="{ 'option-item--active': form.touristTaxIncluded }">
-            {{ form.touristTaxIncluded ? 'Taxe de sejour' : 'Taxe non incluse' }}
+            {{ form.touristTaxIncluded ? 'Taxe de séjour' : 'Taxe non incluse' }}
             <template v-if="form.touristTaxIncluded">
               ({{ formatPrice(touristTaxPrice) }})</template
             >
@@ -770,7 +770,7 @@ const handleSubmit = async (): Promise<void> => {
         <label class="toggle-option">
           <input v-model="form.cleaningIncluded" type="checkbox" class="toggle-checkbox" />
           <span class="toggle-label">
-            <span class="toggle-name">Menage fin de sejour</span>
+            <span class="toggle-name">Ménage fin de séjour</span>
             <span class="toggle-price">{{ formatPrice(OPTION_PRICES.CLEANING) }}</span>
           </span>
         </label>
@@ -796,7 +796,7 @@ const handleSubmit = async (): Promise<void> => {
         <label class="toggle-option">
           <input v-model="form.touristTaxIncluded" type="checkbox" class="toggle-checkbox" />
           <span class="toggle-label">
-            <span class="toggle-name">Taxe de sejour</span>
+            <span class="toggle-name">Taxe de séjour</span>
             <span class="toggle-price"
               >{{ OPTION_PRICES.TOURIST_TAX_PER_ADULT_PER_NIGHT }} €/pers/nuit</span
             >
@@ -839,7 +839,7 @@ const handleSubmit = async (): Promise<void> => {
             <span class="price-summary-value">{{ formatPrice(form.rentalPrice) }}</span>
           </div>
           <div v-if="form.cleaningIncluded" class="price-summary-line">
-            <span>Menage</span>
+            <span>Ménage</span>
             <span v-if="form.cleaningOffered" class="price-offered">Offert</span>
             <span v-else class="price-summary-value">{{ formatPrice(cleaningPrice) }}</span>
           </div>
@@ -849,7 +849,7 @@ const handleSubmit = async (): Promise<void> => {
             <span v-else class="price-summary-value">{{ formatPrice(linenPrice) }}</span>
           </div>
           <div v-if="touristTaxPrice > 0" class="price-summary-line">
-            <span>Taxe de sejour</span>
+            <span>Taxe de séjour</span>
             <span class="price-summary-value">{{ formatPrice(touristTaxPrice) }}</span>
           </div>
           <div class="price-summary-line price-summary-line--total">
@@ -857,9 +857,9 @@ const handleSubmit = async (): Promise<void> => {
             <span class="price-summary-value">{{ formatPrice(totalPrice) }}</span>
           </div>
         </div>
-        <!-- Detail du calcul si disponible -->
+        <!-- Détail du calcul si disponible -->
         <div v-if="priceCalculation && priceCalculation.details.length > 0" class="price-details">
-          <p class="price-details-title">Detail du calcul :</p>
+          <p class="price-details-title">Détail du calcul :</p>
           <div
             v-for="detail in priceCalculation.details"
             :key="detail.seasonId + detail.startDate"
@@ -875,7 +875,7 @@ const handleSubmit = async (): Promise<void> => {
             >
           </div>
           <p v-if="priceCalculation.isWeeklyRate" class="price-details-note">
-            Tarif hebdomadaire applique
+            Tarif hebdomadaire appliqué
           </p>
         </div>
       </div>

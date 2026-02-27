@@ -11,6 +11,7 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateQuickBookingDto } from './dto/create-quick-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { UpdateQuickBookingDto } from './dto/update-quick-booking.dto';
+import { EnrichBookingDto } from './dto/enrich-booking.dto';
 
 export interface BookingWithRelations extends Booking {
   user?: {
@@ -538,6 +539,107 @@ export class BookingsService {
     }
 
     // No date changes — update directly
+    const updated = await this.prisma.booking.update({
+      where: { id },
+      data: updateData,
+      include: {
+        user: { select: { id: true, email: true } },
+        primaryClient: true,
+        secondaryClient: true,
+      },
+    });
+    return updated as BookingWithRelations;
+  }
+
+  async enrich(id: string, dto: EnrichBookingDto): Promise<BookingWithRelations> {
+    const booking = await this.findById(id); // throws 404 if not found
+
+    // Only EXTERNAL/PERSONAL bookings — reject DIRECT
+    if (booking.bookingType === BookingType.DIRECT) {
+      throw new BadRequestException(
+        'Cet endpoint est réservé aux réservations rapides (EXTERNAL/PERSONAL)'
+      );
+    }
+
+    // Reject CANCELLED bookings — enrichment has no purpose on cancelled reservations
+    if (booking.status === 'CANCELLED') {
+      throw new BadRequestException("Impossible d'enrichir une réservation annulée");
+    }
+
+    // Cross-field validation: cannot provide both inline client AND client ID
+    if (dto.primaryClientId !== undefined && dto.primaryClient !== undefined) {
+      throw new BadRequestException('Fournir primaryClient OU primaryClientId, pas les deux');
+    }
+    if (dto.secondaryClientId !== undefined && dto.secondaryClient !== undefined) {
+      throw new BadRequestException('Fournir secondaryClient OU secondaryClientId, pas les deux');
+    }
+
+    // Handle primary client — upsert (update existing or create new) or ID reference
+    let primaryClientId: string | undefined;
+    if (dto.primaryClient) {
+      if (booking.primaryClientId) {
+        await this.prisma.client.update({
+          where: { id: booking.primaryClientId },
+          data: dto.primaryClient,
+        });
+        primaryClientId = booking.primaryClientId;
+      } else {
+        const client = await this.prisma.client.create({ data: dto.primaryClient });
+        primaryClientId = client.id;
+      }
+    } else if (dto.primaryClientId !== undefined) {
+      const client = await this.prisma.client.findUnique({
+        where: { id: dto.primaryClientId },
+      });
+      if (!client) {
+        throw new BadRequestException('Client primaire introuvable');
+      }
+      primaryClientId = dto.primaryClientId;
+    }
+
+    // Handle secondary client — upsert (update existing or create new) or ID reference
+    let secondaryClientId: string | undefined;
+    if (dto.secondaryClient) {
+      if (booking.secondaryClientId) {
+        await this.prisma.client.update({
+          where: { id: booking.secondaryClientId },
+          data: dto.secondaryClient,
+        });
+        secondaryClientId = booking.secondaryClientId;
+      } else {
+        const client = await this.prisma.client.create({ data: dto.secondaryClient });
+        secondaryClientId = client.id;
+      }
+    } else if (dto.secondaryClientId !== undefined) {
+      const client = await this.prisma.client.findUnique({
+        where: { id: dto.secondaryClientId },
+      });
+      if (!client) {
+        throw new BadRequestException('Client secondaire introuvable');
+      }
+      secondaryClientId = dto.secondaryClientId;
+    }
+
+    // Build updateData — only include provided fields (unidirectional enrichment)
+    const updateData: Record<string, unknown> = {};
+    if (primaryClientId !== undefined) updateData.primaryClientId = primaryClientId;
+    if (secondaryClientId !== undefined) updateData.secondaryClientId = secondaryClientId;
+    if (dto.rentalPrice !== undefined) updateData.rentalPrice = dto.rentalPrice;
+    if (dto.cleaningIncluded !== undefined) updateData.cleaningIncluded = dto.cleaningIncluded;
+    if (dto.cleaningOffered !== undefined) updateData.cleaningOffered = dto.cleaningOffered;
+    if (dto.linenIncluded !== undefined) updateData.linenIncluded = dto.linenIncluded;
+    if (dto.linenOffered !== undefined) updateData.linenOffered = dto.linenOffered;
+    if (dto.touristTaxIncluded !== undefined)
+      updateData.touristTaxIncluded = dto.touristTaxIncluded;
+    if (dto.occupantsCount !== undefined) updateData.occupantsCount = dto.occupantsCount;
+    if (dto.adultsCount !== undefined) updateData.adultsCount = dto.adultsCount;
+    // NEVER include bookingType — it is immutable (NFR8)
+
+    // Short-circuit: nothing to update
+    if (Object.keys(updateData).length === 0) {
+      return booking;
+    }
+
     const updated = await this.prisma.booking.update({
       where: { id },
       data: updateData,

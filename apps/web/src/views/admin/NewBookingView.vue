@@ -42,7 +42,7 @@ const steps = [
   { number: 3, label: 'Occupants' },
   { number: 4, label: 'Options' },
   { number: 5, label: 'Tarif' },
-  { number: 6, label: 'Recapitulatif' },
+  { number: 6, label: 'Récapitulatif' },
 ];
 
 const currentStep = computed(() => formStore.currentStep);
@@ -125,7 +125,7 @@ const handleSubmit = async (): Promise<void> => {
       router.push('/admin/reservations');
     }, 2000);
   } catch (err: unknown) {
-    console.error('Erreur lors de la creation de la reservation:', err);
+    console.error('Erreur lors de la création de la réservation:', err);
     error.value = 'Impossible de créer la réservation. Veuillez réessayer.';
   } finally {
     loading.value = false;

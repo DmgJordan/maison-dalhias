@@ -138,9 +138,12 @@ Préfixe global : `/api` (configuré dans `main.ts`). CORS activé avec `CORS_OR
 | GET | `/` | Liste réservations | Non |
 | GET | `/dates` | Dates réservées | Non |
 | POST | `/` | Créer réservation | JWT |
+| POST | `/quick` | Créer réservation rapide | JWT+Admin |
 | POST | `/check-conflicts` | Vérifier conflits | Non |
 | POST | `/recalculate-price` | Recalculer le prix | JWT |
 | PATCH | `/:id` | Modifier réservation | JWT+Admin |
+| PATCH | `/:id/quick` | Modifier réservation rapide | JWT+Admin |
+| PATCH | `/:id/enrich` | Enrichir réservation rapide | JWT+Admin |
 | PATCH | `/:id/confirm` | Confirmer | JWT+Admin |
 | PATCH | `/:id/cancel` | Annuler | JWT+Admin |
 | DELETE | `/:id` | Supprimer | JWT+Admin |
@@ -351,6 +354,45 @@ Standard Conventional Commits :
 - `ci:` - CI/CD
 
 **Pre-commit hook** : À chaque commit, les fichiers modifiés sont automatiquement lintés et formatés.
+
+### Règles récurrentes (issues de rétrospectives)
+
+Ces règles encodent les patterns problématiques identifiés lors des rétrospectives des Epics 1-5. Elles sont **OBLIGATOIRES** pour toute modification de code.
+
+#### 1. Accents français dans les chaînes visibles par l'utilisateur
+- **OBLIGATOIRE** : Tous les textes affichés à l'utilisateur (labels, placeholders, messages, titres, boutons) doivent contenir les accents français corrects
+- Exemples : `Prénom` (pas "Prenom"), `Précédent` (pas "Precedent"), `Récapitulatif` (pas "Recapitulatif"), `Ménage` (pas "Menage"), `Téléphone` (pas "Telephone"), `séjour` (pas "sejour")
+- S'applique aux fichiers `.vue` (templates) et aux chaînes dans `.ts` affichées en UI
+
+#### 2. Réutilisation des utilitaires existants
+- **OBLIGATOIRE** : Avant d'implémenter une fonction inline, vérifier si elle existe déjà dans :
+  - `apps/web/src/utils/formatting.ts` : `formatPrice`, `formatDateShort`, `formatDateFr`, `formatDateLong`, `formatDateMedium`, `formatDateNumeric`, `formatDateForInput`, `countNights`, `countDays`, `isDateInRange`, `normalizeToMidnight`
+  - `apps/web/src/constants/pricing.ts` : constantes de prix et règles métier
+  - `apps/web/src/constants/property.ts` : données bailleur, logement, équipements
+  - `apps/web/src/utils/bookingCapabilities.ts` : fonctions pures de capacités réservation
+- **INTERDIT** : Dupliquer des fonctions comme `formatDate`, `formatPrice`, `nightsCount` en inline quand elles existent dans les utilitaires
+
+#### 3. Validation des sections de formulaire conditionnelles
+- **OBLIGATOIRE** : Quand un formulaire a des sections optionnelles activées par un toggle (checkbox, switch), la validation doit inclure ces champs quand le toggle est actif
+- Exemple : Si "Ajouter un second locataire" est activé, `isStepValid` doit vérifier les champs du locataire secondaire
+- Toujours tester les chemins alternatifs, pas seulement le happy path
+
+#### 4. Pattern upsert pour les entités liées
+- **OBLIGATOIRE** : Lors de la création/mise à jour d'entités liées (ex: Client lié à une Booking), toujours vérifier si l'entité existe déjà avant de créer un nouvel enregistrement
+- Pattern Prisma : utiliser `upsert` ou vérifier l'existence avec `findFirst` avant `create`
+- Évite la création d'enregistrements orphelins lors de mises à jour répétées
+
+#### 5. Cohérence visuelle avec les composants existants
+- **OBLIGATOIRE** : Les nouveaux composants UI doivent visuellement correspondre aux patterns CSS existants de l'admin
+- Référence standard : `apps/web/src/views/admin/NewBookingView.vue` (DatePicker custom, step progression, option cards, états hover/active/disabled)
+- Vérifier : styles de formulaire (`form-input`), cards (`step-content`, `option-card`), boutons, espacement, responsive design
+- Ne pas créer de composants avec un style minimaliste déconnecté de l'existant
+
+#### 6. Utilisation obligatoire du composant DatePicker custom
+- **OBLIGATOIRE** : Tout champ de sélection de date doit utiliser le composant `apps/web/src/components/admin/DatePicker.vue`
+- **INTERDIT** : Utiliser `<input type="date">` natif HTML — jamais, dans aucun contexte admin
+- Le composant DatePicker accepte les props : `modelValue`, `label`, `placeholder`, `minDate`, `maxDate`, `disabledDates`
+- Ce composant assure la cohérence visuelle (scoped CSS, focus states, responsive) et l'accessibilité (48px min touch target, labels explicites)
 
 ## Configuration environnement
 

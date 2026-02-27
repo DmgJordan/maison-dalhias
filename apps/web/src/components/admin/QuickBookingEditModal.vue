@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onUnmounted } from 'vue';
 import BaseModal from './BaseModal.vue';
+import DatePicker from './DatePicker.vue';
 import {
   bookingsApi,
   type Booking,
@@ -61,7 +62,7 @@ const sourceOptions: { value: BookingSource; label: string }[] = [
 ];
 
 const paymentStatusOptions: { value: PaymentStatus | ''; label: string }[] = [
-  { value: '', label: 'Non defini' },
+  { value: '', label: 'Non défini' },
   { value: 'PENDING', label: PAYMENT_STATUS_LABELS.PENDING },
   { value: 'PARTIAL', label: PAYMENT_STATUS_LABELS.PARTIAL },
   { value: 'PAID', label: PAYMENT_STATUS_LABELS.PAID },
@@ -75,7 +76,7 @@ function buildConflictMessage(detail: ConflictDetail): string {
   const identifier = detail.label ?? detail.clientName ?? '';
   const dates = `${formatDateShort(detail.startDate)} - ${formatDateShort(detail.endDate)}`;
 
-  let message = 'Ces dates chevauchent une reservation existante';
+  let message = 'Ces dates chevauchent une réservation existante';
   const parts: string[] = [];
   if (sourceLabel) parts.push(sourceLabel);
   if (identifier) parts.push(identifier);
@@ -110,7 +111,7 @@ watch([startDate, endDate], () => {
   if (!startDate.value || !endDate.value) return;
 
   if (new Date(endDate.value) <= new Date(startDate.value)) {
-    dateError.value = 'La date de fin doit etre posterieure a la date de debut';
+    dateError.value = 'La date de fin doit être postérieure à la date de début';
     return;
   }
 
@@ -134,7 +135,7 @@ watch([startDate, endDate], () => {
       if (result.hasConflict) {
         conflictError.value = result.conflictDetail
           ? buildConflictMessage(result.conflictDetail)
-          : 'Ces dates chevauchent une reservation existante';
+          : 'Ces dates chevauchent une réservation existante';
       } else {
         conflictError.value = null;
       }
@@ -220,13 +221,13 @@ async function handleSave(): Promise<void> {
         const conflict = axiosErr.response.data?.conflictingBooking;
         conflictError.value = conflict
           ? buildConflictMessage(conflict)
-          : (axiosErr.response.data?.message ?? 'Conflit de dates detecte');
+          : (axiosErr.response.data?.message ?? 'Conflit de dates détecté');
       } else {
         saveError.value =
           axiosErr.response?.data?.message ?? 'Une erreur est survenue lors de la sauvegarde';
       }
     } else {
-      saveError.value = 'Erreur de connexion. Veuillez reessayer.';
+      saveError.value = 'Erreur de connexion. Veuillez réessayer.';
     }
   } finally {
     isSubmitting.value = false;
@@ -235,34 +236,30 @@ async function handleSave(): Promise<void> {
 </script>
 
 <template>
-  <BaseModal title="Modifier la reservation rapide" :submitting="isSubmitting" max-width="500px">
+  <BaseModal title="Modifier la réservation rapide" :submitting="isSubmitting" max-width="500px">
     <form class="quick-edit-form" @submit.prevent="handleSave">
       <!-- Dates -->
       <div class="form-row">
         <div class="form-field">
-          <label class="form-label" for="qe-start-date">Date d'arrivee</label>
-          <input
-            id="qe-start-date"
+          <DatePicker
             v-model="startDate"
-            type="date"
-            class="form-input"
-            :class="{ 'form-input--error': dateError || conflictError }"
+            label="Date d'arrivée"
+            placeholder="Choisir la date d'arrivée"
           />
         </div>
         <div class="form-field">
-          <label class="form-label" for="qe-end-date">Date de depart</label>
-          <input
-            id="qe-end-date"
+          <DatePicker
             v-model="endDate"
-            type="date"
-            class="form-input"
-            :class="{ 'form-input--error': dateError || conflictError }"
+            label="Date de départ"
+            placeholder="Choisir la date de départ"
+            :min-date="startDate"
+            :disabled="!startDate"
           />
         </div>
       </div>
       <p v-if="dateError" class="form-error">{{ dateError }}</p>
       <p v-if="conflictError" class="form-error">{{ conflictError }}</p>
-      <p v-if="isCheckingConflicts" class="form-hint">Verification des disponibilites...</p>
+      <p v-if="isCheckingConflicts" class="form-hint">Vérification des disponibilités...</p>
 
       <!-- Source -->
       <div class="form-field">
@@ -293,7 +290,7 @@ async function handleSave(): Promise<void> {
       <!-- Label -->
       <div class="form-field">
         <label class="form-label" for="qe-label">
-          Libelle <span class="form-optional">— Facultatif</span>
+          Libellé <span class="form-optional">— Facultatif</span>
         </label>
         <input
           id="qe-label"
@@ -307,7 +304,7 @@ async function handleSave(): Promise<void> {
       <!-- External amount -->
       <div class="form-field">
         <label class="form-label" for="qe-amount">
-          Montant recu <span class="form-optional">— Facultatif</span>
+          Montant reçu <span class="form-optional">— Facultatif</span>
         </label>
         <div class="input-with-suffix">
           <input
@@ -428,13 +425,15 @@ async function handleSave(): Promise<void> {
 .form-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .form-label {
-  font-size: 15px;
-  font-weight: 500;
-  color: #222222;
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #484848;
+  margin-bottom: 8px;
 }
 
 .form-optional {
@@ -444,48 +443,42 @@ async function handleSave(): Promise<void> {
 }
 
 .form-input {
-  height: 48px;
-  padding: 0 14px;
-  border: 1px solid #e0e0e0;
-  border-radius: 10px;
-  font-size: 15px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid #e5e5e5;
+  border-radius: 12px;
+  font-size: 16px;
   color: #222222;
   background-color: white;
-  transition: border-color 0.15s;
-  width: 100%;
+  transition: all 0.2s;
   box-sizing: border-box;
 }
 
 .form-input:focus {
   outline: none;
   border-color: #ff385c;
-  box-shadow: 0 0 0 2px rgba(255, 56, 92, 0.1);
 }
 
 .form-input--error {
-  border-color: #ef4444;
-}
-
-.form-input--error:focus {
-  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1);
+  border-color: #ef4444 !important;
 }
 
 .form-select {
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23717171' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 14px center;
+  background-position: right 16px center;
   padding-right: 40px;
 }
 
 .form-textarea {
-  padding: 12px 14px;
-  border: 1px solid #e0e0e0;
-  border-radius: 10px;
-  font-size: 15px;
+  padding: 14px 16px;
+  border: 2px solid #e5e5e5;
+  border-radius: 12px;
+  font-size: 16px;
   color: #222222;
   background-color: white;
-  transition: border-color 0.15s;
+  transition: all 0.2s;
   width: 100%;
   box-sizing: border-box;
   resize: vertical;
@@ -496,13 +489,13 @@ async function handleSave(): Promise<void> {
 .form-textarea:focus {
   outline: none;
   border-color: #ff385c;
-  box-shadow: 0 0 0 2px rgba(255, 56, 92, 0.1);
 }
 
 .form-error {
   margin: 0;
-  font-size: 13px;
-  color: #ef4444;
+  font-size: 14px;
+  color: #dc2626;
+  margin-top: 6px;
   line-height: 1.4;
 }
 
@@ -525,9 +518,12 @@ async function handleSave(): Promise<void> {
 
 .input-suffix {
   position: absolute;
-  right: 14px;
-  font-size: 15px;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
   color: #717171;
+  font-weight: 500;
   pointer-events: none;
 }
 
@@ -535,22 +531,22 @@ async function handleSave(): Promise<void> {
   padding: 12px 16px;
   background-color: #fef2f2;
   border: 1px solid #fecaca;
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 14px;
   color: #dc2626;
 }
 
 .btn-cancel {
-  height: 44px;
-  padding: 0 20px;
+  min-height: 56px;
+  padding: 16px 20px;
   border: 1px solid #e0e0e0;
   border-radius: 12px;
   background-color: white;
   color: #484848;
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s;
 }
 
 .btn-cancel:hover:not(:disabled) {
@@ -564,16 +560,16 @@ async function handleSave(): Promise<void> {
 }
 
 .btn-save {
-  height: 48px;
-  padding: 0 32px;
+  min-height: 56px;
+  padding: 16px 20px;
   border: none;
   border-radius: 12px;
   background-color: #ff385c;
   color: white;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -581,7 +577,7 @@ async function handleSave(): Promise<void> {
 }
 
 .btn-save:hover:not(:disabled) {
-  background-color: #e0314f;
+  background-color: #e31c5f;
 }
 
 .btn-save:disabled {

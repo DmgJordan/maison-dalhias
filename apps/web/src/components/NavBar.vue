@@ -80,7 +80,7 @@ const navigateTo = (route: string) => {
           </a>
 
           <button class="btn-primary" @click="scrollToSection('disponibilites')">
-            Demande de reservation
+            Demande de réservation
           </button>
         </div>
       </div>
@@ -105,7 +105,7 @@ const navigateTo = (route: string) => {
           </a>
 
           <button class="w-full btn-primary mt-4" @click="scrollToSection('disponibilites')">
-            Demande de reservation
+            Demande de réservation
           </button>
         </div>
       </div>

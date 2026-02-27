@@ -10,13 +10,18 @@ import {
   type EmailLog,
 } from '../../lib/api';
 import { OPTION_PRICES, PAYMENT_PERCENTAGES } from '../../constants/pricing';
-import { SOURCE_LABELS } from '../../constants/booking';
+import { countNights, formatDateLong } from '../../utils/formatting';
 import BookingEditModal from '../../components/admin/BookingEditModal.vue';
 import QuickBookingEditModal from '../../components/admin/QuickBookingEditModal.vue';
 import EmailSendModal from '../../components/admin/EmailSendModal.vue';
-import EmailHistoryCard from '../../components/admin/EmailHistoryCard.vue';
 import SourceBadge from '../../components/admin/SourceBadge.vue';
 import PaymentStatusBadge from '../../components/admin/PaymentStatusBadge.vue';
+import ActionCard from '../../components/admin/ActionCard.vue';
+import BookingNotesSection from '../../components/admin/BookingNotesSection.vue';
+import BookingClientSection from '../../components/admin/BookingClientSection.vue';
+import BookingPricingSection from '../../components/admin/BookingPricingSection.vue';
+import BookingDocumentsSection from '../../components/admin/BookingDocumentsSection.vue';
+import * as capabilities from '../../utils/bookingCapabilities';
 
 const route = useRoute();
 const router = useRouter();
@@ -34,11 +39,6 @@ const bookedDates = ref<string[]>([]);
 const priceCalculation = ref<PriceCalculation | null>(null);
 const priceMismatch = ref(false);
 
-// Notes editing state
-const isEditingNotes = ref(false);
-const editingNotesText = ref('');
-const isSavingNotes = ref(false);
-
 // Email state
 const emailLogs = ref<EmailLog[]>([]);
 const showEmailModal = ref(false);
@@ -52,10 +52,7 @@ const bookingId = computed((): string => route.params.id as string);
 
 const nightsCount = computed((): number => {
   if (!booking.value) return 0;
-  const start = new Date(booking.value.startDate);
-  const end = new Date(booking.value.endDate);
-  const diffTime = Math.abs(end.getTime() - start.getTime());
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return countNights(booking.value.startDate, booking.value.endDate);
 });
 
 const adultsCount = computed((): number => {
@@ -95,11 +92,11 @@ const balanceAmount = computed((): number => {
 const statusLabel = computed((): string => {
   switch (booking.value?.status) {
     case 'CONFIRMED':
-      return 'Confirmee';
+      return 'Confirmée';
     case 'PENDING':
       return 'En attente';
     case 'CANCELLED':
-      return 'Annulee';
+      return 'Annulée';
     default:
       return booking.value?.status ?? '';
   }
@@ -116,10 +113,6 @@ const statusClass = computed((): string => {
     default:
       return '';
   }
-});
-
-const hasClientEmail = computed((): boolean => {
-  return !!booking.value?.primaryClient?.email;
 });
 
 const visibleEmailLogs = computed((): EmailLog[] => {
@@ -151,46 +144,63 @@ const hasNotes = computed((): boolean => {
 });
 
 const isQuickBooking = computed((): boolean => {
-  return booking.value?.bookingType === 'EXTERNAL' || booking.value?.bookingType === 'PERSONAL';
+  return booking.value ? capabilities.isQuickBooking(booking.value) : false;
 });
 
 const displayName = computed((): string | null => {
   if (booking.value?.primaryClient) {
-    return formatClientName(booking.value.primaryClient);
+    return capabilities.formatClientName(booking.value.primaryClient);
   }
   return booking.value?.label ?? null;
 });
 
 const sourceDisplayName = computed((): string => {
-  if (!booking.value?.source) return 'la plateforme';
-  if (booking.value.source === 'OTHER' && booking.value.sourceCustomName) {
-    return booking.value.sourceCustomName;
-  }
-  return SOURCE_LABELS[booking.value.source] ?? 'la plateforme';
+  if (!booking.value) return 'la plateforme';
+  const name = capabilities.getSourceDisplayName(booking.value);
+  return name === 'Direct' ? 'la plateforme' : name;
+});
+
+const isFullyEnriched = computed((): boolean => {
+  return booking.value ? capabilities.canGenerateContract(booking.value) : false;
 });
 
 const canGenerateContract = computed((): boolean => {
-  if (!booking.value) return false;
-  return (
-    booking.value.primaryClient != null &&
-    booking.value.rentalPrice != null &&
-    booking.value.occupantsCount != null
-  );
+  return booking.value ? capabilities.canGenerateContract(booking.value) : false;
 });
 
 const canGenerateInvoice = computed((): boolean => {
-  return canGenerateContract.value;
+  return booking.value ? capabilities.canGenerateInvoice(booking.value) : false;
 });
 
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-};
+const canSendEmailComputed = computed((): boolean => {
+  return booking.value ? capabilities.canSendEmail(booking.value) : false;
+});
+
+const contractDisabledReason = computed((): string | null => {
+  return booking.value ? capabilities.getDisabledReason(booking.value, 'contract') : null;
+});
+
+const invoiceDisabledReason = computed((): string | null => {
+  return booking.value ? capabilities.getDisabledReason(booking.value, 'invoice') : null;
+});
+
+const emailDisabledReason = computed((): string | null => {
+  return booking.value ? capabilities.getDisabledReason(booking.value, 'email') : null;
+});
+
+const contractEmailReason = computed((): string | null => {
+  if (!booking.value) return null;
+  if (!capabilities.canSendEmail(booking.value)) return emailDisabledReason.value;
+  if (!capabilities.canGenerateContract(booking.value)) return contractDisabledReason.value;
+  return null;
+});
+
+const invoiceEmailReason = computed((): string | null => {
+  if (!booking.value) return null;
+  if (!capabilities.canSendEmail(booking.value)) return emailDisabledReason.value;
+  if (!capabilities.canGenerateInvoice(booking.value)) return invoiceDisabledReason.value;
+  return null;
+});
 
 const formatShortDate = (dateString: string): string => {
   const date = new Date(dateString);
@@ -201,34 +211,14 @@ const formatShortDate = (dateString: string): string => {
   });
 };
 
-const formatPrice = (price: number | string | null | undefined): string => {
-  if (price === undefined || price === null) return '-';
-  const numPrice = typeof price === 'string' ? parseFloat(price) : price;
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-  }).format(numPrice);
-};
-
-const formatClientName = (client: Booking['primaryClient']): string => {
-  if (!client) return 'Non renseigne';
-  return `${client.firstName} ${client.lastName}`;
-};
-
-const formatClientAddress = (client: Booking['primaryClient']): string => {
-  if (!client) return '';
-  return `${client.address}, ${client.postalCode} ${client.city}`;
-};
-
 const fetchBooking = async (): Promise<void> => {
   try {
     loading.value = true;
     error.value = null;
     booking.value = await bookingsApi.getById(bookingId.value);
   } catch (err: unknown) {
-    console.error('Erreur lors du chargement de la reservation:', err);
-    error.value = 'Impossible de charger la reservation. Veuillez reessayer.';
+    console.error('Erreur lors du chargement de la réservation:', err);
+    error.value = 'Impossible de charger la réservation. Veuillez réessayer.';
   } finally {
     loading.value = false;
   }
@@ -257,9 +247,9 @@ const handleUpdatePrice = async (): Promise<void> => {
     });
     await fetchBooking();
     priceMismatch.value = false;
-    showSuccess('Prix mis a jour !');
+    showSuccess('Prix mis à jour !');
   } catch {
-    error.value = 'Impossible de mettre a jour le prix.';
+    error.value = 'Impossible de mettre à jour le prix.';
   } finally {
     loading.value = false;
   }
@@ -278,10 +268,10 @@ const handleConfirm = async (): Promise<void> => {
     error.value = null;
     await bookingsApi.confirm(bookingId.value);
     await fetchBooking();
-    showSuccess('Reservation confirmee !');
+    showSuccess('Réservation confirmée !');
   } catch (err: unknown) {
     console.error('Erreur lors de la confirmation:', err);
-    error.value = 'Impossible de confirmer la reservation. Veuillez reessayer.';
+    error.value = 'Impossible de confirmer la réservation. Veuillez réessayer.';
   } finally {
     loading.value = false;
   }
@@ -293,10 +283,10 @@ const handleCancel = async (): Promise<void> => {
     error.value = null;
     await bookingsApi.cancel(bookingId.value);
     await fetchBooking();
-    showSuccess('Reservation annulee.');
+    showSuccess('Réservation annulée.');
   } catch (err: unknown) {
     console.error("Erreur lors de l'annulation:", err);
-    error.value = "Impossible d'annuler la reservation. Veuillez reessayer.";
+    error.value = "Impossible d'annuler la réservation. Veuillez réessayer.";
   } finally {
     loading.value = false;
   }
@@ -308,13 +298,13 @@ const handleDelete = async (): Promise<void> => {
     error.value = null;
     showDeleteConfirm.value = false;
     await bookingsApi.delete(bookingId.value);
-    showSuccess('Reservation supprimee.');
+    showSuccess('Réservation supprimée.');
     setTimeout(() => {
       router.push('/admin/reservations');
     }, 1500);
   } catch (err: unknown) {
     console.error('Erreur lors de la suppression:', err);
-    error.value = 'Impossible de supprimer la reservation. Veuillez reessayer.';
+    error.value = 'Impossible de supprimer la réservation. Veuillez réessayer.';
   } finally {
     loading.value = false;
   }
@@ -341,7 +331,7 @@ const handleBookingUpdated = async (updatedBooking: Booking): Promise<void> => {
   booking.value = updatedBooking;
   showEditModal.value = false;
   showQuickEditModal.value = false;
-  showSuccess('Reservation modifiee !');
+  showSuccess('Réservation modifiée !');
   await fetchBooking();
 };
 
@@ -352,10 +342,10 @@ const handleGenerateContract = async (): Promise<void> => {
     generatingContract.value = true;
     error.value = null;
     await pdfApi.downloadContract(booking.value.id);
-    showSuccess('Contrat telecharge !');
+    showSuccess('Contrat téléchargé !');
   } catch (err: unknown) {
-    console.error('Erreur lors de la generation du contrat:', err);
-    error.value = 'Impossible de generer le contrat. Veuillez reessayer.';
+    console.error('Erreur lors de la génération du contrat:', err);
+    error.value = 'Impossible de générer le contrat. Veuillez réessayer.';
   } finally {
     generatingContract.value = false;
   }
@@ -368,10 +358,10 @@ const handleGenerateInvoice = async (): Promise<void> => {
     generatingInvoice.value = true;
     error.value = null;
     await pdfApi.downloadInvoice(booking.value.id);
-    showSuccess('Facture telechargee !');
+    showSuccess('Facture téléchargée !');
   } catch (err: unknown) {
-    console.error('Erreur lors de la generation de la facture:', err);
-    error.value = 'Impossible de generer la facture. Veuillez reessayer.';
+    console.error('Erreur lors de la génération de la facture:', err);
+    error.value = 'Impossible de générer la facture. Veuillez réessayer.';
   } finally {
     generatingInvoice.value = false;
   }
@@ -411,37 +401,9 @@ const handleResend = (emailLog: EmailLog): void => {
   showEmailModal.value = true;
 };
 
-const handleStartEditNotes = (): void => {
-  editingNotesText.value = booking.value?.notes ?? '';
-  isEditingNotes.value = true;
-};
-
-const handleCancelEditNotes = (): void => {
-  isEditingNotes.value = false;
-  editingNotesText.value = '';
-};
-
-const handleSaveNotes = async (): Promise<void> => {
-  if (!booking.value) return;
-  isSavingNotes.value = true;
-  try {
-    if (isQuickBooking.value) {
-      booking.value = await bookingsApi.updateQuick(booking.value.id, {
-        notes: editingNotesText.value,
-      });
-    } else {
-      booking.value = await bookingsApi.update(booking.value.id, {
-        notes: editingNotesText.value,
-      });
-    }
-    isEditingNotes.value = false;
-    showSuccess('Notes enregistrees');
-  } catch (err: unknown) {
-    console.error('Erreur lors de la sauvegarde des notes:', err);
-    error.value = 'Impossible de sauvegarder les notes. Veuillez reessayer.';
-  } finally {
-    isSavingNotes.value = false;
-  }
+const handleNotesUpdated = (updatedBooking: Booking): void => {
+  booking.value = updatedBooking;
+  showSuccess('Notes enregistrées');
 };
 
 onMounted(async () => {
@@ -486,7 +448,7 @@ onMounted(async () => {
         <line x1="19" y1="12" x2="5" y2="12" />
         <polyline points="12 19 5 12 12 5" />
       </svg>
-      Retour aux reservations
+      Retour aux réservations
     </button>
 
     <!-- Message d'erreur -->
@@ -512,7 +474,7 @@ onMounted(async () => {
     <!-- Chargement -->
     <div v-if="loading && !booking" class="loading-state">
       <div class="spinner"></div>
-      <p>Chargement de la reservation...</p>
+      <p>Chargement de la réservation...</p>
     </div>
 
     <!-- Contenu -->
@@ -562,17 +524,17 @@ onMounted(async () => {
                 <line x1="8" y1="2" x2="8" y2="6" />
                 <line x1="3" y1="10" x2="21" y2="10" />
               </svg>
-              Dates du sejour
+              Dates du séjour
             </h2>
             <div class="dates-grid">
               <div class="date-card">
-                <span class="date-label">Arrivee</span>
-                <span class="date-value">{{ formatDate(booking.startDate) }}</span>
-                <span class="date-time">A partir de 16h00</span>
+                <span class="date-label">Arrivée</span>
+                <span class="date-value">{{ formatDateLong(booking.startDate) }}</span>
+                <span class="date-time">À partir de 16h00</span>
               </div>
               <div class="date-card">
-                <span class="date-label">Depart</span>
-                <span class="date-value">{{ formatDate(booking.endDate) }}</span>
+                <span class="date-label">Départ</span>
+                <span class="date-value">{{ formatDateLong(booking.endDate) }}</span>
                 <span class="date-time">Avant 11h00</span>
               </div>
             </div>
@@ -601,285 +563,34 @@ onMounted(async () => {
           </div>
 
           <!-- Section Notes (all booking types) -->
-          <section class="detail-section">
-            <h2 class="section-title">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="section-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-              </svg>
-              Notes
-              <button
-                v-if="!isEditingNotes && hasNotes"
-                class="notes-edit-btn"
-                @click="handleStartEditNotes"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="notes-edit-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
-              </button>
-            </h2>
-
-            <!-- Display mode -->
-            <template v-if="!isEditingNotes">
-              <div v-if="hasNotes" class="notes-card">
-                <p class="notes-text">{{ booking.notes }}</p>
-              </div>
-              <div v-else class="notes-empty">
-                <span class="notes-placeholder">Aucune note</span>
-                <button class="notes-add-btn" @click="handleStartEditNotes">Ajouter</button>
-              </div>
-            </template>
-
-            <!-- Edit mode -->
-            <template v-else>
-              <div class="notes-edit-area">
-                <textarea
-                  v-model="editingNotesText"
-                  class="notes-textarea"
-                  rows="4"
-                  placeholder="Ajouter des notes..."
-                  :disabled="isSavingNotes"
-                ></textarea>
-                <div class="notes-edit-actions">
-                  <button
-                    class="notes-btn notes-btn--cancel"
-                    :disabled="isSavingNotes"
-                    @click="handleCancelEditNotes"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    class="notes-btn notes-btn--save"
-                    :disabled="isSavingNotes"
-                    @click="handleSaveNotes"
-                  >
-                    {{ isSavingNotes ? 'En cours...' : 'Enregistrer' }}
-                  </button>
-                </div>
-              </div>
-            </template>
-          </section>
+          <BookingNotesSection
+            :booking="booking"
+            :has-notes="hasNotes"
+            @notes-updated="handleNotesUpdated"
+            @save-error="(msg) => (error = msg)"
+          />
 
           <!-- Section Client -->
-          <section v-if="hasClient" class="detail-section">
-            <h2 class="section-title">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="section-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-              Client
-            </h2>
-            <div class="client-card">
-              <div class="client-name">{{ formatClientName(booking.primaryClient) }}</div>
-              <div v-if="booking.primaryClient" class="client-details">
-                <p class="client-address">{{ formatClientAddress(booking.primaryClient) }}</p>
-                <div class="client-contacts">
-                  <a
-                    v-if="booking.primaryClient.phone"
-                    :href="`tel:${booking.primaryClient.phone}`"
-                    class="contact-link"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="contact-icon"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path
-                        d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"
-                      />
-                    </svg>
-                    {{ booking.primaryClient.phone }}
-                  </a>
-                  <span v-if="booking.primaryClient.email" class="contact-link contact-link--email">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="contact-icon"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path
-                        d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-                      />
-                      <polyline points="22,6 12,13 2,6" />
-                    </svg>
-                    {{ booking.primaryClient.email }}
-                  </span>
-                </div>
-              </div>
-              <div v-if="booking.secondaryClient" class="secondary-client">
-                <span class="secondary-label">Accompagne de :</span>
-                <span class="secondary-name">{{ formatClientName(booking.secondaryClient) }}</span>
-              </div>
-              <div v-if="booking.occupantsCount" class="occupants-info">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="occupants-icon"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                </svg>
-                <span
-                  >{{ booking.occupantsCount }} personne{{
-                    booking.occupantsCount > 1 ? 's' : ''
-                  }}</span
-                >
-              </div>
-            </div>
-          </section>
+          <BookingClientSection v-if="hasClient" :booking="booking" />
 
           <!-- Section Tarifs (adaptive) -->
-          <section v-if="hasRentalPrice || hasExternalAmount" class="detail-section">
-            <h2 class="section-title">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="section-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <line x1="12" y1="1" x2="12" y2="23" />
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
-              {{ hasRentalPrice ? 'Tarifs' : 'Montant' }}
-            </h2>
-
-            <!-- Full price breakdown (DIRECT bookings with rentalPrice) -->
-            <template v-if="hasRentalPrice">
-              <div class="price-card">
-                <div class="price-line">
-                  <span class="price-label">Location ({{ nightsCount }} nuits)</span>
-                  <span class="price-value">{{ formatPrice(booking.rentalPrice) }}</span>
-                </div>
-                <div v-if="booking.cleaningIncluded" class="price-line">
-                  <span class="price-label">Menage fin de sejour</span>
-                  <span v-if="booking.cleaningOffered" class="price-offered">Offert</span>
-                  <span v-else class="price-value">{{ formatPrice(cleaningPrice) }}</span>
-                </div>
-                <div v-if="booking.linenIncluded" class="price-line">
-                  <span class="price-label"
-                    >Linge de maison ({{ booking.occupantsCount ?? '-' }} pers.)</span
-                  >
-                  <span v-if="booking.linenOffered" class="price-offered">Offert</span>
-                  <span v-else class="price-value">{{ formatPrice(linenPrice) }}</span>
-                </div>
-                <div v-if="booking.touristTaxIncluded" class="price-line">
-                  <span class="price-label">Taxe de sejour</span>
-                  <span class="price-value">{{ formatPrice(touristTaxPrice) }}</span>
-                </div>
-                <div class="price-line price-line--total">
-                  <span class="price-label">Total</span>
-                  <span class="price-value">{{ formatPrice(totalPrice) }}</span>
-                </div>
-              </div>
-
-              <!-- Avertissement prix incoherent -->
-              <div
-                v-if="priceMismatch && priceCalculation && booking.status === 'PENDING'"
-                class="price-warning"
-              >
-                <div class="price-warning-text">
-                  <strong>Prix potentiellement incorrect</strong>
-                  <p>
-                    Prix stocke : {{ formatPrice(booking.rentalPrice) }} | Prix recalcule :
-                    {{ formatPrice(priceCalculation.totalPrice) }}
-                  </p>
-                </div>
-                <button class="price-warning-btn" :disabled="loading" @click="handleUpdatePrice">
-                  Mettre a jour
-                </button>
-              </div>
-
-              <!-- Detail tarifaire -->
-              <div
-                v-if="priceCalculation && priceCalculation.details.length > 0"
-                class="price-breakdown"
-              >
-                <h3 class="breakdown-title">Detail du calcul</h3>
-                <div
-                  v-for="detail in priceCalculation.details"
-                  :key="detail.seasonId + detail.startDate"
-                  class="breakdown-line"
-                >
-                  <span
-                    >{{ detail.nights }} nuit{{ detail.nights > 1 ? 's' : '' }}
-                    {{ detail.seasonName }}</span
-                  >
-                  <span
-                    >{{ detail.nights }} x {{ formatPrice(detail.pricePerNight) }}/nuit =
-                    {{ formatPrice(detail.subtotal) }}</span
-                  >
-                </div>
-                <p v-if="priceCalculation.isWeeklyRate" class="breakdown-note">
-                  Tarif hebdomadaire applique
-                </p>
-              </div>
-
-              <!-- Echeances -->
-              <div class="payment-schedule">
-                <h3 class="schedule-title">Echeances de paiement</h3>
-                <div class="schedule-item">
-                  <span class="schedule-label">Acompte (30%)</span>
-                  <span class="schedule-value">{{ formatPrice(depositAmount) }}</span>
-                </div>
-                <div class="schedule-item">
-                  <span class="schedule-label">Solde (15 jours avant)</span>
-                  <span class="schedule-value">{{ formatPrice(balanceAmount) }}</span>
-                </div>
-                <div class="schedule-item schedule-item--deposit">
-                  <span class="schedule-label">Depot de garantie</span>
-                  <span class="schedule-value"
-                    >{{ OPTION_PRICES.SECURITY_DEPOSIT }} € (cheque non encaisse)</span
-                  >
-                </div>
-              </div>
-            </template>
-
-            <!-- Simplified external amount (quick bookings without rentalPrice) -->
-            <template v-else-if="hasExternalAmount">
-              <div class="price-card">
-                <div class="price-line">
-                  <span class="price-label">Recu de {{ sourceDisplayName }}</span>
-                  <span class="price-value">{{ formatPrice(booking.externalAmount) }}</span>
-                </div>
-              </div>
-            </template>
-          </section>
+          <BookingPricingSection
+            :booking="booking"
+            :nights-count="nightsCount"
+            :has-rental-price="hasRentalPrice"
+            :has-external-amount="hasExternalAmount"
+            :source-display-name="sourceDisplayName"
+            :cleaning-price="cleaningPrice"
+            :linen-price="linenPrice"
+            :tourist-tax-price="touristTaxPrice"
+            :total-price="totalPrice"
+            :deposit-amount="depositAmount"
+            :balance-amount="balanceAmount"
+            :price-calculation="priceCalculation"
+            :price-mismatch="priceMismatch"
+            :loading="loading"
+            @update-price="handleUpdatePrice"
+          />
         </div>
 
         <!-- Colonne droite : Actions + Documents + Historique emails -->
@@ -925,7 +636,7 @@ onMounted(async () => {
                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                 </svg>
-                Modifier la reservation
+                Modifier la réservation
               </button>
 
               <div v-if="booking.status === 'PENDING'" class="action-row">
@@ -990,257 +701,68 @@ onMounted(async () => {
             </div>
           </section>
 
-          <!-- Section Documents PDF (hidden when CANCELLED — FR28) -->
-          <section v-if="booking.status !== 'CANCELLED'" class="detail-section">
-            <h2 class="section-title">
+          <!-- ActionCard pair for quick bookings (hidden when CANCELLED — FR28) -->
+          <div v-if="isQuickBooking && booking.status !== 'CANCELLED'" class="action-cards-pair">
+            <ActionCard
+              :icon="'<path d=&quot;M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7&quot; /><path d=&quot;M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z&quot; />'"
+              title="Modifier"
+              description="Modifier les informations de la réservation"
+              variant="outline"
+              @click="handleOpenEdit"
+            />
+            <ActionCard
+              v-if="!isFullyEnriched"
+              :icon="'<path d=&quot;M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z&quot; /><path d=&quot;M12 8v4&quot; /><path d=&quot;M12 16h.01&quot; />'"
+              title="Compléter les informations"
+              description="Ajouter client, tarification et options"
+              variant="primary"
+              @click="router.push(`/admin/reservations/${bookingId}/enrichir`)"
+            />
+            <div v-else class="enriched-badge">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                class="section-icon"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
                 stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="enriched-badge__icon"
               >
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-                <line x1="16" y1="13" x2="8" y2="13" />
-                <line x1="16" y1="17" x2="8" y2="17" />
-                <polyline points="10 9 9 9 8 9" />
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <polyline points="22 4 12 14.01 9 11.01" />
               </svg>
-              Documents
-            </h2>
-
-            <!-- Modified since last send alert -->
-            <div v-if="modifiedSinceLastSend" class="modified-alert" role="alert">
-              La reservation a ete modifiee depuis le dernier envoi. Pensez a renvoyer les
-              documents.
+              <span>Informations complètes</span>
             </div>
+          </div>
 
-            <!-- Success screen -->
-            <div v-if="showSuccessScreen && lastSentEmail" class="success-screen">
-              <div class="success-icon-large">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                  <polyline points="22 4 12 14.01 9 11.01" />
-                </svg>
-              </div>
-              <h3 class="success-heading">Email envoye avec succes !</h3>
-              <div class="success-recap">
-                <p>
-                  <strong>Destinataire :</strong> {{ lastSentEmail.recipientName }} ({{
-                    lastSentEmail.recipientEmail
-                  }})
-                </p>
-                <p>
-                  <strong>Documents :</strong>
-                  {{
-                    lastSentEmail.documentTypes
-                      .map((t) => (t === 'contract' ? 'Contrat' : 'Facture'))
-                      .join(', ')
-                  }}
-                </p>
-                <p>
-                  <strong>Envoye le :</strong>
-                  {{
-                    new Date(lastSentEmail.sentAt).toLocaleDateString('fr-FR', {
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })
-                  }}
-                </p>
-              </div>
-              <button class="btn-back-to-booking" @click="dismissSuccessScreen">
-                Retour a la reservation
-              </button>
-            </div>
-
-            <!-- Document buttons (hidden during success screen) -->
-            <template v-if="!showSuccessScreen">
-              <div class="documents-grid">
-                <div class="document-item">
-                  <button
-                    :class="['document-btn', { 'document-btn--active': canGenerateContract }]"
-                    :disabled="generatingContract || !canGenerateContract"
-                    @click="handleGenerateContract"
-                  >
-                    <svg
-                      v-if="!generatingContract"
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="document-icon"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                    <div v-else class="document-spinner"></div>
-                    <span class="document-label">Contrat de location</span>
-                    <span
-                      :class="[
-                        'document-status',
-                        { 'document-status--ready': canGenerateContract },
-                      ]"
-                    >
-                      {{ generatingContract ? 'Generation...' : 'Telecharger' }}
-                    </span>
-                  </button>
-                  <span v-if="!canGenerateContract" class="document-disabled-reason">
-                    Informations client et tarification requises
-                  </span>
-                </div>
-                <div class="document-item">
-                  <button
-                    :class="['document-btn', { 'document-btn--active': canGenerateInvoice }]"
-                    :disabled="generatingInvoice || !canGenerateInvoice"
-                    @click="handleGenerateInvoice"
-                  >
-                    <svg
-                      v-if="!generatingInvoice"
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="document-icon"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                    <div v-else class="document-spinner"></div>
-                    <span class="document-label">Facture</span>
-                    <span
-                      :class="['document-status', { 'document-status--ready': canGenerateInvoice }]"
-                    >
-                      {{ generatingInvoice ? 'Generation...' : 'Telecharger' }}
-                    </span>
-                  </button>
-                  <span v-if="!canGenerateInvoice" class="document-disabled-reason">
-                    Informations client et tarification requises
-                  </span>
-                </div>
-              </div>
-
-              <!-- Email send buttons (section already hidden when CANCELLED) -->
-              <div v-if="!hasClientEmail" class="email-warning">
-                {{
-                  hasClient
-                    ? "Adresse email du client requise pour l'envoi."
-                    : 'Client non renseigne — envoi par email impossible.'
-                }}
-              </div>
-              <div class="email-send-buttons">
-                <button
-                  class="email-btn"
-                  :disabled="!hasClientEmail || !canGenerateContract"
-                  @click="openEmailModal(['contract'])"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="email-btn-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-                    />
-                    <polyline points="22,6 12,13 2,6" />
-                  </svg>
-                  Envoyer le contrat par email
-                </button>
-                <button
-                  class="email-btn"
-                  :disabled="!hasClientEmail || !canGenerateInvoice"
-                  @click="openEmailModal(['invoice'])"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="email-btn-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-                    />
-                    <polyline points="22,6 12,13 2,6" />
-                  </svg>
-                  Envoyer la facture par email
-                </button>
-                <button
-                  class="email-btn email-btn--both"
-                  :disabled="!hasClientEmail || !canGenerateInvoice"
-                  @click="openEmailModal(['contract', 'invoice'])"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="email-btn-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <path
-                      d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-                    />
-                    <polyline points="22,6 12,13 2,6" />
-                  </svg>
-                  Envoyer les deux par email
-                </button>
-              </div>
-            </template>
-          </section>
-
-          <!-- Email History Section (hidden when CANCELLED) -->
-          <section
-            v-if="emailLogs.length > 0 && booking.status !== 'CANCELLED'"
-            class="detail-section"
-          >
-            <h2 class="section-title">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="section-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-              Historique des emails
-            </h2>
-            <div class="email-history-list">
-              <EmailHistoryCard
-                v-for="log in visibleEmailLogs"
-                :key="log.id"
-                :email-log="log"
-                @resend="handleResend"
-              />
-            </div>
-            <button
-              v-if="!showAllEmails && emailLogs.length > 2"
-              class="show-all-emails-btn"
-              @click="showAllEmails = true"
-            >
-              Voir tout l'historique ({{ emailLogs.length }})
-            </button>
-          </section>
+          <!-- Section Documents + Email History -->
+          <BookingDocumentsSection
+            :booking="booking"
+            :can-generate-contract="canGenerateContract"
+            :can-generate-invoice="canGenerateInvoice"
+            :can-send-email="canSendEmailComputed"
+            :contract-disabled-reason="contractDisabledReason"
+            :invoice-disabled-reason="invoiceDisabledReason"
+            :contract-email-reason="contractEmailReason"
+            :invoice-email-reason="invoiceEmailReason"
+            :generating-contract="generatingContract"
+            :generating-invoice="generatingInvoice"
+            :modified-since-last-send="modifiedSinceLastSend"
+            :show-success-screen="showSuccessScreen"
+            :last-sent-email="lastSentEmail"
+            :email-logs="emailLogs"
+            :visible-email-logs="visibleEmailLogs"
+            :show-all-emails="showAllEmails"
+            @generate-contract="handleGenerateContract"
+            @generate-invoice="handleGenerateInvoice"
+            @send-contract-email="openEmailModal(['contract'])"
+            @send-invoice-email="openEmailModal(['invoice'])"
+            @send-both-email="openEmailModal(['contract', 'invoice'])"
+            @dismiss-success="dismissSuccessScreen"
+            @toggle-show-all-emails="showAllEmails = true"
+            @resend-email="handleResend"
+          />
         </div>
       </div>
     </template>
@@ -1250,8 +772,8 @@ onMounted(async () => {
       <Transition name="modal">
         <div v-if="showDeleteConfirm" class="modal-overlay" @click.self="showDeleteConfirm = false">
           <div class="modal-content">
-            <h3 class="modal-title">Supprimer cette reservation ?</h3>
-            <p class="modal-text">Cette action est irreversible.</p>
+            <h3 class="modal-title">Supprimer cette réservation ?</h3>
+            <p class="modal-text">Cette action est irréversible.</p>
             <div class="modal-actions">
               <button class="modal-btn modal-btn--cancel" @click="showDeleteConfirm = false">
                 Annuler
@@ -1507,151 +1029,6 @@ onMounted(async () => {
   margin-bottom: 16px;
 }
 
-/* Notes */
-.notes-card {
-  padding: 16px;
-  background-color: #f9f9f9;
-  border-radius: 12px;
-}
-
-.notes-text {
-  font-size: 15px;
-  color: #484848;
-  line-height: 1.6;
-  margin: 0;
-  white-space: pre-wrap;
-}
-
-.notes-edit-btn {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 8px;
-  background-color: transparent;
-  color: #717171;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.notes-edit-btn:hover {
-  background-color: #f3f4f6;
-  color: #ff385c;
-}
-
-.notes-edit-icon {
-  width: 16px;
-  height: 16px;
-}
-
-.notes-empty {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px;
-  background-color: #f9f9f9;
-  border-radius: 12px;
-}
-
-.notes-placeholder {
-  font-size: 14px;
-  color: #b0b0b0;
-  font-style: italic;
-}
-
-.notes-add-btn {
-  padding: 8px 16px;
-  border: 1px solid #e0e0e0;
-  border-radius: 10px;
-  background-color: white;
-  color: #484848;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.notes-add-btn:hover {
-  background-color: #f7f7f7;
-  border-color: #d4d4d4;
-}
-
-.notes-edit-area {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.notes-textarea {
-  width: 100%;
-  padding: 12px 14px;
-  border: 1px solid #e0e0e0;
-  border-radius: 10px;
-  font-size: 15px;
-  color: #222222;
-  background-color: white;
-  resize: vertical;
-  min-height: 80px;
-  font-family: inherit;
-  line-height: 1.6;
-  box-sizing: border-box;
-  transition: border-color 0.15s;
-}
-
-.notes-textarea:focus {
-  outline: none;
-  border-color: #ff385c;
-  box-shadow: 0 0 0 2px rgba(255, 56, 92, 0.1);
-}
-
-.notes-textarea:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.notes-edit-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-}
-
-.notes-btn {
-  padding: 10px 20px;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.notes-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.notes-btn--cancel {
-  border: 1px solid #e0e0e0;
-  background-color: white;
-  color: #484848;
-}
-
-.notes-btn--cancel:hover:not(:disabled) {
-  background-color: #f7f7f7;
-}
-
-.notes-btn--save {
-  border: none;
-  background-color: #ff385c;
-  color: white;
-}
-
-.notes-btn--save:hover:not(:disabled) {
-  background-color: #e0314f;
-}
-
 /* Sections */
 .detail-section {
   background-color: white;
@@ -1715,531 +1092,45 @@ onMounted(async () => {
   color: #717171;
 }
 
-/* Client */
-.client-card {
-  padding: 16px;
-  background-color: #f9f9f9;
-  border-radius: 12px;
-}
-
-.client-name {
-  font-size: 18px;
-  font-weight: 600;
-  color: #222222;
-  margin-bottom: 8px;
-}
-
-.client-details {
-  margin-bottom: 12px;
-}
-
-.client-address {
-  font-size: 14px;
-  color: #484848;
-  margin: 0 0 12px 0;
-  line-height: 1.4;
-}
-
-.client-contacts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.contact-link {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background-color: white;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #484848;
-  text-decoration: none;
-  transition: all 0.2s;
-}
-
-.contact-link:hover {
-  background-color: #fff0f3;
-  color: #ff385c;
-}
-
-.contact-icon {
-  width: 16px;
-  height: 16px;
-}
-
-.secondary-client {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 12px 0;
-  border-top: 1px solid #e5e5e5;
-  margin-top: 12px;
-}
-
-.secondary-label {
-  font-size: 14px;
-  color: #717171;
-}
-
-.secondary-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: #484848;
-}
-
-.occupants-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid #e5e5e5;
-  margin-top: 12px;
-  font-size: 15px;
-  color: #484848;
-}
-
 .occupants-icon {
   width: 18px;
   height: 18px;
   color: #717171;
 }
 
-/* Tarifs */
-.price-card {
-  background-color: #f9f9f9;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
-}
-
-.price-line {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid #e8e8e8;
-}
-
-.price-line:last-child {
-  border-bottom: none;
-}
-
-.price-line--total {
-  border-top: 2px solid #222222;
-  margin-top: 8px;
-  padding-top: 16px;
-}
-
-.price-label {
-  font-size: 14px;
-  color: #484848;
-}
-
-.price-value {
-  font-size: 14px;
-  font-weight: 500;
-  color: #222222;
-}
-
-.price-offered {
-  font-size: 14px;
-  font-weight: 600;
-  color: #10b981;
-}
-
-.price-line--total .price-label,
-.price-line--total .price-value {
-  font-size: 16px;
-  font-weight: 700;
-  color: #222222;
-}
-
-/* Avertissement prix */
-.price-warning {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
-  background-color: #fef3c7;
-  border: 1px solid #fcd34d;
-  border-radius: 12px;
-  margin-bottom: 16px;
-}
-
-.price-warning-text {
-  flex: 1;
-}
-
-.price-warning-text strong {
-  display: block;
-  font-size: 14px;
-  color: #92400e;
-  margin-bottom: 4px;
-}
-
-.price-warning-text p {
-  font-size: 13px;
-  color: #78350f;
-  margin: 0;
-}
-
-.price-warning-btn {
-  padding: 8px 16px;
-  background-color: #f59e0b;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background-color 0.15s;
-}
-
-.price-warning-btn:hover:not(:disabled) {
-  background-color: #d97706;
-}
-
-.price-warning-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Detail tarifaire */
-.price-breakdown {
-  background-color: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: 12px;
-  padding: 14px 16px;
-  margin-bottom: 16px;
-}
-
-.breakdown-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #0369a1;
-  margin: 0 0 8px;
-}
-
-.breakdown-line {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-  color: #0c4a6e;
-  padding: 4px 0;
-}
-
-.breakdown-note {
-  font-size: 12px;
-  color: #0369a1;
-  font-style: italic;
-  margin: 6px 0 0;
-}
-
-/* Echeances */
-.payment-schedule {
-  background-color: #fff8e6;
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.schedule-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #92400e;
-  margin: 0 0 12px 0;
-}
-
-.schedule-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-}
-
-.schedule-label {
-  font-size: 14px;
-  color: #78350f;
-}
-
-.schedule-value {
-  font-size: 14px;
-  font-weight: 500;
-  color: #78350f;
-}
-
-.schedule-item--deposit {
-  border-top: 1px solid #fcd34d;
-  margin-top: 8px;
-  padding-top: 12px;
-}
-
-/* Documents */
-.documents-grid {
+/* Action Cards Pair */
+.action-cards-pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  margin-bottom: 16px;
 }
 
-.document-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.document-disabled-reason {
-  font-size: 12px;
-  color: #a3a3a3;
-  text-align: center;
-}
-
-.document-btn {
+.enriched-badge {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  text-align: center;
   gap: 8px;
-  padding: 20px 16px;
-  background-color: #f7f7f7;
-  border: 2px dashed #d4d4d4;
-  border-radius: 12px;
-  cursor: default;
-  transition: all 0.2s;
-}
-
-.document-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.document-btn--active {
-  background-color: #fff0f3;
-  border: 2px solid #ff385c;
-  cursor: pointer;
-}
-
-.document-btn--active:hover:not(:disabled) {
-  background-color: #ffe4e9;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 56, 92, 0.2);
-}
-
-.document-btn--active:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.document-btn--active:focus-visible {
-  outline: 2px solid #ff385c;
-  outline-offset: 2px;
-}
-
-.document-btn--active .document-icon {
-  color: #ff385c;
-}
-
-.document-icon {
-  width: 28px;
-  height: 28px;
-  color: #717171;
-}
-
-.document-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #484848;
-  text-align: center;
-}
-
-.document-status {
-  font-size: 12px;
-  color: #a3a3a3;
-}
-
-.document-status--ready {
-  color: #ff385c;
-  font-weight: 500;
-}
-
-.document-spinner {
-  width: 24px;
-  height: 24px;
-  border: 3px solid #ffe4e9;
-  border-top-color: #ff385c;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-/* Email - contact link style */
-.contact-link--email {
-  cursor: default;
-}
-
-/* Modified alert */
-.modified-alert {
-  padding: 12px 16px;
-  background-color: #fef3c7;
-  border: 1px solid #fcd34d;
-  border-radius: 10px;
-  color: #92400e;
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 16px;
-}
-
-/* Success screen */
-.success-screen {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  padding: 32px 20px;
-}
-
-.success-icon-large {
-  width: 64px;
-  height: 64px;
-  color: #10b981;
-  margin-bottom: 16px;
-}
-
-.success-icon-large svg {
-  width: 100%;
-  height: 100%;
-}
-
-.success-heading {
-  font-size: 20px;
-  font-weight: 700;
-  color: #10b981;
-  margin: 0 0 20px 0;
-}
-
-.success-recap {
-  text-align: left;
-  width: 100%;
-  max-width: 380px;
-  background: #f0fdf4;
-  border-radius: 10px;
-  padding: 16px 20px;
-  margin-bottom: 24px;
-}
-
-.success-recap p {
-  margin: 6px 0;
-  font-size: 14px;
-  color: #374151;
-  line-height: 1.5;
-}
-
-.btn-back-to-booking {
-  padding: 14px 28px;
-  min-height: 48px;
-  border: none;
-  border-radius: 10px;
-  background: #10b981;
-  color: white;
+  padding: 20px;
+  border-radius: 16px;
+  border: 2px solid #d1fae5;
+  background: #ecfdf5;
+  color: #059669;
+  font-weight: 600;
   font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s;
 }
 
-.btn-back-to-booking:hover {
-  background: #059669;
+.enriched-badge__icon {
+  width: 32px;
+  height: 32px;
 }
 
-/* Email send buttons */
-.email-warning {
-  padding: 10px 14px;
-  background-color: #fef2f2;
-  border-radius: 8px;
-  color: #dc2626;
-  font-size: 14px;
-  margin-top: 12px;
-}
-
-.email-send-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-.email-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 12px 16px;
-  min-height: 48px;
-  background: white;
-  border: 2px solid #e5e7eb;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 500;
-  color: #374151;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.email-btn:hover:not(:disabled) {
-  background: #f0f9ff;
-  border-color: #3b82f6;
-  color: #1d4ed8;
-}
-
-.email-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.email-btn--both {
-  background: #eff6ff;
-  border-color: #3b82f6;
-  color: #1d4ed8;
-  font-weight: 600;
-}
-
-.email-btn--both:hover:not(:disabled) {
-  background: #dbeafe;
-}
-
-.email-btn-icon {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-}
-
-/* Email history */
-.email-history-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.show-all-emails-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 12px 16px;
-  margin-top: 12px;
-  background: white;
-  border: 1px solid #e5e5e5;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #717171;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.show-all-emails-btn:hover {
-  background-color: #f7f7f7;
-  border-color: #d4d4d4;
-  color: #484848;
+@media (max-width: 480px) {
+  .action-cards-pair {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Actions card */
@@ -2471,34 +1362,6 @@ onMounted(async () => {
 
   .detail-section {
     margin-bottom: 0;
-  }
-
-  /* Email history: scroll on desktop */
-  .email-history-list {
-    max-height: 400px;
-    overflow-y: auto;
-  }
-
-  .email-history-list::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  .email-history-list::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .email-history-list::-webkit-scrollbar-thumb {
-    background-color: #d4d4d4;
-    border-radius: 3px;
-  }
-
-  .email-history-list::-webkit-scrollbar-thumb:hover {
-    background-color: #a3a3a3;
-  }
-
-  /* Show all button hidden on desktop (scroll handles it) */
-  .show-all-emails-btn {
-    display: none;
   }
 }
 

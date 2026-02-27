@@ -5,6 +5,7 @@ import type { Booking } from '../../lib/api';
 import SourceBadge from './SourceBadge.vue';
 import PaymentStatusBadge from './PaymentStatusBadge.vue';
 import { SOURCE_LABELS } from '../../constants/booking';
+import { countNights, formatPrice } from '../../utils/formatting';
 
 interface Props {
   booking: Booking;
@@ -58,10 +59,7 @@ const formatDateRange = (start: string, end: string): string => {
 };
 
 const nightsCount = computed((): number => {
-  const start = new Date(props.booking.startDate);
-  const end = new Date(props.booking.endDate);
-  const diffTime = Math.abs(end.getTime() - start.getTime());
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return countNights(props.booking.startDate, props.booking.endDate);
 });
 
 const statusLabel = computed((): string => {
@@ -101,16 +99,6 @@ const handleCancel = (): void => {
 const handleDelete = (): void => {
   showDeleteConfirm.value = false;
   emit('delete', props.booking.id);
-};
-
-const formatPrice = (price: number | string | undefined): string => {
-  if (price == null) return '-';
-  const numPrice = typeof price === 'string' ? parseFloat(price) : price;
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-  }).format(numPrice);
 };
 
 const clientName = computed((): string => {
@@ -218,7 +206,7 @@ const sourceDisplayName = computed((): string => {
           <line x1="12" y1="1" x2="12" y2="23" />
           <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
         </svg>
-        <span>{{ formatPrice(booking.rentalPrice) }}</span>
+        <span>{{ formatPrice(Number(booking.rentalPrice ?? 0)) }}</span>
       </div>
       <div v-else-if="booking.externalAmount != null" class="info-item info-item--price">
         <svg
@@ -232,7 +220,7 @@ const sourceDisplayName = computed((): string => {
           <line x1="12" y1="1" x2="12" y2="23" />
           <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
         </svg>
-        <span>{{ formatPrice(booking.externalAmount) }}</span>
+        <span>{{ formatPrice(Number(booking.externalAmount ?? 0)) }}</span>
         <span class="price-label">reçu de {{ sourceDisplayName }}</span>
       </div>
       <PaymentStatusBadge v-if="booking.paymentStatus" :status="booking.paymentStatus" />
@@ -240,7 +228,7 @@ const sourceDisplayName = computed((): string => {
 
     <!-- Bouton voir details -->
     <button class="detail-btn" @click="goToDetail">
-      <span>Voir les details</span>
+      <span>Voir les détails</span>
       <svg
         xmlns="http://www.w3.org/2000/svg"
         class="detail-icon"

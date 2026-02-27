@@ -3,6 +3,7 @@ import { ref, computed, watch, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuickBookingFormStore, SOURCE_LABELS } from '../../stores/quickBookingForm';
 import StepIndicator from '../../components/admin/StepIndicator.vue';
+import DatePicker from '../../components/admin/DatePicker.vue';
 import { bookingsApi, type BookingSource, type ConflictDetail } from '../../lib/api';
 import { formatDateShort } from '../../utils/formatting';
 
@@ -27,7 +28,7 @@ function buildConflictMessage(detail: ConflictDetail): string {
   const identifier = detail.label ?? detail.clientName ?? '';
   const dates = `${formatDateShort(detail.startDate)} - ${formatDateShort(detail.endDate)}`;
 
-  let message = 'Ces dates chevauchent une reservation existante';
+  let message = 'Ces dates chevauchent une réservation existante';
   const parts: string[] = [];
   if (sourceLabel) parts.push(sourceLabel);
   if (identifier) parts.push(identifier);
@@ -87,61 +88,46 @@ function goNext(): void {
 </script>
 
 <template>
-  <div class="mx-auto max-w-xl px-4 py-8">
-    <StepIndicator :current-step="1" :total-steps="2" label="Dates & source" />
+  <div class="quick-step-view">
+    <StepIndicator :steps="[{ label: 'Dates & source' }, { label: 'Détails' }]" :current-step="1" />
 
-    <div class="mt-6 rounded-xl border border-gray-200 bg-white p-6">
+    <div class="step-content">
       <!-- Date pickers -->
-      <div class="space-y-4">
-        <div>
-          <label for="startDate" class="mb-1 block text-sm font-medium text-dark">
-            Date d'arrivée
-          </label>
-          <input
-            id="startDate"
-            v-model="store.startDate"
-            type="date"
-            class="w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-dark focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-            style="min-height: 48px"
-          />
-        </div>
-
-        <div>
-          <label for="endDate" class="mb-1 block text-sm font-medium text-dark">
-            Date de départ
-          </label>
-          <input
-            id="endDate"
-            v-model="store.endDate"
-            type="date"
-            class="w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-dark focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-            style="min-height: 48px"
-          />
-        </div>
-
-        <!-- Nights count -->
-        <p v-if="store.nightsCount > 0" class="text-sm text-text">
-          {{ store.nightsCount }} nuit{{ store.nightsCount > 1 ? 's' : '' }}
-        </p>
-
-        <!-- Checking indicator -->
-        <p v-if="isCheckingConflict" class="text-sm text-gray-400">Vérification...</p>
-
-        <!-- Conflict error -->
-        <p v-if="hasConflict && conflictDetail && !isCheckingConflict" class="text-sm text-red-600">
-          {{ buildConflictMessage(conflictDetail) }}
-        </p>
+      <div class="form-group">
+        <DatePicker
+          v-model="store.startDate"
+          label="Date d'arrivée"
+          placeholder="Choisir la date d'arrivée"
+        />
       </div>
 
+      <div class="form-group">
+        <DatePicker
+          v-model="store.endDate"
+          label="Date de départ"
+          placeholder="Choisir la date de départ"
+          :min-date="store.startDate"
+          :disabled="!store.startDate"
+        />
+      </div>
+
+      <!-- Nights count -->
+      <p v-if="store.nightsCount > 0" class="nights-count">
+        {{ store.nightsCount }} nuit{{ store.nightsCount > 1 ? 's' : '' }}
+      </p>
+
+      <!-- Checking indicator -->
+      <p v-if="isCheckingConflict" class="checking-indicator">Vérification...</p>
+
+      <!-- Conflict error -->
+      <p v-if="hasConflict && conflictDetail && !isCheckingConflict" class="form-field-error">
+        {{ buildConflictMessage(conflictDetail) }}
+      </p>
+
       <!-- Source dropdown -->
-      <div class="mt-6">
-        <label for="source" class="mb-1 block text-sm font-medium text-dark"> Source </label>
-        <select
-          id="source"
-          v-model="store.source"
-          class="w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-dark focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-          style="min-height: 48px"
-        >
+      <div class="form-group form-group--spaced">
+        <label for="source" class="form-label">Source</label>
+        <select id="source" v-model="store.source" class="form-input">
           <option value="" disabled>Choisir une source</option>
           <option v-for="opt in sourceOptions" :key="opt.value" :value="opt.value">
             {{ opt.label }}
@@ -150,39 +136,164 @@ function goNext(): void {
       </div>
 
       <!-- Custom source name -->
-      <div v-if="store.source === 'OTHER'" class="mt-4">
-        <label for="sourceCustomName" class="mb-1 block text-sm font-medium text-dark">
-          Nom de la source
-        </label>
+      <div v-if="store.source === 'OTHER'" class="form-group">
+        <label for="sourceCustomName" class="form-label">Nom de la source</label>
         <input
           id="sourceCustomName"
           v-model="store.sourceCustomName"
           type="text"
-          placeholder="Ex: Leboncoin, Amis..."
-          class="w-full rounded-lg border border-gray-300 px-4 py-3 text-base text-dark focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-          style="min-height: 48px"
+          placeholder="Ex : Leboncoin, Amis..."
+          class="form-input"
         />
       </div>
     </div>
 
-    <!-- Actions -->
-    <div class="mt-6 flex items-center justify-between">
-      <router-link
-        :to="{ name: 'AdminNewBooking' }"
-        class="text-sm text-text hover:text-primary hover:underline"
-      >
+    <!-- Navigation -->
+    <div class="step-navigation">
+      <router-link :to="{ name: 'AdminNewBooking' }" class="nav-btn nav-btn--prev">
         ← Retour
       </router-link>
 
-      <button
-        type="button"
-        class="rounded-xl bg-primary px-8 py-3 text-base font-semibold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-        style="min-height: 48px"
-        :disabled="!canProceed"
-        @click="goNext"
-      >
-        Suivant
+      <button type="button" class="nav-btn nav-btn--next" :disabled="!canProceed" @click="goNext">
+        Suivant →
       </button>
     </div>
   </div>
 </template>
+
+<style scoped>
+.quick-step-view {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 0 16px 40px;
+}
+
+.step-content {
+  background-color: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e5e5;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+.form-group--spaced {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #e5e5e5;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #484848;
+  margin-bottom: 8px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 2px solid #e5e5e5;
+  border-radius: 12px;
+  font-size: 16px;
+  color: #222222;
+  transition: all 0.2s;
+  background-color: white;
+  min-height: 48px;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #ff385c;
+}
+
+.nights-count {
+  font-size: 14px;
+  color: #484848;
+  margin: -12px 0 0 0;
+}
+
+.checking-indicator {
+  font-size: 14px;
+  color: #a3a3a3;
+  margin: 0;
+}
+
+.form-field-error {
+  font-size: 14px;
+  color: #dc2626;
+  margin-top: 6px;
+  margin-bottom: 0;
+}
+
+/* Navigation */
+.step-navigation {
+  display: flex;
+  gap: 12px;
+}
+
+.nav-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 56px;
+  text-decoration: none;
+}
+
+.nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.nav-btn--prev {
+  background-color: #f3f4f6;
+  color: #484848;
+}
+
+.nav-btn--prev:hover {
+  background-color: #e5e5e5;
+}
+
+.nav-btn--next {
+  background-color: #ff385c;
+  color: white;
+}
+
+.nav-btn--next:hover:not(:disabled) {
+  background-color: #e31c5f;
+}
+
+@media (min-width: 768px) {
+  .quick-step-view {
+    max-width: 600px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .quick-step-view {
+    max-width: 700px;
+  }
+
+  .step-content {
+    padding: 32px;
+  }
+}
+</style>
