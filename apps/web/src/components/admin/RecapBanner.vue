@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { BookingType } from '../../lib/api';
-import SourceBadge from './SourceBadge.vue';
 import { formatDateShort } from '../../utils/formatting';
 
 interface Props {
@@ -17,11 +16,13 @@ const emit = defineEmits<{ edit: [] }>();
 
 <template>
   <div class="recap-banner">
-    <div class="recap-banner__info">
-      <SourceBadge :source="source" :booking-type="bookingType" />
+    <div class="recap-banner__left">
+      <span class="recap-banner__source">{{ source }}</span>
+      <span class="recap-banner__sep">·</span>
       <span class="recap-banner__dates">
         {{ formatDateShort(startDate) }} — {{ formatDateShort(endDate) }}
       </span>
+      <span class="recap-banner__sep">·</span>
       <span class="recap-banner__nights">
         {{ nightsCount }} nuit{{ nightsCount > 1 ? 's' : '' }}
       </span>
@@ -37,41 +38,54 @@ const emit = defineEmits<{ edit: [] }>();
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  background-color: #f7f7f7;
+  padding: 14px 16px;
+  background-color: white;
+  border: 1px solid #ebebeb;
   border-radius: 12px;
-  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
-.recap-banner__info {
+.recap-banner__left {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+}
+
+.recap-banner__source {
+  font-size: 14px;
+  font-weight: 600;
+  color: #222222;
+}
+
+.recap-banner__sep {
+  color: #d4d4d4;
+  font-size: 14px;
 }
 
 .recap-banner__dates {
-  font-size: 15px;
+  font-size: 14px;
   color: #484848;
 }
 
 .recap-banner__nights {
-  font-size: 14px;
-  color: #717171;
+  font-size: 13px;
+  color: #9ca3af;
 }
 
 .recap-banner__edit {
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 600;
   color: #ff385c;
   background: none;
   border: none;
   cursor: pointer;
-  min-height: 48px;
-  padding: 0 4px;
-  transition: all 0.2s;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s;
 }
 
 .recap-banner__edit:hover {
-  text-decoration: underline;
+  background-color: #fff0f3;
 }
 </style>

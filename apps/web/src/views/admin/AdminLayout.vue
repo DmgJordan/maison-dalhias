@@ -19,11 +19,15 @@ interface Tab {
   route: string;
 }
 
-const tabs: Tab[] = [
-  { id: 'bookings', label: 'Réservations', icon: 'calendar', route: '/admin/reservations' },
+const mainTabs: Tab[] = [
+  { id: 'calendar', label: 'Calendrier', icon: 'calendar-view', route: '/admin/calendrier' },
+  { id: 'bookings', label: 'Réservations', icon: 'list', route: '/admin/reservations' },
   { id: 'messages', label: 'Messages', icon: 'mail', route: '/admin/messages' },
-  { id: 'pricing', label: 'Tarifs', icon: 'tag', route: '/admin/tarifs' },
   { id: 'new', label: 'Nouveau', icon: 'plus', route: '/admin/nouveau' },
+];
+
+const adminTabs: Tab[] = [
+  { id: 'pricing', label: 'Tarifs', icon: 'tag', route: '/admin/tarifs' },
 ];
 
 const fetchUnreadCount = async (): Promise<void> => {
@@ -78,14 +82,20 @@ onMounted(() => {
 
 const activeTab = computed((): string => {
   const path = route.path;
+  if (path.includes('/calendrier')) return 'calendar';
+  if (path.includes('/reservations')) return 'bookings';
   if (path.includes('/messages')) return 'messages';
   if (path.includes('/tarifs')) return 'pricing';
   if (path.includes('/nouveau')) return 'new';
-  return 'bookings';
+  return 'calendar';
 });
 
 const pageTitle = computed((): string => {
   switch (activeTab.value) {
+    case 'calendar':
+      return 'Calendrier';
+    case 'bookings':
+      return 'Réservations';
     case 'messages':
       return 'Messages';
     case 'pricing':
@@ -93,7 +103,7 @@ const pageTitle = computed((): string => {
     case 'new':
       return 'Nouvelle réservation';
     default:
-      return 'Réservations';
+      return 'Calendrier';
   }
 });
 
@@ -242,16 +252,16 @@ const signOut = async (): Promise<void> => {
 
       <nav class="sidebar-nav">
         <button
-          v-for="tab in tabs"
+          v-for="tab in mainTabs"
           :key="tab.id"
           class="sidebar-tab"
           :class="{ 'sidebar-tab--active': activeTab === tab.id }"
           @click="navigateTo(tab)"
         >
           <div class="tab-icon-wrapper">
-            <!-- Calendar icon -->
+            <!-- Calendar-view icon (grille calendrier) -->
             <svg
-              v-if="tab.icon === 'calendar'"
+              v-if="tab.icon === 'calendar-view'"
               xmlns="http://www.w3.org/2000/svg"
               class="tab-icon"
               viewBox="0 0 24 24"
@@ -263,6 +273,26 @@ const signOut = async (): Promise<void> => {
               <line x1="16" y1="2" x2="16" y2="6" />
               <line x1="8" y1="2" x2="8" y2="6" />
               <line x1="3" y1="10" x2="21" y2="10" />
+              <line x1="9" y1="10" x2="9" y2="22" />
+              <line x1="15" y1="10" x2="15" y2="22" />
+              <line x1="3" y1="16" x2="21" y2="16" />
+            </svg>
+            <!-- List icon (réservations) -->
+            <svg
+              v-else-if="tab.icon === 'list'"
+              xmlns="http://www.w3.org/2000/svg"
+              class="tab-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <line x1="8" y1="6" x2="21" y2="6" />
+              <line x1="8" y1="12" x2="21" y2="12" />
+              <line x1="8" y1="18" x2="21" y2="18" />
+              <line x1="3" y1="6" x2="3.01" y2="6" />
+              <line x1="3" y1="12" x2="3.01" y2="12" />
+              <line x1="3" y1="18" x2="3.01" y2="18" />
             </svg>
             <!-- Mail icon -->
             <svg
@@ -278,21 +308,6 @@ const signOut = async (): Promise<void> => {
                 d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
               />
               <polyline points="22,6 12,13 2,6" />
-            </svg>
-            <!-- Tag icon -->
-            <svg
-              v-else-if="tab.icon === 'tag'"
-              xmlns="http://www.w3.org/2000/svg"
-              class="tab-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path
-                d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"
-              />
-              <line x1="7" y1="7" x2="7.01" y2="7" />
             </svg>
             <!-- Plus icon -->
             <svg
@@ -315,6 +330,38 @@ const signOut = async (): Promise<void> => {
           <span class="tab-label">{{ tab.label }}</span>
         </button>
       </nav>
+
+      <!-- Section Administration -->
+      <div class="sidebar-admin">
+        <h3 class="sidebar-admin-title">Administration</h3>
+        <button
+          v-for="tab in adminTabs"
+          :key="tab.id"
+          class="sidebar-tab"
+          :class="{ 'sidebar-tab--active': activeTab === tab.id }"
+          @click="navigateTo(tab)"
+        >
+          <div class="tab-icon-wrapper">
+            <!-- Tag icon -->
+            <svg
+              v-if="tab.icon === 'tag'"
+              xmlns="http://www.w3.org/2000/svg"
+              class="tab-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"
+              />
+              <line x1="7" y1="7" x2="7.01" y2="7" />
+            </svg>
+          </div>
+          <span class="tab-label">{{ tab.label }}</span>
+        </button>
+      </div>
+
       <div class="sidebar-footer">
         <button class="sidebar-btn" :disabled="isGeneratingPoster" @click="handleGeneratePoster">
           <span v-if="isGeneratingPoster" class="sidebar-spinner"></span>
@@ -376,16 +423,16 @@ const signOut = async (): Promise<void> => {
     <!-- Navigation bottom mobile -->
     <nav class="bottom-nav">
       <button
-        v-for="tab in tabs"
+        v-for="tab in mainTabs"
         :key="tab.id"
         class="bottom-tab"
         :class="{ 'bottom-tab--active': activeTab === tab.id }"
         @click="navigateTo(tab)"
       >
         <div class="tab-icon-wrapper">
-          <!-- Calendar icon -->
+          <!-- Calendar-view icon (grille calendrier) -->
           <svg
-            v-if="tab.icon === 'calendar'"
+            v-if="tab.icon === 'calendar-view'"
             xmlns="http://www.w3.org/2000/svg"
             class="tab-icon"
             viewBox="0 0 24 24"
@@ -397,6 +444,26 @@ const signOut = async (): Promise<void> => {
             <line x1="16" y1="2" x2="16" y2="6" />
             <line x1="8" y1="2" x2="8" y2="6" />
             <line x1="3" y1="10" x2="21" y2="10" />
+            <line x1="9" y1="10" x2="9" y2="22" />
+            <line x1="15" y1="10" x2="15" y2="22" />
+            <line x1="3" y1="16" x2="21" y2="16" />
+          </svg>
+          <!-- List icon (réservations) -->
+          <svg
+            v-else-if="tab.icon === 'list'"
+            xmlns="http://www.w3.org/2000/svg"
+            class="tab-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <line x1="3" y1="6" x2="3.01" y2="6" />
+            <line x1="3" y1="12" x2="3.01" y2="12" />
+            <line x1="3" y1="18" x2="3.01" y2="18" />
           </svg>
           <!-- Mail icon -->
           <svg
@@ -410,21 +477,6 @@ const signOut = async (): Promise<void> => {
           >
             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
             <polyline points="22,6 12,13 2,6" />
-          </svg>
-          <!-- Tag icon -->
-          <svg
-            v-else-if="tab.icon === 'tag'"
-            xmlns="http://www.w3.org/2000/svg"
-            class="tab-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path
-              d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"
-            />
-            <line x1="7" y1="7" x2="7.01" y2="7" />
           </svg>
           <!-- Plus icon -->
           <svg
@@ -761,6 +813,21 @@ const signOut = async (): Promise<void> => {
 
   .sidebar-tab:not(.sidebar-tab--active):hover {
     background-color: #f7f7f7;
+  }
+
+  .sidebar-admin {
+    padding: 8px 12px;
+    border-top: 1px solid #f0f0f0;
+  }
+
+  .sidebar-admin-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 8px 16px 4px;
+    margin: 0;
   }
 
   .sidebar-footer {

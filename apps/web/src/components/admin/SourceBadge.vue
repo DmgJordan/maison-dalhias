@@ -5,21 +5,18 @@ import { SOURCE_LABELS } from '../../constants/booking';
 interface Props {
   source: BookingSource | string;
   bookingType: BookingType;
-  size?: 'sm' | 'md';
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  size: 'sm',
-});
+const props = defineProps<Props>();
 
 function getBadgeClasses(bookingType: BookingType): string {
   switch (bookingType) {
     case 'EXTERNAL':
-      return 'bg-blue-100 text-blue-800';
+      return 'source-badge--external';
     case 'PERSONAL':
-      return 'bg-purple-100 text-purple-800';
+      return 'source-badge--personal';
     case 'DIRECT':
-      return 'bg-rose-50 text-rose-700';
+      return 'source-badge--direct';
   }
 }
 
@@ -36,13 +33,42 @@ function getDisplayName(): string {
 </script>
 
 <template>
-  <span
-    :class="[
-      getBadgeClasses(bookingType),
-      'inline-flex items-center rounded-full font-medium',
-      size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm',
-    ]"
-  >
+  <span class="source-badge" :class="getBadgeClasses(bookingType)">
     {{ getDisplayName() }}
   </span>
 </template>
+
+<style scoped>
+.source-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background-color: rgba(255, 56, 92, 0.07);
+  color: #484848;
+}
+
+.source-badge::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.source-badge--external::before {
+  background-color: #3b82f6;
+}
+
+.source-badge--personal::before {
+  background-color: #8b5cf6;
+}
+
+.source-badge--direct::before {
+  background-color: #ff385c;
+}
+</style>

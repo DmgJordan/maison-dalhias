@@ -50,11 +50,13 @@ export class EmailService implements OnModuleInit {
   private resend: Resend;
   private senderEmail: string;
   private contactEmail: string;
+  private validateurEmail: string | undefined;
 
   constructor() {
     this.resend = new Resend(process.env.RESEND_API_KEY);
     this.senderEmail = process.env.SENDER_EMAIL ?? 'contact@maison-dalhias.fr';
     this.contactEmail = process.env.CONTACT_EMAIL ?? 'dominguez-juan@orange.fr';
+    this.validateurEmail = process.env.VALIDATEUR_EMAIL;
   }
 
   onModuleInit(): void {
@@ -156,6 +158,7 @@ export class EmailService implements OnModuleInit {
     const result = await this.resend.emails.send({
       from: this.senderEmail,
       to: recipientEmail,
+      ...(this.validateurEmail ? { cc: this.validateurEmail } : {}),
       subject,
       html,
       attachments,

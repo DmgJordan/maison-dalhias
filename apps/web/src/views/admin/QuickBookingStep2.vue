@@ -279,8 +279,8 @@ async function handleSubmit(): Promise<void> {
   background-color: white;
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e5e5e5;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+  border: 1px solid #ebebeb;
   margin-bottom: 20px;
 }
 
@@ -296,31 +296,37 @@ async function handleSubmit(): Promise<void> {
   display: block;
   font-size: 14px;
   font-weight: 600;
-  color: #484848;
+  color: #222222;
   margin-bottom: 8px;
 }
 
 .form-hint-inline {
   font-size: 13px;
   font-weight: 400;
-  color: #717171;
+  color: #9ca3af;
 }
 
 .form-input {
   width: 100%;
-  padding: 14px 16px;
-  border: 2px solid #e5e5e5;
-  border-radius: 12px;
-  font-size: 16px;
+  padding: 12px 14px;
+  border: 1.5px solid #e5e5e5;
+  border-radius: 10px;
+  font-size: 15px;
   color: #222222;
-  transition: all 0.2s;
-  background-color: white;
+  transition: all 0.15s;
+  background-color: #fafafa;
   min-height: 48px;
+}
+
+.form-input::placeholder {
+  color: #c4c4c4;
 }
 
 .form-input:focus {
   outline: none;
   border-color: #ff385c;
+  background-color: white;
+  box-shadow: 0 0 0 3px rgba(255, 56, 92, 0.08);
 }
 
 .form-input--textarea {
@@ -348,14 +354,14 @@ async function handleSubmit(): Promise<void> {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 16px 20px;
+  padding: 14px 20px;
   border-radius: 12px;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   border: none;
   cursor: pointer;
-  transition: all 0.2s;
-  min-height: 56px;
+  transition: all 0.15s;
+  min-height: 52px;
   text-decoration: none;
 }
 
@@ -367,24 +373,25 @@ async function handleSubmit(): Promise<void> {
 .nav-btn--prev {
   background-color: #f3f4f6;
   color: #484848;
+  flex: 0.6;
 }
 
 .nav-btn--prev:hover {
-  background-color: #e5e5e5;
+  background-color: #e5e7eb;
 }
 
 .nav-btn--submit {
-  background-color: #10b981;
+  background-color: #ff385c;
   color: white;
 }
 
 .nav-btn--submit:hover:not(:disabled) {
-  background-color: #059669;
+  background-color: #e31c5f;
 }
 
 .loading-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   animation: spin 1s linear infinite;
 }
 
