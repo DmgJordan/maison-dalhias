@@ -5,6 +5,7 @@ interface DisabledActionRowProps {
   reason: string | null;
   enabled: boolean;
   loading?: boolean;
+  variant?: 'download' | 'email';
 }
 
 defineProps<DisabledActionRowProps>();
@@ -19,7 +20,11 @@ function handleClick(enabled: boolean, loading?: boolean): void {
 
 <template>
   <button
-    :class="['action-row', enabled && !loading ? 'action-row--enabled' : 'action-row--disabled']"
+    :class="[
+      'action-row',
+      enabled && !loading ? 'action-row--enabled' : 'action-row--disabled',
+      variant === 'email' ? 'action-row--email' : 'action-row--download',
+    ]"
     :disabled="!enabled || loading"
     @click="handleClick(enabled, loading)"
   >
@@ -27,7 +32,11 @@ function handleClick(enabled: boolean, loading?: boolean): void {
       <div
         :class="[
           'action-row__icon-wrap',
-          enabled ? 'action-row__icon-wrap--enabled' : 'action-row__icon-wrap--disabled',
+          enabled
+            ? variant === 'email'
+              ? 'action-row__icon-wrap--email'
+              : 'action-row__icon-wrap--download'
+            : 'action-row__icon-wrap--disabled',
         ]"
       >
         <div v-if="loading" class="action-row__spinner"></div>
@@ -70,26 +79,31 @@ function handleClick(enabled: boolean, loading?: boolean): void {
   border-radius: 12px;
   border: none;
   cursor: default;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   min-height: 48px;
   font-family: inherit;
   text-align: left;
 }
 
 .action-row--enabled {
-  background: #fff;
-  border: 2px solid #e5e5e5;
+  background: white;
+  border: 1.5px solid #ebebeb;
   cursor: pointer;
 }
 
-.action-row--enabled:hover {
+.action-row--enabled.action-row--download:hover {
   border-color: #ff385c;
-  background: #fff;
+  background: #fff8f9;
+}
+
+.action-row--enabled.action-row--email:hover {
+  border-color: #3b82f6;
+  background: #f0f7ff;
 }
 
 .action-row--disabled {
-  background: #f7f7f7;
-  border: 2px solid transparent;
+  background: #fafafa;
+  border: 1.5px solid transparent;
 }
 
 .action-row__left {
@@ -102,30 +116,35 @@ function handleClick(enabled: boolean, loading?: boolean): void {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
   flex-shrink: 0;
 }
 
-.action-row__icon-wrap--enabled {
-  background: rgba(255, 56, 92, 0.1);
+.action-row__icon-wrap--download {
+  background: rgba(255, 56, 92, 0.08);
   color: #ff385c;
+}
+
+.action-row__icon-wrap--email {
+  background: rgba(59, 130, 246, 0.08);
+  color: #3b82f6;
 }
 
 .action-row__icon-wrap--disabled {
   background: #f3f4f6;
-  color: #9ca3af;
+  color: #c4c4c4;
 }
 
 .action-row__svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .action-row__spinner {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border: 2px solid #e5e5e5;
   border-top-color: #ff385c;
   border-radius: 50%;
@@ -145,20 +164,20 @@ function handleClick(enabled: boolean, loading?: boolean): void {
 }
 
 .action-row__label--enabled {
-  font-size: 15px;
-  font-weight: 500;
-  color: #111827;
+  font-size: 14px;
+  font-weight: 600;
+  color: #222222;
 }
 
 .action-row__label--disabled {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   color: #9ca3af;
 }
 
 .action-row__reason {
   font-size: 12px;
-  color: #9ca3af;
+  color: #c4c4c4;
   line-height: 1.3;
 }
 </style>

@@ -2,9 +2,7 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import type { Booking } from '../../lib/api';
-import SourceBadge from './SourceBadge.vue';
-import PaymentStatusBadge from './PaymentStatusBadge.vue';
-import { SOURCE_LABELS } from '../../constants/booking';
+import { SOURCE_LABELS, PAYMENT_STATUS_LABELS } from '../../constants/booking';
 import { countNights, formatPrice } from '../../utils/formatting';
 
 interface Props {
@@ -43,18 +41,12 @@ const formatDate = (dateString: string): string => {
 const formatDateRange = (start: string, end: string): string => {
   const startDate = new Date(start);
   const endDate = new Date(end);
-
-  const startStr = startDate.toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-  });
-
+  const startStr = startDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   const endStr = endDate.toLocaleDateString('fr-FR', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
   });
-
   return `${startStr} - ${endStr}`;
 };
 
@@ -62,27 +54,63 @@ const nightsCount = computed((): number => {
   return countNights(props.booking.startDate, props.booking.endDate);
 });
 
-const statusLabel = computed((): string => {
-  switch (props.booking.status) {
-    case 'CONFIRMED':
-      return 'Confirmée';
-    case 'PENDING':
-      return 'En attente';
-    case 'CANCELLED':
-      return 'Annulée';
+const clientName = computed((): string => {
+  if (props.booking.primaryClient) {
+    return `${props.booking.primaryClient.firstName} ${props.booking.primaryClient.lastName}`;
+  }
+  return props.booking.label ?? 'Sans nom';
+});
+
+const sourceLabel = computed((): string => {
+  if (props.booking.bookingType === 'DIRECT') return 'Réservation directe';
+  if (props.booking.source === 'OTHER' && props.booking.sourceCustomName) {
+    return `via ${props.booking.sourceCustomName}`;
+  }
+  if (props.booking.source && props.booking.source in SOURCE_LABELS) {
+    return `via ${SOURCE_LABELS[props.booking.source]}`;
+  }
+  if (props.booking.bookingType === 'PERSONAL') return 'Usage personnel';
+  return 'Réservation directe';
+});
+
+const sourceDisplayName = computed((): string => {
+  if (!props.booking.source) return 'la plateforme';
+  if (props.booking.source === 'OTHER' && props.booking.sourceCustomName) {
+    return props.booking.sourceCustomName;
+  }
+  return SOURCE_LABELS[props.booking.source] ?? 'la plateforme';
+});
+
+const paymentLabel = computed((): string | null => {
+  if (!props.booking.paymentStatus) return null;
+  const labels: Record<string, string> = {
+    PENDING: 'Paiement en attente',
+    PARTIAL: 'Paiement partiel',
+    PAID: 'Payé',
+    FREE: 'Gratuit',
+  };
+  return labels[props.booking.paymentStatus] ?? PAYMENT_STATUS_LABELS[props.booking.paymentStatus];
+});
+
+const paymentClass = computed((): string => {
+  switch (props.booking.paymentStatus) {
+    case 'PAID':
+      return 'payment--paid';
+    case 'FREE':
+      return 'payment--free';
     default:
-      return props.booking.status;
+      return 'payment--pending';
   }
 });
 
-const statusClass = computed((): string => {
+const statusModifier = computed((): string => {
   switch (props.booking.status) {
     case 'CONFIRMED':
-      return 'status--confirmed';
+      return 'booking-card--confirmed';
     case 'PENDING':
-      return 'status--pending';
+      return 'booking-card--pending';
     case 'CANCELLED':
-      return 'status--cancelled';
+      return 'booking-card--cancelled';
     default:
       return '';
   }
@@ -100,38 +128,17 @@ const handleDelete = (): void => {
   showDeleteConfirm.value = false;
   emit('delete', props.booking.id);
 };
-
-const clientName = computed((): string => {
-  if (props.booking.primaryClient) {
-    return `${props.booking.primaryClient.firstName} ${props.booking.primaryClient.lastName}`;
-  }
-  return props.booking.label ?? 'Sans nom';
-});
-
-const sourceDisplayName = computed((): string => {
-  if (!props.booking.source) return 'la plateforme';
-  if (props.booking.source === 'OTHER' && props.booking.sourceCustomName) {
-    return props.booking.sourceCustomName;
-  }
-  return SOURCE_LABELS[props.booking.source] ?? 'la plateforme';
-});
 </script>
 
 <template>
-  <div class="booking-card" :class="{ 'booking-card--cancelled': booking.status === 'CANCELLED' }">
-    <!-- En-tête avec statut -->
+  <div class="booking-card" :class="statusModifier">
+    <!-- En-tête : nom client + nuits -->
     <div class="card-header">
-      <div class="card-header-badges">
-        <span class="status-badge" :class="statusClass">
-          {{ statusLabel }}
-        </span>
-        <SourceBadge
-          :source="booking.source ?? 'DIRECT'"
-          :booking-type="booking.bookingType ?? 'DIRECT'"
-          size="sm"
-        />
+      <div class="card-header-left">
+        <span class="client-name">{{ clientName }}</span>
+        <span class="source-text">{{ sourceLabel }}</span>
       </div>
-      <span class="nights-count">{{ nightsCount }} nuit{{ nightsCount > 1 ? 's' : '' }}</span>
+      <span class="nights-badge">{{ nightsCount }} nuit{{ nightsCount > 1 ? 's' : '' }}</span>
     </div>
 
     <!-- Dates -->
@@ -158,75 +165,41 @@ const sourceDisplayName = computed((): string => {
       </div>
     </div>
 
-    <!-- Nom client (desktop only) -->
-    <div v-if="clientName" class="client-name-desktop">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="client-icon"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
-      </svg>
-      <span>{{ clientName }}</span>
+    <!-- Infos : occupants + prix + paiement -->
+    <div class="card-meta">
+      <div class="meta-row">
+        <span v-if="booking.occupantsCount" class="meta-item">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="meta-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+          {{ booking.occupantsCount }} pers.
+        </span>
+        <span v-if="booking.rentalPrice" class="meta-price">
+          {{ formatPrice(Number(booking.rentalPrice ?? 0)) }}
+        </span>
+        <template v-else-if="booking.externalAmount != null">
+          <span class="meta-price">
+            {{ formatPrice(Number(booking.externalAmount ?? 0)) }}
+          </span>
+          <span class="meta-muted">reçu de {{ sourceDisplayName }}</span>
+        </template>
+      </div>
+      <span v-if="paymentLabel" class="payment-text" :class="paymentClass">
+        {{ paymentLabel }}
+      </span>
     </div>
 
-    <!-- Informations -->
-    <div class="card-info">
-      <div v-if="booking.occupantsCount" class="info-item">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="info-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-          <circle cx="9" cy="7" r="4" />
-          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-        </svg>
-        <span
-          >{{ booking.occupantsCount }} personne{{ booking.occupantsCount > 1 ? 's' : '' }}</span
-        >
-      </div>
-      <div v-if="booking.rentalPrice" class="info-item info-item--price">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="info-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <line x1="12" y1="1" x2="12" y2="23" />
-          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-        </svg>
-        <span>{{ formatPrice(Number(booking.rentalPrice ?? 0)) }}</span>
-      </div>
-      <div v-else-if="booking.externalAmount != null" class="info-item info-item--price">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          class="info-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        >
-          <line x1="12" y1="1" x2="12" y2="23" />
-          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-        </svg>
-        <span>{{ formatPrice(Number(booking.externalAmount ?? 0)) }}</span>
-        <span class="price-label">reçu de {{ sourceDisplayName }}</span>
-      </div>
-      <PaymentStatusBadge v-if="booking.paymentStatus" :status="booking.paymentStatus" />
-    </div>
-
-    <!-- Bouton voir details -->
+    <!-- Bouton détails -->
     <button class="detail-btn" @click="goToDetail">
       <span>Voir les détails</span>
       <svg
@@ -257,7 +230,7 @@ const sourceDisplayName = computed((): string => {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          stroke-width="2"
+          stroke-width="2.5"
         >
           <polyline points="20 6 9 17 4 12" />
         </svg>
@@ -270,7 +243,7 @@ const sourceDisplayName = computed((): string => {
         :disabled="loading"
         @click="handleCancel"
       >
-        <span v-if="loadingAction === 'cancel'" class="btn-spinner btn-spinner--light"></span>
+        <span v-if="loadingAction === 'cancel'" class="btn-spinner"></span>
         <svg
           v-else
           xmlns="http://www.w3.org/2000/svg"
@@ -278,7 +251,7 @@ const sourceDisplayName = computed((): string => {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          stroke-width="2"
+          stroke-width="2.5"
         >
           <line x1="18" y1="6" x2="6" y2="18" />
           <line x1="6" y1="6" x2="18" y2="18" />
@@ -306,7 +279,7 @@ const sourceDisplayName = computed((): string => {
             d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
           />
         </svg>
-        {{ loadingAction === 'delete' ? 'Suppression...' : 'Supprimer' }}
+        {{ loadingAction === 'delete' ? '...' : 'Supprimer' }}
       </button>
     </div>
 
@@ -338,68 +311,82 @@ const sourceDisplayName = computed((): string => {
 </template>
 
 <style scoped>
+/* ── Carte ── */
 .booking-card {
   background-color: white;
   border-radius: 16px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e5e5e5;
+  padding: 20px 20px 20px 24px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+  border: 1px solid #ebebeb;
+  border-left: 4px solid #d4d4d4;
+  transition: box-shadow 0.2s;
+}
+
+.booking-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.booking-card--confirmed {
+  border-left-color: #10b981;
+}
+
+.booking-card--pending {
+  border-left-color: #f59e0b;
 }
 
 .booking-card--cancelled {
-  opacity: 0.7;
-  background-color: #f9f9f9;
+  border-left-color: #d4d4d4;
+  opacity: 0.6;
 }
 
-/* En-tête */
+/* ── En-tête ── */
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 12px;
   margin-bottom: 16px;
 }
 
-.card-header-badges {
+.card-header-left {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
-.status-badge {
-  padding: 6px 12px;
-  border-radius: 20px;
+.client-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: #222222;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.source-text {
+  font-size: 13px;
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.nights-badge {
+  flex-shrink: 0;
   font-size: 13px;
   font-weight: 600;
-}
-
-.status--confirmed {
-  background-color: #d1fae5;
-  color: #059669;
-}
-
-.status--pending {
-  background-color: #fef3c7;
-  color: #92400e; /* Darker for better contrast */
-}
-
-.status--cancelled {
-  background-color: #fee2e2;
-  color: #dc2626;
-}
-
-.nights-count {
-  font-size: 14px;
   color: #717171;
-  font-weight: 500;
+  background-color: #f5f5f5;
+  padding: 4px 10px;
+  border-radius: 8px;
 }
 
-/* Dates */
+/* ── Dates ── */
 .card-dates {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 0;
+  padding: 14px 0;
   border-top: 1px solid #f0f0f0;
   border-bottom: 1px solid #f0f0f0;
 }
@@ -407,18 +394,19 @@ const sourceDisplayName = computed((): string => {
 .date-block {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .date-label {
-  font-size: 12px;
-  color: #717171;
+  font-size: 11px;
+  color: #9ca3af;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  font-weight: 500;
 }
 
 .date-value {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: #222222;
 }
@@ -428,55 +416,78 @@ const sourceDisplayName = computed((): string => {
 }
 
 .date-arrow svg {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
 }
 
-/* Informations */
-.card-info {
+/* ── Infos ── */
+.card-meta {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  padding-top: 16px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 0 0;
 }
 
-.info-item {
+.meta-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: #484848;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
-.info-icon {
-  width: 18px;
-  height: 18px;
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
   color: #717171;
 }
 
-.info-item--price {
-  font-weight: 600;
+.meta-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.meta-price {
+  font-size: 16px;
+  font-weight: 700;
   color: #222222;
 }
 
-.price-label {
+.meta-muted {
   font-size: 12px;
-  font-weight: 400;
   color: #9ca3af;
 }
 
-/* Bouton details */
+.payment-text {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.payment--pending {
+  color: #d97706;
+}
+
+.payment--paid {
+  color: #059669;
+}
+
+.payment--free {
+  color: #9ca3af;
+}
+
+/* ── Bouton détails ── */
 .detail-btn {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 14px 16px;
-  margin-top: 16px;
+  padding: 12px 14px;
+  margin-top: 14px;
   background-color: #f7f7f7;
   border: none;
-  border-radius: 12px;
-  font-size: 15px;
+  border-radius: 10px;
+  font-size: 14px;
   font-weight: 500;
   color: #484848;
   cursor: pointer;
@@ -489,60 +500,58 @@ const sourceDisplayName = computed((): string => {
 }
 
 .detail-icon {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
-/* Actions */
+/* ── Actions ── */
 .card-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 20px;
-  padding-top: 16px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
   border-top: 1px solid #f0f0f0;
 }
 
 .action-btn {
-  flex: 1;
-  min-width: 100px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  font-size: 14px;
+  gap: 5px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 13px;
   font-weight: 600;
-  border: 2px solid transparent;
-  background: white;
+  border: none;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s;
+  white-space: nowrap;
 }
 
 .action-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
-  filter: grayscale(30%);
 }
 
 .btn-icon {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
 }
 
 .btn-spinner {
-  width: 18px;
-  height: 18px;
-  border: 2px solid #d1d5db;
-  border-top-color: #6b7280;
+  width: 15px;
+  height: 15px;
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  border-top-color: currentColor;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
 
 .btn-spinner--light {
-  border-color: rgba(0, 0, 0, 0.1);
-  border-top-color: currentColor;
+  border-color: rgba(255, 255, 255, 0.3);
+  border-top-color: white;
 }
 
 @keyframes spin {
@@ -552,39 +561,36 @@ const sourceDisplayName = computed((): string => {
 }
 
 .action-btn--confirm {
-  border-color: #10b981;
-  color: #059669;
+  background-color: #10b981;
+  color: white;
 }
 
 .action-btn--confirm:hover:not(:disabled) {
-  background-color: #ecfdf5;
-  border-color: #059669;
+  background-color: #059669;
 }
 
 .action-btn--cancel {
-  border-color: #d4d4d4;
-  color: #717171;
+  background-color: #f3f4f6;
+  color: #6b7280;
 }
 
 .action-btn--cancel:hover:not(:disabled) {
-  background-color: #f7f7f7;
-  border-color: #a3a3a3;
+  background-color: #e5e7eb;
   color: #484848;
 }
 
 .action-btn--delete {
   background-color: transparent;
-  border-color: transparent;
-  color: #9ca3af;
-  font-weight: 500;
+  color: #d1d5db;
+  margin-left: auto;
 }
 
 .action-btn--delete:hover:not(:disabled) {
   background-color: #fef2f2;
-  color: #dc2626;
+  color: #ef4444;
 }
 
-/* Modal */
+/* ── Modal ── */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -663,7 +669,7 @@ const sourceDisplayName = computed((): string => {
   cursor: not-allowed;
 }
 
-/* Transitions modal */
+/* ── Transitions modal ── */
 .modal-enter-active,
 .modal-leave-active {
   transition: opacity 0.2s ease;
@@ -679,40 +685,8 @@ const sourceDisplayName = computed((): string => {
   transition: transform 0.2s ease;
 }
 
-.modal-enter-from .modal-content {
-  transform: scale(0.95);
-}
-
+.modal-enter-from .modal-content,
 .modal-leave-to .modal-content {
   transform: scale(0.95);
-}
-
-/* Nom client - masqué sur mobile */
-.client-name-desktop {
-  display: none;
-}
-
-/* Desktop enhancements */
-@media (min-width: 768px) {
-  .client-name-desktop {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 0;
-    font-size: 15px;
-    font-weight: 500;
-    color: #222222;
-    border-bottom: 1px solid #f0f0f0;
-  }
-
-  .client-icon {
-    width: 18px;
-    height: 18px;
-    color: #717171;
-  }
-
-  .info-item--price {
-    font-size: 15px;
-  }
 }
 </style>

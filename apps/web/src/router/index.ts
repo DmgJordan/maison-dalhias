@@ -26,6 +26,8 @@ const EnrichmentWizard = (): Promise<typeof import('../views/admin/EnrichmentWiz
   import('../views/admin/EnrichmentWizard.vue');
 const PricingView = (): Promise<typeof import('../views/admin/PricingView.vue')> =>
   import('../views/admin/PricingView.vue');
+const CalendarView = (): Promise<typeof import('../views/admin/CalendarView.vue')> =>
+  import('../views/admin/CalendarView.vue');
 
 const routes = [
   {
@@ -45,7 +47,12 @@ const routes = [
     children: [
       {
         path: '',
-        redirect: '/admin/reservations',
+        redirect: '/admin/calendrier',
+      },
+      {
+        path: 'calendrier',
+        name: 'AdminCalendar',
+        component: CalendarView,
       },
       {
         path: 'reservations',

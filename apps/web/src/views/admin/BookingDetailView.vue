@@ -14,8 +14,6 @@ import { countNights, formatDateLong } from '../../utils/formatting';
 import BookingEditModal from '../../components/admin/BookingEditModal.vue';
 import QuickBookingEditModal from '../../components/admin/QuickBookingEditModal.vue';
 import EmailSendModal from '../../components/admin/EmailSendModal.vue';
-import SourceBadge from '../../components/admin/SourceBadge.vue';
-import PaymentStatusBadge from '../../components/admin/PaymentStatusBadge.vue';
 import ActionCard from '../../components/admin/ActionCard.vue';
 import BookingNotesSection from '../../components/admin/BookingNotesSection.vue';
 import BookingClientSection from '../../components/admin/BookingClientSection.vue';
@@ -480,28 +478,27 @@ onMounted(async () => {
     <!-- Contenu -->
     <template v-else-if="booking">
       <!-- En-tete avec statut -->
-      <div class="detail-header">
+      <div class="detail-header" :class="statusClass">
         <div class="header-top">
-          <div class="header-badges">
-            <span class="status-badge" :class="statusClass">
+          <div class="header-left">
+            <h1 class="detail-title">
+              {{ displayName ?? `${formatShortDate(booking.startDate)} – ${formatShortDate(booking.endDate)}` }}
+            </h1>
+            <p class="detail-subtitle">
+              <span class="header-source">{{ sourceDisplayName }}</span>
+              <span class="header-sep">·</span>
+              <span>{{ formatShortDate(booking.startDate) }} – {{ formatShortDate(booking.endDate) }}</span>
+              <span class="header-sep">·</span>
+              <span>{{ nightsCount }} nuit{{ nightsCount > 1 ? 's' : '' }}</span>
+            </p>
+          </div>
+          <div class="header-right">
+            <span class="status-text" :class="`status-text--${booking.status?.toLowerCase()}`">
               {{ statusLabel }}
             </span>
-            <SourceBadge
-              :source="booking.source ?? 'DIRECT'"
-              :booking-type="booking.bookingType ?? 'DIRECT'"
-              size="sm"
-            />
-            <PaymentStatusBadge v-if="booking.paymentStatus" :status="booking.paymentStatus" />
+            <span class="booking-id">{{ booking.id.slice(0, 8) }}</span>
           </div>
-          <span class="booking-id">Ref. {{ booking.id.slice(0, 8) }}</span>
         </div>
-        <h1 class="detail-title">
-          {{ formatShortDate(booking.startDate) }} - {{ formatShortDate(booking.endDate) }}
-        </h1>
-        <p class="detail-subtitle">
-          {{ nightsCount }} nuit{{ nightsCount > 1 ? 's' : '' }}
-          <span v-if="!hasClient && displayName" class="header-label"> · {{ displayName }}</span>
-        </p>
       </div>
 
       <!-- Layout 2 colonnes desktop -->
@@ -950,70 +947,93 @@ onMounted(async () => {
 .detail-header {
   background-color: white;
   border-radius: 16px;
-  padding: 24px;
+  padding: 24px 24px 24px 28px;
   margin-bottom: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e5e5e5;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+  border: 1px solid #ebebeb;
+  border-left: 4px solid #d4d4d4;
+}
+
+.detail-header.status--confirmed {
+  border-left-color: #10b981;
+}
+
+.detail-header.status--pending {
+  border-left-color: #f59e0b;
+}
+
+.detail-header.status--cancelled {
+  border-left-color: #d4d4d4;
 }
 
 .header-top {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
+  align-items: flex-start;
+  gap: 16px;
 }
 
-.status-badge {
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 14px;
+.header-left {
+  min-width: 0;
+  flex: 1;
+}
+
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.status-text {
+  font-size: 13px;
   font-weight: 600;
 }
 
-.status--confirmed {
-  background-color: #d1fae5;
+.status-text--confirmed {
   color: #059669;
 }
 
-.status--pending {
-  background-color: #fef3c7;
+.status-text--pending {
   color: #d97706;
 }
 
-.status--cancelled {
-  background-color: #fee2e2;
-  color: #dc2626;
-}
-
-.header-badges {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+.status-text--cancelled {
+  color: #9ca3af;
 }
 
 .booking-id {
-  font-size: 13px;
-  color: #717171;
+  font-size: 12px;
+  color: #9ca3af;
   font-family: monospace;
 }
 
 .detail-title {
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   color: #222222;
-  margin: 0 0 4px 0;
+  margin: 0 0 6px 0;
+  line-height: 1.3;
 }
 
 .detail-subtitle {
-  font-size: 15px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
   color: #717171;
   margin: 0;
 }
 
-.header-label {
+.header-source {
+  font-weight: 600;
   color: #484848;
-  font-weight: 500;
+}
+
+.header-sep {
+  color: #d4d4d4;
 }
 
 /* Standalone occupants (quick booking without client) */
@@ -1035,8 +1055,8 @@ onMounted(async () => {
   border-radius: 16px;
   padding: 20px;
   margin-bottom: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e5e5e5;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+  border: 1px solid #ebebeb;
 }
 
 .section-title {
@@ -1103,7 +1123,6 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-  margin-bottom: 16px;
 }
 
 .enriched-badge {
