@@ -92,11 +92,6 @@ const balanceAmount = computed((): number => {
   return totalPrice.value - depositAmount.value;
 });
 
-const statusLabel = computed((): string => {
-  if (!booking.value) return '';
-  return STATUS_CONFIG[booking.value.status].label;
-});
-
 const statusColor = computed((): string => {
   if (!booking.value) return '#d4d4d4';
   return STATUS_CONFIG[booking.value.status].color;
