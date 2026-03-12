@@ -6,11 +6,15 @@ import {
   emailApi,
   pdfApi,
   type Booking,
+  type BookingStatus,
   type PriceCalculation,
   type EmailLog,
+  type TransitionsResponse,
 } from '../../lib/api';
 import { OPTION_PRICES, PAYMENT_PERCENTAGES } from '../../constants/pricing';
+import { STATUS_CONFIG, NEXT_STATUS_LABELS } from '../../constants/booking';
 import { countNights, formatDateLong } from '../../utils/formatting';
+import BookingStatusBar from '../../components/admin/BookingStatusBar.vue';
 import BookingEditModal from '../../components/admin/BookingEditModal.vue';
 import QuickBookingEditModal from '../../components/admin/QuickBookingEditModal.vue';
 import EmailSendModal from '../../components/admin/EmailSendModal.vue';
@@ -36,6 +40,7 @@ const generatingInvoice = ref(false);
 const bookedDates = ref<string[]>([]);
 const priceCalculation = ref<PriceCalculation | null>(null);
 const priceMismatch = ref(false);
+const transitions = ref<TransitionsResponse | null>(null);
 
 // Email state
 const emailLogs = ref<EmailLog[]>([]);
@@ -88,29 +93,30 @@ const balanceAmount = computed((): number => {
 });
 
 const statusLabel = computed((): string => {
-  switch (booking.value?.status) {
-    case 'CONFIRMED':
-      return 'Confirmée';
-    case 'PENDING':
-      return 'En attente';
-    case 'CANCELLED':
-      return 'Annulée';
-    default:
-      return booking.value?.status ?? '';
-  }
+  if (!booking.value) return '';
+  return STATUS_CONFIG[booking.value.status].label;
 });
 
-const statusClass = computed((): string => {
-  switch (booking.value?.status) {
-    case 'CONFIRMED':
-      return 'status--confirmed';
-    case 'PENDING':
-      return 'status--pending';
-    case 'CANCELLED':
-      return 'status--cancelled';
-    default:
-      return '';
-  }
+const statusColor = computed((): string => {
+  if (!booking.value) return '#d4d4d4';
+  return STATUS_CONFIG[booking.value.status].color;
+});
+
+const nextMainTransition = computed((): BookingStatus | null => {
+  if (!transitions.value || !booking.value) return null;
+  const available = transitions.value.availableTransitions.filter((s) => s !== 'CANCELLED');
+  return available.length > 0 ? available[0] : null;
+});
+
+const secondaryTransitions = computed((): BookingStatus[] => {
+  if (!transitions.value || !booking.value) return [];
+  const available = transitions.value.availableTransitions.filter((s) => s !== 'CANCELLED');
+  return available.slice(1);
+});
+
+const canCancel = computed((): boolean => {
+  if (!transitions.value) return false;
+  return transitions.value.availableTransitions.includes('CANCELLED');
 });
 
 const visibleEmailLogs = computed((): EmailLog[] => {
@@ -209,11 +215,21 @@ const formatShortDate = (dateString: string): string => {
   });
 };
 
+const loadTransitions = async (): Promise<void> => {
+  if (!booking.value) return;
+  try {
+    transitions.value = await bookingsApi.getTransitions(bookingId.value);
+  } catch {
+    // Silencieux
+  }
+};
+
 const fetchBooking = async (): Promise<void> => {
   try {
     loading.value = true;
     error.value = null;
     booking.value = await bookingsApi.getById(bookingId.value);
+    await loadTransitions();
   } catch (err: unknown) {
     console.error('Erreur lors du chargement de la réservation:', err);
     error.value = 'Impossible de charger la réservation. Veuillez réessayer.';
@@ -260,31 +276,17 @@ const showSuccess = (message: string): void => {
   }, 3000);
 };
 
-const handleConfirm = async (): Promise<void> => {
+const handleChangeStatus = async (targetStatus: BookingStatus): Promise<void> => {
   try {
     loading.value = true;
     error.value = null;
-    await bookingsApi.confirm(bookingId.value);
+    await bookingsApi.changeStatus(bookingId.value, targetStatus);
     await fetchBooking();
-    showSuccess('Réservation confirmée !');
+    const label = STATUS_CONFIG[targetStatus].label;
+    showSuccess(`Statut mis à jour : ${label}`);
   } catch (err: unknown) {
-    console.error('Erreur lors de la confirmation:', err);
-    error.value = 'Impossible de confirmer la réservation. Veuillez réessayer.';
-  } finally {
-    loading.value = false;
-  }
-};
-
-const handleCancel = async (): Promise<void> => {
-  try {
-    loading.value = true;
-    error.value = null;
-    await bookingsApi.cancel(bookingId.value);
-    await fetchBooking();
-    showSuccess('Réservation annulée.');
-  } catch (err: unknown) {
-    console.error("Erreur lors de l'annulation:", err);
-    error.value = "Impossible d'annuler la réservation. Veuillez réessayer.";
+    console.error('Erreur lors du changement de statut:', err);
+    error.value = 'Impossible de changer le statut. Veuillez réessayer.';
   } finally {
     loading.value = false;
   }
@@ -406,7 +408,7 @@ const handleNotesUpdated = (updatedBooking: Booking): void => {
 
 onMounted(async () => {
   await fetchBooking();
-  const tasks: Promise<void>[] = [fetchEmailHistory()];
+  const tasks: Promise<void>[] = [fetchEmailHistory(), loadTransitions()];
   if (booking.value?.rentalPrice != null) {
     tasks.push(checkPriceConsistency());
   }
@@ -477,8 +479,8 @@ onMounted(async () => {
 
     <!-- Contenu -->
     <template v-else-if="booking">
-      <!-- En-tete avec statut -->
-      <div class="detail-header" :class="statusClass">
+      <!-- En-tête avec statut + barre de progression -->
+      <div class="detail-header" :style="{ borderLeftColor: statusColor }">
         <div class="header-top">
           <div class="header-left">
             <h1 class="detail-title">
@@ -493,11 +495,14 @@ onMounted(async () => {
             </p>
           </div>
           <div class="header-right">
-            <span class="status-text" :class="`status-text--${booking.status?.toLowerCase()}`">
-              {{ statusLabel }}
-            </span>
             <span class="booking-id">{{ booking.id.slice(0, 8) }}</span>
           </div>
+        </div>
+        <div class="header-status-bar">
+          <BookingStatusBar
+            :status="booking.status"
+            :booking-type="booking.bookingType"
+          />
         </div>
       </div>
 
@@ -617,7 +622,7 @@ onMounted(async () => {
             </h2>
             <div class="actions-card">
               <button
-                v-if="booking.status === 'PENDING'"
+                v-if="booking.status === 'DRAFT'"
                 class="action-btn action-btn--primary"
                 :disabled="loading"
                 @click="handleOpenEdit"
@@ -636,42 +641,37 @@ onMounted(async () => {
                 Modifier la réservation
               </button>
 
-              <div v-if="booking.status === 'PENDING'" class="action-row">
+              <!-- Status actions -->
+              <div class="status-actions">
+                <!-- Main action button -->
                 <button
-                  class="action-btn action-btn--confirm"
+                  v-if="nextMainTransition"
+                  class="status-action-btn status-action-btn--primary"
                   :disabled="loading"
-                  @click="handleConfirm"
+                  @click="handleChangeStatus(nextMainTransition)"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="btn-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  Confirmer
+                  {{ NEXT_STATUS_LABELS[booking.status] ?? 'Avancer' }}
                 </button>
 
+                <!-- Secondary transitions (skip steps) -->
                 <button
-                  class="action-btn action-btn--cancel"
+                  v-for="status in secondaryTransitions"
+                  :key="status"
+                  class="status-action-btn status-action-btn--secondary"
                   :disabled="loading"
-                  @click="handleCancel"
+                  @click="handleChangeStatus(status)"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="btn-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                  >
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                  Annuler
+                  {{ STATUS_CONFIG[status].label }}
+                </button>
+
+                <!-- Cancel button -->
+                <button
+                  v-if="canCancel"
+                  class="status-action-btn status-action-btn--cancel"
+                  :disabled="loading"
+                  @click="handleChangeStatus('CANCELLED')"
+                >
+                  Annuler la réservation
                 </button>
               </div>
 
@@ -708,7 +708,7 @@ onMounted(async () => {
               @click="handleOpenEdit"
             />
             <ActionCard
-              v-if="!isFullyEnriched"
+              v-if="!isFullyEnriched && (booking.status === 'DRAFT' || booking.status === 'VALIDATED')"
               :icon="'<path d=&quot;M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z&quot; /><path d=&quot;M12 8v4&quot; /><path d=&quot;M12 16h.01&quot; />'"
               title="Compléter les informations"
               description="Ajouter client, tarification et options"
@@ -943,27 +943,15 @@ onMounted(async () => {
   color: #717171;
 }
 
-/* En-tete */
+/* En-tête */
 .detail-header {
   background-color: white;
   border-radius: 16px;
-  padding: 24px 24px 24px 28px;
-  margin-bottom: 16px;
+  padding: 24px 24px 20px 28px;
+  margin-bottom: 20px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
   border: 1px solid #ebebeb;
   border-left: 4px solid #d4d4d4;
-}
-
-.detail-header.status--confirmed {
-  border-left-color: #10b981;
-}
-
-.detail-header.status--pending {
-  border-left-color: #f59e0b;
-}
-
-.detail-header.status--cancelled {
-  border-left-color: #d4d4d4;
 }
 
 .header-top {
@@ -986,27 +974,16 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
-.status-text {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.status-text--confirmed {
-  color: #059669;
-}
-
-.status-text--pending {
-  color: #d97706;
-}
-
-.status-text--cancelled {
-  color: #9ca3af;
-}
-
 .booking-id {
   font-size: 12px;
   color: #9ca3af;
   font-family: monospace;
+}
+
+.header-status-bar {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
 }
 
 .detail-title {
@@ -1159,12 +1136,6 @@ onMounted(async () => {
   gap: 12px;
 }
 
-.action-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
 .action-btn {
   display: flex;
   align-items: center;
@@ -1209,29 +1180,6 @@ onMounted(async () => {
   background-color: #ffe4e9;
 }
 
-/* Bouton confirmer - outline vert */
-.action-btn--confirm {
-  border-color: #10b981;
-  color: #059669;
-}
-
-.action-btn--confirm:hover:not(:disabled) {
-  background-color: #ecfdf5;
-  border-color: #059669;
-}
-
-/* Bouton annuler - outline gris neutre */
-.action-btn--cancel {
-  border-color: #d4d4d4;
-  color: #717171;
-}
-
-.action-btn--cancel:hover:not(:disabled) {
-  background-color: #f7f7f7;
-  border-color: #a3a3a3;
-  color: #484848;
-}
-
 /* Bouton danger - discret */
 .action-btn--delete {
   background-color: transparent;
@@ -1246,6 +1194,62 @@ onMounted(async () => {
 .action-btn--delete:hover:not(:disabled) {
   background-color: #fef2f2;
   color: #dc2626;
+}
+
+/* Status actions */
+.status-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.status-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 20px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 48px;
+}
+
+.status-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.status-action-btn--primary {
+  background-color: #10b981;
+  color: white;
+}
+
+.status-action-btn--primary:hover:not(:disabled) {
+  background-color: #059669;
+}
+
+.status-action-btn--secondary {
+  background-color: #f3f4f6;
+  color: #484848;
+}
+
+.status-action-btn--secondary:hover:not(:disabled) {
+  background-color: #e5e7eb;
+}
+
+.status-action-btn--cancel {
+  background-color: transparent;
+  color: #ef4444;
+  border: 1px solid #fecaca;
+}
+
+.status-action-btn--cancel:hover:not(:disabled) {
+  background-color: #fef2f2;
 }
 
 /* Modal */

@@ -22,9 +22,10 @@ import { CheckConflictsDto } from './dto/check-conflicts.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
 import { UpdateQuickBookingDto } from './dto/update-quick-booking.dto';
 import { EnrichBookingDto } from './dto/enrich-booking.dto';
+import { ChangeStatusDto } from './dto/change-status.dto';
+import { Status } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminGuard } from '../auth/guards/admin.guard';
-import { Booking } from '@prisma/client';
 
 interface AuthenticatedRequest {
   user: { id: string };
@@ -51,6 +52,25 @@ export class BookingsController {
     @Body() dto: CreateQuickBookingDto
   ): Promise<BookingWithRelations> {
     return this.bookingsService.createQuick(req.user.id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Get(':id/transitions')
+  async getTransitions(@Param('id') id: string): Promise<{
+    currentStatus: Status;
+    availableTransitions: Status[];
+    steps: Status[];
+  }> {
+    return this.bookingsService.getTransitions(id);
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Patch(':id/status')
+  async changeStatus(
+    @Param('id') id: string,
+    @Body() dto: ChangeStatusDto
+  ): Promise<BookingWithRelations> {
+    return this.bookingsService.changeStatus(id, dto.status);
   }
 
   @Get(':id')
@@ -95,18 +115,6 @@ export class BookingsController {
   @Patch(':id/enrich')
   enrich(@Param('id') id: string, @Body() dto: EnrichBookingDto): Promise<BookingWithRelations> {
     return this.bookingsService.enrich(id, dto);
-  }
-
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  @Patch(':id/confirm')
-  confirm(@Param('id') id: string): Promise<BookingWithRelations> {
-    return this.bookingsService.confirm(id);
-  }
-
-  @UseGuards(JwtAuthGuard, AdminGuard)
-  @Patch(':id/cancel')
-  cancel(@Param('id') id: string): Promise<Booking> {
-    return this.bookingsService.cancel(id);
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)

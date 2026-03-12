@@ -6,11 +6,10 @@ import {
   bookingsApi,
   type Booking,
   type BookingSource,
-  type PaymentStatus,
   type UpdateQuickBookingData,
   type ConflictDetail,
 } from '../../lib/api';
-import { SOURCE_LABELS, PAYMENT_STATUS_LABELS } from '../../constants/booking';
+import { SOURCE_LABELS } from '../../constants/booking';
 import { formatDateForInput, formatDateShort, formatPrice } from '../../utils/formatting';
 
 interface Props {
@@ -47,7 +46,6 @@ const externalAmount = ref<number | null>(originalAmount);
 const occupantsCount = ref<number | null>(props.booking.occupantsCount ?? null);
 const adultsCount = ref(props.booking.adultsCount ?? 1);
 const notes = ref(props.booking.notes ?? '');
-const paymentStatus = ref<PaymentStatus | ''>(props.booking.paymentStatus ?? '');
 
 // UI state
 const isSubmitting = ref(false);
@@ -65,14 +63,6 @@ const sourceOptions: { value: BookingSource; label: string }[] = [
   { value: 'OTHER', label: SOURCE_LABELS.OTHER },
 ];
 
-const paymentStatusOptions: { value: PaymentStatus | ''; label: string }[] = [
-  { value: '', label: 'Non défini' },
-  { value: 'PENDING', label: PAYMENT_STATUS_LABELS.PENDING },
-  { value: 'PARTIAL', label: PAYMENT_STATUS_LABELS.PARTIAL },
-  { value: 'PAID', label: PAYMENT_STATUS_LABELS.PAID },
-  { value: 'FREE', label: PAYMENT_STATUS_LABELS.FREE },
-];
-
 const showSourceCustomName = computed((): boolean => source.value === 'OTHER');
 
 const nightsCount = computed((): number => {
@@ -88,11 +78,6 @@ const sourceDisplayName = computed((): string => {
     return sourceCustomName.value.trim();
   }
   return SOURCE_LABELS[source.value] ?? String(source.value);
-});
-
-const paymentStatusDisplay = computed((): string => {
-  if (!paymentStatus.value) return 'Non défini';
-  return PAYMENT_STATUS_LABELS[paymentStatus.value] ?? String(paymentStatus.value);
 });
 
 function buildConflictMessage(detail: ConflictDetail): string {
@@ -129,7 +114,6 @@ const startEditing = (section: string): void => {
       externalAmount: externalAmount.value,
       occupantsCount: occupantsCount.value,
       adultsCount: adultsCount.value,
-      paymentStatus: paymentStatus.value,
     };
   } else if (section === 'notes') {
     sectionBackup.value = { notes: notes.value };
@@ -151,7 +135,6 @@ const cancelEditing = (): void => {
       externalAmount.value = backup.externalAmount as number | null;
       occupantsCount.value = backup.occupantsCount as number | null;
       adultsCount.value = backup.adultsCount as number;
-      paymentStatus.value = backup.paymentStatus as PaymentStatus | '';
     } else if (editingSection.value === 'notes') {
       notes.value = backup.notes as string;
     }
@@ -234,8 +217,7 @@ const hasChanges = computed((): boolean => {
     externalAmount.value !== originalAmount ||
     occupantsCount.value !== (props.booking.occupantsCount ?? null) ||
     adultsCount.value !== (props.booking.adultsCount ?? 1) ||
-    notes.value !== (props.booking.notes ?? '') ||
-    paymentStatus.value !== (props.booking.paymentStatus ?? '')
+    notes.value !== (props.booking.notes ?? '')
   );
 });
 
@@ -283,8 +265,6 @@ async function handleSave(): Promise<void> {
     if (adultsCount.value !== (props.booking.adultsCount ?? 1))
       data.adultsCount = adultsCount.value;
     if (notes.value !== (props.booking.notes ?? '')) data.notes = notes.value;
-    if (paymentStatus.value !== (props.booking.paymentStatus ?? ''))
-      data.paymentStatus = paymentStatus.value || undefined;
 
     const updated = await bookingsApi.updateQuick(props.booking.id, data);
     emit('updated', updated);
@@ -487,10 +467,6 @@ async function handleSave(): Promise<void> {
             <span>Adultes</span>
             <span class="details-summary-value">{{ adultsCount }}</span>
           </div>
-          <div class="details-summary-line">
-            <span>Paiement</span>
-            <span class="details-summary-value">{{ paymentStatusDisplay }}</span>
-          </div>
         </div>
       </div>
       <div v-else class="edit-section-form">
@@ -533,14 +509,6 @@ async function handleSave(): Promise<void> {
               max="6"
             />
           </div>
-        </div>
-        <div class="form-field">
-          <label class="form-label" for="qe-payment">Statut de paiement</label>
-          <select id="qe-payment" v-model="paymentStatus" class="form-input form-select">
-            <option v-for="opt in paymentStatusOptions" :key="opt.value" :value="opt.value">
-              {{ opt.label }}
-            </option>
-          </select>
         </div>
       </div>
     </div>

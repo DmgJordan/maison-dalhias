@@ -2,23 +2,16 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import type { Booking } from '../../lib/api';
-import { SOURCE_LABELS, PAYMENT_STATUS_LABELS } from '../../constants/booking';
+import { SOURCE_LABELS, STATUS_CONFIG } from '../../constants/booking';
 import { countNights, formatPrice } from '../../utils/formatting';
 
 interface Props {
   booking: Booking;
-  loading?: boolean;
-  loadingAction?: 'confirm' | 'cancel' | 'delete' | null;
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  loading: false,
-  loadingAction: null,
-});
+const props = defineProps<Props>();
 
 const emit = defineEmits<{
-  confirm: [id: string];
-  cancel: [id: string];
   delete: [id: string];
 }>();
 
@@ -81,48 +74,12 @@ const sourceDisplayName = computed((): string => {
   return SOURCE_LABELS[props.booking.source] ?? 'la plateforme';
 });
 
-const paymentLabel = computed((): string | null => {
-  if (!props.booking.paymentStatus) return null;
-  const labels: Record<string, string> = {
-    PENDING: 'Paiement en attente',
-    PARTIAL: 'Paiement partiel',
-    PAID: 'Payé',
-    FREE: 'Gratuit',
-  };
-  return labels[props.booking.paymentStatus] ?? PAYMENT_STATUS_LABELS[props.booking.paymentStatus];
+const statusConfig = computed(() => STATUS_CONFIG[props.booking.status]);
+
+const borderColor = computed((): string => {
+  if (props.booking.status === 'CANCELLED') return '#d4d4d4';
+  return statusConfig.value.color;
 });
-
-const paymentClass = computed((): string => {
-  switch (props.booking.paymentStatus) {
-    case 'PAID':
-      return 'payment--paid';
-    case 'FREE':
-      return 'payment--free';
-    default:
-      return 'payment--pending';
-  }
-});
-
-const statusModifier = computed((): string => {
-  switch (props.booking.status) {
-    case 'CONFIRMED':
-      return 'booking-card--confirmed';
-    case 'PENDING':
-      return 'booking-card--pending';
-    case 'CANCELLED':
-      return 'booking-card--cancelled';
-    default:
-      return '';
-  }
-});
-
-const handleConfirm = (): void => {
-  emit('confirm', props.booking.id);
-};
-
-const handleCancel = (): void => {
-  emit('cancel', props.booking.id);
-};
 
 const handleDelete = (): void => {
   showDeleteConfirm.value = false;
@@ -131,14 +88,26 @@ const handleDelete = (): void => {
 </script>
 
 <template>
-  <div class="booking-card" :class="statusModifier">
-    <!-- En-tête : nom client + nuits -->
+  <div
+    class="booking-card"
+    :class="{ 'booking-card--cancelled': booking.status === 'CANCELLED' }"
+    :style="{ borderLeftColor: borderColor }"
+  >
+    <!-- En-tête : nom client + statut badge -->
     <div class="card-header">
       <div class="card-header-left">
         <span class="client-name">{{ clientName }}</span>
         <span class="source-text">{{ sourceLabel }}</span>
       </div>
-      <span class="nights-badge">{{ nightsCount }} nuit{{ nightsCount > 1 ? 's' : '' }}</span>
+      <div class="card-header-right">
+        <span
+          class="status-badge"
+          :style="{ backgroundColor: statusConfig.color + '18', color: statusConfig.color }"
+        >
+          {{ statusConfig.label }}
+        </span>
+        <span class="nights-badge">{{ nightsCount }} nuit{{ nightsCount > 1 ? 's' : '' }}</span>
+      </div>
     </div>
 
     <!-- Dates -->
@@ -165,7 +134,7 @@ const handleDelete = (): void => {
       </div>
     </div>
 
-    <!-- Infos : occupants + prix + paiement -->
+    <!-- Infos : occupants + prix -->
     <div class="card-meta">
       <div class="meta-row">
         <span v-if="booking.occupantsCount" class="meta-item">
@@ -194,9 +163,6 @@ const handleDelete = (): void => {
           <span class="meta-muted">reçu de {{ sourceDisplayName }}</span>
         </template>
       </div>
-      <span v-if="paymentLabel" class="payment-text" :class="paymentClass">
-        {{ paymentLabel }}
-      </span>
     </div>
 
     <!-- Bouton détails -->
@@ -214,59 +180,13 @@ const handleDelete = (): void => {
       </svg>
     </button>
 
-    <!-- Actions -->
+    <!-- Actions : uniquement supprimer -->
     <div v-if="booking.status !== 'CANCELLED'" class="card-actions">
       <button
-        v-if="booking.status === 'PENDING'"
-        class="action-btn action-btn--confirm"
-        :disabled="loading"
-        @click="handleConfirm"
-      >
-        <span v-if="loadingAction === 'confirm'" class="btn-spinner btn-spinner--light"></span>
-        <svg
-          v-else
-          xmlns="http://www.w3.org/2000/svg"
-          class="btn-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-        >
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-        {{ loadingAction === 'confirm' ? 'Confirmation...' : 'Confirmer' }}
-      </button>
-
-      <button
-        v-if="booking.status === 'PENDING'"
-        class="action-btn action-btn--cancel"
-        :disabled="loading"
-        @click="handleCancel"
-      >
-        <span v-if="loadingAction === 'cancel'" class="btn-spinner"></span>
-        <svg
-          v-else
-          xmlns="http://www.w3.org/2000/svg"
-          class="btn-icon"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2.5"
-        >
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-        {{ loadingAction === 'cancel' ? 'Annulation...' : 'Annuler' }}
-      </button>
-
-      <button
         class="action-btn action-btn--delete"
-        :disabled="loading"
         @click="showDeleteConfirm = true"
       >
-        <span v-if="loadingAction === 'delete'" class="btn-spinner"></span>
         <svg
-          v-else
           xmlns="http://www.w3.org/2000/svg"
           class="btn-icon"
           viewBox="0 0 24 24"
@@ -279,7 +199,7 @@ const handleDelete = (): void => {
             d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
           />
         </svg>
-        {{ loadingAction === 'delete' ? '...' : 'Supprimer' }}
+        Supprimer
       </button>
     </div>
 
@@ -297,7 +217,6 @@ const handleDelete = (): void => {
               </button>
               <button
                 class="modal-btn modal-btn--confirm"
-                :disabled="loading"
                 @click="handleDelete"
               >
                 Oui, supprimer
@@ -326,16 +245,7 @@ const handleDelete = (): void => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
-.booking-card--confirmed {
-  border-left-color: #10b981;
-}
-
-.booking-card--pending {
-  border-left-color: #f59e0b;
-}
-
 .booking-card--cancelled {
-  border-left-color: #d4d4d4;
   opacity: 0.6;
 }
 
@@ -355,6 +265,14 @@ const handleDelete = (): void => {
   min-width: 0;
 }
 
+.card-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .client-name {
   font-size: 17px;
   font-weight: 700;
@@ -371,8 +289,15 @@ const handleDelete = (): void => {
   font-weight: 400;
 }
 
+.status-badge {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
 .nights-badge {
-  flex-shrink: 0;
   font-size: 13px;
   font-weight: 600;
   color: #717171;
@@ -459,23 +384,6 @@ const handleDelete = (): void => {
   color: #9ca3af;
 }
 
-.payment-text {
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.payment--pending {
-  color: #d97706;
-}
-
-.payment--paid {
-  color: #059669;
-}
-
-.payment--free {
-  color: #9ca3af;
-}
-
 /* ── Bouton détails ── */
 .detail-btn {
   display: flex;
@@ -508,7 +416,7 @@ const handleDelete = (): void => {
 .card-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: flex-end;
   margin-top: 14px;
   padding-top: 14px;
   border-top: 1px solid #f0f0f0;
@@ -529,63 +437,18 @@ const handleDelete = (): void => {
   white-space: nowrap;
 }
 
-.action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .btn-icon {
   width: 15px;
   height: 15px;
   flex-shrink: 0;
 }
 
-.btn-spinner {
-  width: 15px;
-  height: 15px;
-  border: 2px solid rgba(0, 0, 0, 0.15);
-  border-top-color: currentColor;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-.btn-spinner--light {
-  border-color: rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.action-btn--confirm {
-  background-color: #10b981;
-  color: white;
-}
-
-.action-btn--confirm:hover:not(:disabled) {
-  background-color: #059669;
-}
-
-.action-btn--cancel {
-  background-color: #f3f4f6;
-  color: #6b7280;
-}
-
-.action-btn--cancel:hover:not(:disabled) {
-  background-color: #e5e7eb;
-  color: #484848;
-}
-
 .action-btn--delete {
   background-color: transparent;
   color: #d1d5db;
-  margin-left: auto;
 }
 
-.action-btn--delete:hover:not(:disabled) {
+.action-btn--delete:hover {
   background-color: #fef2f2;
   color: #ef4444;
 }

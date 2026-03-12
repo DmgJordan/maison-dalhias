@@ -9,7 +9,7 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
-import { BookingSource, PaymentStatus } from '@prisma/client';
+import { BookingSource } from '@prisma/client';
 
 export class UpdateQuickBookingDto {
   @IsOptional()
@@ -53,8 +53,4 @@ export class UpdateQuickBookingDto {
   @IsOptional()
   @IsString()
   notes?: string;
-
-  @IsOptional()
-  @IsEnum(PaymentStatus)
-  paymentStatus?: PaymentStatus;
 }

@@ -11,7 +11,6 @@ const error = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
 const filter = ref<'upcoming' | 'past'>('upcoming');
 const loadingBookingId = ref<string | null>(null);
-const loadingAction = ref<'confirm' | 'cancel' | 'delete' | null>(null);
 
 // Configuration tarifaire
 const pricingConfigWarning = ref<string | null>(null);
@@ -47,13 +46,15 @@ const stats = computed(() => {
   now.setHours(0, 0, 0, 0);
 
   const upcoming = bookings.value.filter((b) => new Date(b.endDate) >= now);
-  const pending = upcoming.filter((b) => b.status === 'PENDING');
-  const confirmed = upcoming.filter((b) => b.status === 'CONFIRMED');
+  const draft = upcoming.filter((b) => b.status === 'DRAFT');
+  const active = upcoming.filter(
+    (b) => b.status !== 'DRAFT' && b.status !== 'CANCELLED'
+  );
 
   return {
     total: upcoming.length,
-    pending: pending.length,
-    confirmed: confirmed.length,
+    draft: draft.length,
+    active: active.length,
   };
 });
 
@@ -78,49 +79,10 @@ const showSuccess = (message: string): void => {
   }, 3000);
 };
 
-const handleConfirm = async (id: string): Promise<void> => {
-  try {
-    loading.value = true;
-    loadingBookingId.value = id;
-    loadingAction.value = 'confirm';
-    error.value = null;
-    await bookingsApi.confirm(id);
-    await fetchBookings();
-    showSuccess('Réservation confirmée !');
-  } catch (err: unknown) {
-    console.error('Erreur lors de la confirmation:', err);
-    error.value = 'Impossible de confirmer la réservation. Veuillez réessayer.';
-  } finally {
-    loading.value = false;
-    loadingBookingId.value = null;
-    loadingAction.value = null;
-  }
-};
-
-const handleCancel = async (id: string): Promise<void> => {
-  try {
-    loading.value = true;
-    loadingBookingId.value = id;
-    loadingAction.value = 'cancel';
-    error.value = null;
-    await bookingsApi.cancel(id);
-    await fetchBookings();
-    showSuccess('Réservation annulée.');
-  } catch (err: unknown) {
-    console.error("Erreur lors de l'annulation:", err);
-    error.value = "Impossible d'annuler la réservation. Veuillez réessayer.";
-  } finally {
-    loading.value = false;
-    loadingBookingId.value = null;
-    loadingAction.value = null;
-  }
-};
-
 const handleDelete = async (id: string): Promise<void> => {
   try {
     loading.value = true;
     loadingBookingId.value = id;
-    loadingAction.value = 'delete';
     error.value = null;
     await bookingsApi.delete(id);
     await fetchBookings();
@@ -131,7 +93,6 @@ const handleDelete = async (id: string): Promise<void> => {
   } finally {
     loading.value = false;
     loadingBookingId.value = null;
-    loadingAction.value = null;
   }
 };
 
@@ -252,13 +213,13 @@ onMounted(() => {
         <span class="stat-value">{{ stats.total }}</span>
         <span class="stat-label">À venir</span>
       </div>
-      <div class="stat-card stat-card--pending">
-        <span class="stat-value">{{ stats.pending }}</span>
-        <span class="stat-label">En attente</span>
+      <div class="stat-card stat-card--draft">
+        <span class="stat-value">{{ stats.draft }}</span>
+        <span class="stat-label">Brouillons</span>
       </div>
-      <div class="stat-card stat-card--confirmed">
-        <span class="stat-value">{{ stats.confirmed }}</span>
-        <span class="stat-label">Confirmées</span>
+      <div class="stat-card stat-card--active">
+        <span class="stat-value">{{ stats.active }}</span>
+        <span class="stat-label">En cours</span>
       </div>
     </div>
 
@@ -321,10 +282,6 @@ onMounted(() => {
         v-for="booking in sortedBookings"
         :key="booking.id"
         :booking="booking"
-        :loading="loading && loadingBookingId === booking.id"
-        :loading-action="loadingBookingId === booking.id ? loadingAction : null"
-        @confirm="handleConfirm"
-        @cancel="handleCancel"
         @delete="handleDelete"
       />
     </div>
@@ -643,12 +600,12 @@ onMounted(() => {
     color: #484848;
   }
 
-  .stat-card--pending .stat-value {
-    color: #f59e0b;
+  .stat-card--draft .stat-value {
+    color: #94a3b8;
   }
 
-  .stat-card--confirmed .stat-value {
-    color: #10b981;
+  .stat-card--active .stat-value {
+    color: #3b82f6;
   }
 
   /* Filtres plus larges */

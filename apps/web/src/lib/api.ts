@@ -23,7 +23,8 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    if (error.response?.status === 401) {
+    const isLoginRequest = error.config?.url?.includes('/auth/login');
+    if (error.response?.status === 401 && !isLoginRequest) {
       localStorage.removeItem('accessToken');
       localStorage.removeItem('user');
       window.location.href = '/login';
@@ -52,13 +53,19 @@ export type BookingSource =
   | 'PERSONNEL'
   | 'FAMILLE'
   | 'OTHER';
-export type PaymentStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'FREE';
+export type BookingStatus =
+  | 'DRAFT'
+  | 'VALIDATED'
+  | 'CONTRACT_SENT'
+  | 'DEPOSIT_PAID'
+  | 'FULLY_PAID'
+  | 'CANCELLED';
 
 export interface Booking {
   id: string;
   startDate: string;
   endDate: string;
-  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
+  status: BookingStatus;
   userId: string;
   bookingType: BookingType;
   source?: BookingSource;
@@ -66,7 +73,6 @@ export interface Booking {
   label?: string;
   externalAmount?: number;
   notes?: string;
-  paymentStatus?: PaymentStatus;
   primaryClient?: Client;
   secondaryClient?: Client;
   occupantsCount?: number;
@@ -79,6 +85,12 @@ export interface Booking {
   linenOffered: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface TransitionsResponse {
+  currentStatus: BookingStatus;
+  availableTransitions: BookingStatus[];
+  steps: BookingStatus[];
 }
 
 export interface Client {
@@ -243,7 +255,6 @@ export interface UpdateQuickBookingData {
   occupantsCount?: number;
   adultsCount?: number;
   notes?: string;
-  paymentStatus?: PaymentStatus;
 }
 
 /** Omit fields to preserve existing values. Do NOT send null. */
@@ -364,13 +375,13 @@ export const bookingsApi = {
     return data;
   },
 
-  async confirm(id: string): Promise<Booking> {
-    const { data } = await api.patch<Booking>(`/bookings/${id}/confirm`);
+  async changeStatus(id: string, status: BookingStatus): Promise<Booking> {
+    const { data } = await api.patch<Booking>(`/bookings/${id}/status`, { status });
     return data;
   },
 
-  async cancel(id: string): Promise<Booking> {
-    const { data } = await api.patch<Booking>(`/bookings/${id}/cancel`);
+  async getTransitions(id: string): Promise<TransitionsResponse> {
+    const { data } = await api.get<TransitionsResponse>(`/bookings/${id}/transitions`);
     return data;
   },
 

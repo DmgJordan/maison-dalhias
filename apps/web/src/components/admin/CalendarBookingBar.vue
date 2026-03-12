@@ -43,7 +43,13 @@ function getBarColors(booking: Booking): BarColors {
 
 function getStatusIcon(status: string): string {
   switch (status) {
-    case 'CONFIRMED':
+    case 'FULLY_PAID':
+      return '✓';
+    case 'DEPOSIT_PAID':
+      return '€';
+    case 'CONTRACT_SENT':
+      return '✉';
+    case 'VALIDATED':
       return '✓';
     case 'CANCELLED':
       return '✗';

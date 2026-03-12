@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router';
 import type { Booking } from '../../lib/api';
 import BaseModal from './BaseModal.vue';
 import SourceBadge from './SourceBadge.vue';
-import PaymentStatusBadge from './PaymentStatusBadge.vue';
+import { STATUS_CONFIG } from '../../constants/booking';
 import { formatDateLong, countNights } from '../../utils/formatting';
 
 const props = defineProps<{ booking: Booking }>();
@@ -24,25 +24,11 @@ const nights = computed((): number =>
 );
 
 const statusLabel = computed((): string => {
-  switch (props.booking.status) {
-    case 'CONFIRMED':
-      return 'Confirmée';
-    case 'CANCELLED':
-      return 'Annulée';
-    default:
-      return 'En attente';
-  }
+  return STATUS_CONFIG[props.booking.status].label;
 });
 
-const statusClass = computed((): string => {
-  switch (props.booking.status) {
-    case 'CONFIRMED':
-      return 'status--confirmed';
-    case 'CANCELLED':
-      return 'status--cancelled';
-    default:
-      return 'status--pending';
-  }
+const statusColor = computed((): string => {
+  return STATUS_CONFIG[props.booking.status].color;
 });
 
 const goToDetail = (): void => {
@@ -59,10 +45,6 @@ const goToDetail = (): void => {
         v-if="booking.source"
         :source="booking.source"
         :booking-type="booking.bookingType"
-      />
-      <PaymentStatusBadge
-        v-if="booking.paymentStatus"
-        :status="booking.paymentStatus"
       />
     </div>
 
@@ -95,7 +77,7 @@ const goToDetail = (): void => {
       </div>
       <div class="info-item">
         <span class="info-label">Statut</span>
-        <span class="status-badge" :class="statusClass">{{ statusLabel }}</span>
+        <span class="status-badge" :style="{ backgroundColor: statusColor + '18', color: statusColor }">{{ statusLabel }}</span>
       </div>
     </div>
 
@@ -147,19 +129,8 @@ const goToDetail = (): void => {
   font-weight: 600;
 }
 
-.status--confirmed {
-  background-color: #ecfdf5;
-  color: #065f46;
-}
-
-.status--pending {
-  background-color: #fffbeb;
-  color: #92400e;
-}
-
-.status--cancelled {
-  background-color: #fef2f2;
-  color: #991b1b;
+.status-badge {
+  font-weight: 600;
 }
 
 .detail-btn {

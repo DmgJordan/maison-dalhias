@@ -39,18 +39,12 @@ enum BookingSource {
   OTHER
 }
 
-enum PaymentStatus {
-  PENDING
-  PARTIAL
-  PAID
-  FREE
-}
 
 model Booking {
   id                   String              @id @default(uuid())
   startDate            DateTime            @map("start_date")
   endDate              DateTime            @map("end_date")
-  status               Status              @default(PENDING)
+  status               Status              @default(DRAFT)
   userId               String              @map("user_id")
   user                 User                @relation(fields: [userId], references: [id])
   bookingType          BookingType         @default(DIRECT) @map("booking_type")
@@ -59,7 +53,6 @@ model Booking {
   label                String?             @map("label")
   externalAmount       Decimal?            @map("external_amount") @db.Decimal(10, 2)
   notes                String?             @map("notes")
-  paymentStatus        PaymentStatus?      @map("payment_status")
   primaryClientId      String?             @map("primary_client_id")
   primaryClient        Client?             @relation("PrimaryClient", fields: [primaryClientId], references: [id])
   secondaryClientId    String?             @map("secondary_client_id")
@@ -82,8 +75,11 @@ model Booking {
 }
 
 enum Status {
-  PENDING
-  CONFIRMED
+  DRAFT
+  VALIDATED
+  CONTRACT_SENT
+  DEPOSIT_PAID
+  FULLY_PAID
   CANCELLED
 }
 

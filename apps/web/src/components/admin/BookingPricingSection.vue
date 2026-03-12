@@ -73,7 +73,7 @@ const emit = defineEmits<{
 
       <!-- Avertissement prix incoherent -->
       <div
-        v-if="priceMismatch && priceCalculation && booking.status === 'PENDING'"
+        v-if="priceMismatch && priceCalculation && booking.status === 'DRAFT'"
         class="price-warning"
       >
         <div class="price-warning-text">

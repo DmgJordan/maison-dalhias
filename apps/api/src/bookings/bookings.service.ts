@@ -4,9 +4,10 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
-import { Booking, BookingSource, BookingType, Client } from '@prisma/client';
+import { Booking, BookingSource, BookingType, Client, Status } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { PricingService, PriceCalculation } from '../pricing/pricing.service';
+import { StatusMachineService } from './status-machine.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateQuickBookingDto } from './dto/create-quick-booking.dto';
 import { UpdateBookingDto } from './dto/update-booking.dto';
@@ -45,7 +46,8 @@ export interface ConflictCheckResult {
 export class BookingsService {
   constructor(
     private prisma: PrismaService,
-    private pricingService: PricingService
+    private pricingService: PricingService,
+    private readonly statusMachine: StatusMachineService
   ) {}
 
   async findAll(): Promise<BookingWithRelations[]> {
@@ -165,7 +167,7 @@ export class BookingsService {
       updateBookingDto.linenOffered !== undefined ||
       updateBookingDto.recalculatePrice !== undefined;
 
-    if (booking.status !== 'PENDING' && hasNonNotesChanges) {
+    if (booking.status !== Status.DRAFT && hasNonNotesChanges) {
       throw new BadRequestException('Seules les réservations en attente peuvent être modifiées');
     }
 
@@ -277,12 +279,13 @@ export class BookingsService {
     return this.pricingService.calculatePrice(booking.startDate, booking.endDate);
   }
 
-  async confirm(id: string): Promise<BookingWithRelations> {
+  async changeStatus(id: string, targetStatus: Status): Promise<BookingWithRelations> {
     const booking = await this.findById(id);
+    this.statusMachine.validateTransition(booking.status, targetStatus, booking.bookingType);
 
     return this.prisma.booking.update({
       where: { id: booking.id },
-      data: { status: 'CONFIRMED' },
+      data: { status: targetStatus },
       include: {
         primaryClient: true,
         secondaryClient: true,
@@ -290,13 +293,17 @@ export class BookingsService {
     });
   }
 
-  async cancel(id: string): Promise<Booking> {
+  async getTransitions(id: string): Promise<{
+    currentStatus: Status;
+    availableTransitions: Status[];
+    steps: Status[];
+  }> {
     const booking = await this.findById(id);
-
-    return this.prisma.booking.update({
-      where: { id: booking.id },
-      data: { status: 'CANCELLED' },
-    });
+    return {
+      currentStatus: booking.status,
+      availableTransitions: this.statusMachine.getAvailableTransitions(booking.status, booking.bookingType),
+      steps: this.statusMachine.getSteps(booking.bookingType),
+    };
   }
 
   async delete(id: string): Promise<DeleteResponse> {
@@ -317,7 +324,7 @@ export class BookingsService {
     const conflictingBookings = await this.prisma.booking.findMany({
       where: {
         id: excludeBookingId ? { not: excludeBookingId } : undefined,
-        status: { not: 'CANCELLED' },
+        status: { not: Status.CANCELLED },
         OR: [
           {
             startDate: { lte: endDate },
@@ -381,7 +388,7 @@ export class BookingsService {
     const conflicting = await this.prisma.booking.findFirst({
       where: {
         id: excludeBookingId ? { not: excludeBookingId } : undefined,
-        status: { not: 'CANCELLED' },
+        status: { not: Status.CANCELLED },
         startDate: { lte: endDate },
         endDate: { gte: startDate },
       },
@@ -407,7 +414,7 @@ export class BookingsService {
     return this.prisma.$transaction(async (tx) => {
       const conflicting = await tx.booking.findFirst({
         where: {
-          status: { not: 'CANCELLED' },
+          status: { not: Status.CANCELLED },
           startDate: { lte: endDate },
           endDate: { gte: startDate },
         },
@@ -439,7 +446,7 @@ export class BookingsService {
           adultsCount: dto.adultsCount ?? 1,
           notes: dto.notes ?? null,
           userId,
-          status: 'PENDING',
+          status: Status.DRAFT,
         },
         include: {
           user: { select: { id: true, email: true } },
@@ -483,7 +490,6 @@ export class BookingsService {
     if (dto.occupantsCount !== undefined) updateData.occupantsCount = dto.occupantsCount;
     if (dto.adultsCount !== undefined) updateData.adultsCount = dto.adultsCount;
     if (dto.notes !== undefined) updateData.notes = dto.notes;
-    if (dto.paymentStatus !== undefined) updateData.paymentStatus = dto.paymentStatus;
     // NEVER include bookingType — it is immutable (NFR8)
 
     // sourceCustomName coherence: only meaningful when source is OTHER
@@ -506,7 +512,7 @@ export class BookingsService {
         const conflicting = await tx.booking.findFirst({
           where: {
             id: { not: id },
-            status: { not: 'CANCELLED' },
+            status: { not: Status.CANCELLED },
             startDate: { lte: endDate },
             endDate: { gte: startDate },
           },
@@ -561,9 +567,11 @@ export class BookingsService {
       );
     }
 
-    // Reject CANCELLED bookings — enrichment has no purpose on cancelled reservations
-    if (booking.status === 'CANCELLED') {
-      throw new BadRequestException("Impossible d'enrichir une réservation annulée");
+    // Only allow enrichment in DRAFT or VALIDATED states
+    if (booking.status !== Status.DRAFT && booking.status !== Status.VALIDATED) {
+      throw new BadRequestException(
+        "L'enrichissement n'est possible que pour les réservations en brouillon ou validées"
+      );
     }
 
     // Cross-field validation: cannot provide both inline client AND client ID
@@ -655,7 +663,7 @@ export class BookingsService {
   async getBookedDates(): Promise<string[]> {
     const bookings = await this.prisma.booking.findMany({
       where: {
-        status: { not: 'CANCELLED' },
+        status: { not: Status.CANCELLED },
       },
       select: {
         startDate: true,

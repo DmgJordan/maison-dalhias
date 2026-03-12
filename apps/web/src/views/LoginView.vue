@@ -4,6 +4,7 @@ import { authApi } from '../lib/api';
 import { useRouter } from 'vue-router';
 import { required, email as emailRule } from '../utils/validation';
 import { useFormValidation } from '../composables/useFormValidation';
+import axios from 'axios';
 
 const router = useRouter();
 const loading = ref(false);
@@ -27,10 +28,15 @@ const handleLogin = async (): Promise<void> => {
     await authApi.login(form.value.email, form.value.password);
     router.push('/admin');
   } catch (err: unknown) {
-    if (err instanceof Error) {
-      error.value = err.message;
+    if (axios.isAxiosError(err) && err.response) {
+      const status = err.response.status;
+      if (status === 401 || status === 404 || status === 403) {
+        error.value = 'Email ou mot de passe incorrect';
+      } else {
+        error.value = 'Une erreur est survenue. Veuillez réessayer.';
+      }
     } else {
-      error.value = 'Email ou mot de passe incorrect';
+      error.value = 'Impossible de contacter le serveur. Vérifiez votre connexion.';
     }
   } finally {
     loading.value = false;
