@@ -60,7 +60,13 @@ Confirmer ou annuler ?
 
 Tu dois vérifier la disponibilité UNE SEULE FOIS, avant de proposer le récapitulatif (pas après la confirmation).
 Pour les réservations directes, calcule le prix et propose les options.
-Pour les réservations externes/personnelles, le prix n'est pas nécessaire sauf si demandé.`;
+Pour les réservations externes/personnelles, le prix n'est pas nécessaire sauf si demandé.
+
+QUESTIONS DE DISPONIBILITÉ :
+- Si l'utilisateur demande les disponibilités pour un mois entier (ex: "dispo en août ?"), utilise l'outil list_bookings_for_period avec le 1er et le dernier jour du mois.
+- Ne demande PAS de préciser les jours — déduis automatiquement la période du mois complet.
+- Présente les créneaux occupés ET les créneaux libres de manière claire.
+- Exemple de réponse : "En août 2026 :\\n❌ 1-15 août : occupé (Airbnb)\\n✅ 16-31 août : disponible"`;
 
 const TOOLS: Anthropic.Tool[] = [
   {
@@ -211,6 +217,25 @@ const TOOLS: Anthropic.Tool[] = [
       required: ['startDate', 'endDate', 'primaryClient', 'occupantsCount', 'adultsCount'],
     },
   },
+  {
+    name: 'list_bookings_for_period',
+    description:
+      'Liste toutes les réservations existantes qui chevauchent une période donnée. Utile pour répondre aux questions de disponibilité sur un mois ou une période large (ex: "quelles sont les dispos en août ?"). Retourne les dates et sources des réservations.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        startDate: {
+          type: 'string',
+          description: 'Date de début de la période au format ISO (YYYY-MM-DD)',
+        },
+        endDate: {
+          type: 'string',
+          description: 'Date de fin de la période au format ISO (YYYY-MM-DD)',
+        },
+      },
+      required: ['startDate', 'endDate'],
+    },
+  },
 ];
 
 @Injectable()
@@ -336,6 +361,8 @@ export class WhatsAppAgentService implements OnModuleInit {
           return await this.toolCreateQuickBooking(input);
         case 'create_direct_booking':
           return await this.toolCreateDirectBooking(input);
+        case 'list_bookings_for_period':
+          return await this.toolListBookingsForPeriod(input);
         default:
           return { error: `Outil inconnu: ${toolName}` };
       }
@@ -450,6 +477,43 @@ export class WhatsAppAgentService implements OnModuleInit {
       endDate: booking.endDate,
       status: booking.status,
       rentalPrice: booking.rentalPrice?.toString(),
+    };
+  }
+
+  private async toolListBookingsForPeriod(
+    input: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    const startDate = new Date(input.startDate as string);
+    const endDate = new Date(input.endDate as string);
+
+    const bookings = await this.prisma.booking.findMany({
+      where: {
+        status: { not: 'CANCELLED' },
+        startDate: { lte: endDate },
+        endDate: { gte: startDate },
+      },
+      select: {
+        startDate: true,
+        endDate: true,
+        source: true,
+        bookingType: true,
+        label: true,
+        status: true,
+      },
+      orderBy: { startDate: 'asc' },
+    });
+
+    return {
+      period: { startDate: input.startDate, endDate: input.endDate },
+      bookingsCount: bookings.length,
+      bookings: bookings.map((b) => ({
+        startDate: b.startDate.toISOString().split('T')[0],
+        endDate: b.endDate.toISOString().split('T')[0],
+        source: b.source,
+        type: b.bookingType,
+        label: b.label,
+        status: b.status,
+      })),
     };
   }
 }
