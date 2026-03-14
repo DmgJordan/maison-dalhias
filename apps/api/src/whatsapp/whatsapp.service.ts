@@ -10,7 +10,7 @@ export class WhatsAppService {
   // Risque minime de double traitement ponctuel lors d'un déploiement.
   // Acceptable pour un usage mono-utilisateur à faible volume.
   private readonly processedMessageIds = new Set<string>();
-  private readonly allowedPhone: string;
+  private readonly allowedPhones: string[];
   private readonly accessToken: string;
   private readonly phoneNumberId: string;
 
@@ -18,7 +18,8 @@ export class WhatsAppService {
     private readonly conversationService: WhatsAppConversationService,
     private readonly agentService: WhatsAppAgentService,
   ) {
-    this.allowedPhone = process.env.WHATSAPP_ALLOWED_PHONE ?? '';
+    const phonesEnv = process.env.WHATSAPP_ALLOWED_PHONES ?? process.env.WHATSAPP_ALLOWED_PHONE ?? '';
+    this.allowedPhones = phonesEnv.split(',').map((p) => p.trim()).filter(Boolean);
     this.accessToken = process.env.WHATSAPP_ACCESS_TOKEN ?? '';
     this.phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID ?? '';
   }
@@ -49,16 +50,21 @@ export class WhatsAppService {
       return;
     }
 
-    // Vérifier que c'est un message texte
-    if (message.type !== 'text' || !message.text?.body) {
+    // Extraire le texte du message (texte ou réponse bouton interactif)
+    let userText: string | undefined;
+    if (message.type === 'text') {
+      userText = message.text?.body;
+    } else if (message.type === 'interactive' && message.interactive?.button_reply) {
+      userText = message.interactive.button_reply.title;
+    }
+
+    if (!userText) {
       await this.sendWhatsAppMessage(
         senderPhone,
         'Je ne traite que les messages texte pour le moment.',
       );
       return;
     }
-
-    const userText = message.text.body;
     this.logger.log(`Message reçu de ****${senderPhone.slice(-4)}`);
 
     try {
@@ -73,8 +79,16 @@ export class WhatsAppService {
       await this.conversationService.addMessage(conversation.id, 'user', userText);
       await this.conversationService.addMessage(conversation.id, 'assistant', response);
 
-      // Envoyer la réponse via WhatsApp
-      await this.sendWhatsAppMessage(senderPhone, response);
+      // Envoyer la réponse via WhatsApp (avec boutons si récapitulatif)
+      if (response.includes('Confirmer ou annuler ?')) {
+        const bodyText = response.replace('Confirmer ou annuler ?', '').trim();
+        await this.sendInteractiveButtons(senderPhone, bodyText, [
+          { id: 'confirm', title: 'Confirmer' },
+          { id: 'cancel', title: 'Annuler' },
+        ]);
+      } else {
+        await this.sendWhatsAppMessage(senderPhone, response);
+      }
     } catch (error) {
       this.logger.error('Erreur traitement message:', error);
       await this.sendWhatsAppMessage(
@@ -85,11 +99,55 @@ export class WhatsAppService {
   }
 
   private isAllowedPhone(phone: string): boolean {
-    if (!this.allowedPhone) return false;
+    if (this.allowedPhones.length === 0) return false;
     // Meta envoie le numéro sans '+', normaliser
     const normalized = phone.replace(/\+/g, '');
-    const allowed = this.allowedPhone.replace(/\+/g, '');
-    return normalized === allowed;
+    return this.allowedPhones.some((allowed) => normalized === allowed.replace(/\+/g, ''));
+  }
+
+  async sendInteractiveButtons(
+    to: string,
+    body: string,
+    buttons: Array<{ id: string; title: string }>,
+  ): Promise<void> {
+    if (!this.accessToken || !this.phoneNumberId) {
+      this.logger.warn('WhatsApp non configuré (token ou phoneNumberId manquant)');
+      return;
+    }
+
+    const url = `https://graph.facebook.com/v21.0/${this.phoneNumberId}/messages`;
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to,
+          type: 'interactive',
+          interactive: {
+            type: 'button',
+            body: { text: body },
+            action: {
+              buttons: buttons.map((btn) => ({
+                type: 'reply',
+                reply: { id: btn.id, title: btn.title },
+              })),
+            },
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        this.logger.error(`Erreur envoi boutons WhatsApp (${String(response.status)}): ${errorBody}`);
+      }
+    } catch (error) {
+      this.logger.error('Erreur envoi boutons WhatsApp:', error);
+    }
   }
 
   async sendWhatsAppMessage(to: string, body: string): Promise<void> {

@@ -41,8 +41,14 @@ export interface WhatsAppMessage {
     | 'document'
     | 'location'
     | 'reaction'
-    | 'sticker';
+    | 'sticker'
+    | 'interactive';
   text?: { body: string };
+  interactive?: {
+    type: 'button_reply' | 'list_reply';
+    button_reply?: { id: string; title: string };
+    list_reply?: { id: string; title: string };
+  };
 }
 
 export interface WhatsAppStatus {
