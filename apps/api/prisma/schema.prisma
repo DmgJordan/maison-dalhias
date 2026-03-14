@@ -236,3 +236,14 @@ model InvoiceSnapshot {
   @@index([bookingId])
   @@map("invoice_snapshots")
 }
+
+model WhatsAppConversation {
+  id        String   @id @default(uuid())
+  phone     String
+  messages  Json     // [{role: "user"|"assistant", content: string, timestamp: string}]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([phone])
+  @@map("whatsapp_conversations")
+}
