@@ -20,8 +20,8 @@ RÈGLES DE DATES :
 RÈGLE DE CONFIRMATION :
 - Tu dois TOUJOURS envoyer un récapitulatif AVANT de créer une réservation.
 - Termine TOUJOURS ton récapitulatif par exactement cette phrase : "Confirmer ou annuler ?" (cela déclenchera des boutons interactifs WhatsApp).
-- Quand l'utilisateur confirme (dit "confirmer", "oui", "ok", "c'est bon", ou clique le bouton "Confirmer"), crée la réservation IMMÉDIATEMENT sans re-vérifier la disponibilité (elle a déjà été vérifiée).
-- Quand l'utilisateur annule (dit "annuler", "non", ou clique le bouton "Annuler"), abandonne la réservation.
+- Quand l'utilisateur confirme (dit "Confirmer", "oui", "ok", "c'est bon"), tu DOIS OBLIGATOIREMENT appeler l'outil create_quick_booking ou create_direct_booking selon le type. Ne JAMAIS répondre que c'est créé sans avoir appelé l'outil. La disponibilité a déjà été vérifiée, ne rappelle PAS check_availability.
+- Quand l'utilisateur annule (dit "Annuler", "non"), abandonne la réservation.
 
 Types de réservation et infos requises :
 
@@ -295,7 +295,9 @@ export class WhatsAppAgentService implements OnModuleInit {
 
       // Si pas d'appels d'outils, retourner le texte
       if (response.stop_reason === 'end_turn' || toolUseBlocks.length === 0) {
-        return textBlocks.map((b) => b.text).join('\n') || 'Je n\'ai pas compris, pouvez-vous reformuler ?';
+        const textResponse = textBlocks.map((b) => b.text).join('\n') || 'Je n\'ai pas compris, pouvez-vous reformuler ?';
+        this.logger.log(`Réponse agent (sans outil): ${textResponse.substring(0, 100)}...`);
+        return textResponse;
       }
 
       // Traiter les appels d'outils
@@ -321,6 +323,7 @@ export class WhatsAppAgentService implements OnModuleInit {
     toolName: string,
     input: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
+    this.logger.log(`Appel outil: ${toolName}`);
     try {
       switch (toolName) {
         case 'check_availability':
