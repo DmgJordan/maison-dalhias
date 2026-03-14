@@ -67,6 +67,16 @@ export class WhatsAppService {
     }
     this.logger.log(`Message reçu de ****${senderPhone.slice(-4)}`);
 
+    // Commande "stop" pour reset la conversation
+    if (userText.toLowerCase().trim() === 'stop') {
+      await this.conversationService.deleteConversation(senderPhone);
+      await this.sendWhatsAppMessage(
+        senderPhone,
+        'Conversation réinitialisée. Envoyez un message pour recommencer.',
+      );
+      return;
+    }
+
     try {
       // Charger ou créer la conversation
       const conversation = await this.conversationService.getOrCreateConversation(senderPhone);

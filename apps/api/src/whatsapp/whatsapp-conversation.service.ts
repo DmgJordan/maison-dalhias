@@ -63,6 +63,10 @@ export class WhatsAppConversationService {
     return conversation.messages as unknown as ConversationMessage[];
   }
 
+  async deleteConversation(phone: string): Promise<void> {
+    await this.prisma.whatsAppConversation.deleteMany({ where: { phone } });
+  }
+
   private async purgeOldConversations(phone: string): Promise<void> {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const { count } = await this.prisma.whatsAppConversation.deleteMany({
