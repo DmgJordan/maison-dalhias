@@ -676,7 +676,7 @@ export class BookingsService {
       const current = new Date(booking.startDate);
       const end = new Date(booking.endDate);
 
-      while (current <= end) {
+      while (current < end) {
         dates.push(current.toISOString().split('T')[0]);
         current.setDate(current.getDate() + 1);
       }
