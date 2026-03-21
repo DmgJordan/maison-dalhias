@@ -327,8 +327,8 @@ export class BookingsService {
         status: { not: Status.CANCELLED },
         OR: [
           {
-            startDate: { lte: endDate },
-            endDate: { gte: startDate },
+            startDate: { lt: endDate },
+            endDate: { gt: startDate },
           },
         ],
       },
@@ -389,8 +389,8 @@ export class BookingsService {
       where: {
         id: excludeBookingId ? { not: excludeBookingId } : undefined,
         status: { not: Status.CANCELLED },
-        startDate: { lte: endDate },
-        endDate: { gte: startDate },
+        startDate: { lt: endDate },
+        endDate: { gt: startDate },
       },
       include: {
         user: { select: { id: true, email: true } },
@@ -415,8 +415,8 @@ export class BookingsService {
       const conflicting = await tx.booking.findFirst({
         where: {
           status: { not: Status.CANCELLED },
-          startDate: { lte: endDate },
-          endDate: { gte: startDate },
+          startDate: { lt: endDate },
+          endDate: { gt: startDate },
         },
       });
 
@@ -513,8 +513,8 @@ export class BookingsService {
           where: {
             id: { not: id },
             status: { not: Status.CANCELLED },
-            startDate: { lte: endDate },
-            endDate: { gte: startDate },
+            startDate: { lt: endDate },
+            endDate: { gt: startDate },
           },
         });
 
