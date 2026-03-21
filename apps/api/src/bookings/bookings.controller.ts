@@ -41,7 +41,7 @@ export class BookingsController {
   }
 
   @Get('dates')
-  getBookedDates(): Promise<string[]> {
+  getBookedDates(): Promise<{ checkinDisabled: string[]; checkoutDisabled: string[] }> {
     return this.bookingsService.getBookedDates();
   }
 

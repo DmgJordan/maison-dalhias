@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import BaseModal from './BaseModal.vue';
 import DatePicker from './DatePicker.vue';
 import {
@@ -46,6 +46,33 @@ const externalAmount = ref<number | null>(originalAmount);
 const occupantsCount = ref<number | null>(props.booking.occupantsCount ?? null);
 const adultsCount = ref(props.booking.adultsCount ?? 1);
 const notes = ref(props.booking.notes ?? '');
+
+// Booked dates for calendar
+const bookedCheckinDates = ref<string[]>([]);
+const bookedCheckoutDates = ref<string[]>([]);
+
+const fetchBookedDates = async (): Promise<void> => {
+  try {
+    const result = await bookingsApi.getBookedDates();
+    // Exclure les dates de la réservation en cours
+    const bookingStart = new Date(props.booking.startDate);
+    const bookingEnd = new Date(props.booking.endDate);
+    const currentDates = new Set<string>();
+    const current = new Date(bookingStart);
+    while (current <= bookingEnd) {
+      currentDates.add(current.toISOString().split('T')[0]);
+      current.setDate(current.getDate() + 1);
+    }
+    bookedCheckinDates.value = result.checkinDisabled.filter((d) => !currentDates.has(d));
+    bookedCheckoutDates.value = result.checkoutDisabled.filter((d) => !currentDates.has(d));
+  } catch {
+    // Continuer sans les dates réservées
+  }
+};
+
+onMounted(() => {
+  void fetchBookedDates();
+});
 
 // UI state
 const isSubmitting = ref(false);
@@ -337,13 +364,14 @@ async function handleSave(): Promise<void> {
       </div>
       <div v-else class="edit-section-form">
         <div class="date-fields">
-          <DatePicker v-model="startDate" label="Date d'arrivée" placeholder="Choisir la date d'arrivée" />
+          <DatePicker v-model="startDate" label="Date d'arrivée" placeholder="Choisir la date d'arrivée" :disabled-dates="bookedCheckinDates" />
           <DatePicker
             v-model="endDate"
             label="Date de départ"
             placeholder="Choisir la date de départ"
             :min-date="startDate"
             :disabled="!startDate"
+            :disabled-dates="bookedCheckoutDates"
           />
         </div>
         <p v-if="nightsCount > 0" class="date-nights-info">

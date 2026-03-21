@@ -37,7 +37,8 @@ const showEditModal = ref(false);
 const showQuickEditModal = ref(false);
 const generatingContract = ref(false);
 const generatingInvoice = ref(false);
-const bookedDates = ref<string[]>([]);
+const bookedCheckinDates = ref<string[]>([]);
+const bookedCheckoutDates = ref<string[]>([]);
 const priceCalculation = ref<PriceCalculation | null>(null);
 const priceMismatch = ref(false);
 const transitions = ref<TransitionsResponse | null>(null);
@@ -311,7 +312,9 @@ const goBack = (): void => {
 
 const handleOpenEdit = async (): Promise<void> => {
   try {
-    bookedDates.value = await bookingsApi.getBookedDates();
+    const datesResult = await bookingsApi.getBookedDates();
+    bookedCheckinDates.value = datesResult.checkinDisabled;
+    bookedCheckoutDates.value = datesResult.checkoutDisabled;
   } catch {
     // Continuer sans les dates réservées
   }
@@ -787,7 +790,8 @@ onMounted(async () => {
     <BookingEditModal
       v-if="showEditModal && booking"
       :booking="booking"
-      :booked-dates="bookedDates"
+      :booked-checkin-dates="bookedCheckinDates"
+      :booked-checkout-dates="bookedCheckoutDates"
       @close="showEditModal = false"
       @updated="handleBookingUpdated"
     />

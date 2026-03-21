@@ -34,7 +34,8 @@ const step2Validation: UseFormValidationReturn<ClientFormData> = useFormValidati
 const loading = ref(false);
 const error = ref<string | null>(null);
 const successMessage = ref<string | null>(null);
-const bookedDates = ref<string[]>([]);
+const bookedCheckinDates = ref<string[]>([]);
+const bookedCheckoutDates = ref<string[]>([]);
 
 const steps = [
   { number: 1, label: 'Dates' },
@@ -61,7 +62,9 @@ const minEndDate = computed((): string => {
 
 const fetchBookedDates = async (): Promise<void> => {
   try {
-    bookedDates.value = await bookingsApi.getBookedDates();
+    const result = await bookingsApi.getBookedDates();
+    bookedCheckinDates.value = result.checkinDisabled;
+    bookedCheckoutDates.value = result.checkoutDisabled;
   } catch (error: unknown) {
     console.error('Erreur lors du chargement des dates:', error);
   }
@@ -269,7 +272,7 @@ onMounted(() => {
             label="Date d'arrivée"
             placeholder="Choisir la date d'arrivée"
             :min-date="minDate"
-            :disabled-dates="bookedDates"
+            :disabled-dates="bookedCheckinDates"
           />
         </div>
 
@@ -280,7 +283,7 @@ onMounted(() => {
             placeholder="Choisir la date de départ"
             :min-date="minEndDate"
             :disabled="!formStore.startDate"
-            :disabled-dates="bookedDates"
+            :disabled-dates="bookedCheckoutDates"
           />
         </div>
 

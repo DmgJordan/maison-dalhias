@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuickBookingFormStore, SOURCE_LABELS } from '../../stores/quickBookingForm';
 import StepIndicator from '../../components/admin/StepIndicator.vue';
@@ -13,6 +13,22 @@ const store = useQuickBookingFormStore();
 const isCheckingConflict = ref(false);
 const hasConflict = ref(false);
 const conflictDetail = ref<ConflictDetail | null>(null);
+const bookedCheckinDates = ref<string[]>([]);
+const bookedCheckoutDates = ref<string[]>([]);
+
+const fetchBookedDates = async (): Promise<void> => {
+  try {
+    const result = await bookingsApi.getBookedDates();
+    bookedCheckinDates.value = result.checkinDisabled;
+    bookedCheckoutDates.value = result.checkoutDisabled;
+  } catch {
+    // Continuer sans les dates réservées
+  }
+};
+
+onMounted(() => {
+  void fetchBookedDates();
+});
 
 const sourceOptions: { value: BookingSource; label: string }[] = [
   { value: 'ABRITEL', label: 'Abritel' },
@@ -98,6 +114,7 @@ function goNext(): void {
           v-model="store.startDate"
           label="Date d'arrivée"
           placeholder="Choisir la date d'arrivée"
+          :disabled-dates="bookedCheckinDates"
         />
       </div>
 
@@ -108,6 +125,7 @@ function goNext(): void {
           placeholder="Choisir la date de départ"
           :min-date="store.startDate"
           :disabled="!store.startDate"
+          :disabled-dates="bookedCheckoutDates"
         />
       </div>
 

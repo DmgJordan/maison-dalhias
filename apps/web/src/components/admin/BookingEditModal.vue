@@ -21,11 +21,13 @@ import { COUNTRIES } from '../../constants/property';
 
 interface Props {
   booking: Booking;
-  bookedDates?: string[];
+  bookedCheckinDates?: string[];
+  bookedCheckoutDates?: string[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  bookedDates: () => [],
+  bookedCheckinDates: () => [],
+  bookedCheckoutDates: () => [],
 });
 
 const emit = defineEmits<{
@@ -195,18 +197,26 @@ const hasClientChanged = (type: 'primary' | 'secondary'): boolean => {
 };
 
 // Dates deja reservees (exclure la reservation en cours)
-const filteredBookedDates = computed((): string[] => {
+const currentBookingDates = computed((): Set<string> => {
   const bookingStart = new Date(props.booking.startDate);
   const bookingEnd = new Date(props.booking.endDate);
-  const bookingDates = new Set<string>();
+  const dates = new Set<string>();
 
   const current = new Date(bookingStart);
   while (current <= bookingEnd) {
-    bookingDates.add(current.toISOString().split('T')[0]);
+    dates.add(current.toISOString().split('T')[0]);
     current.setDate(current.getDate() + 1);
   }
 
-  return props.bookedDates.filter((date) => !bookingDates.has(date));
+  return dates;
+});
+
+const filteredCheckinDates = computed((): string[] => {
+  return props.bookedCheckinDates.filter((date) => !currentBookingDates.value.has(date));
+});
+
+const filteredCheckoutDates = computed((): string[] => {
+  return props.bookedCheckoutDates.filter((date) => !currentBookingDates.value.has(date));
 });
 
 const startEditing = (section: string): void => {
@@ -455,13 +465,13 @@ const handleSubmit = async (): Promise<void> => {
           <DatePicker
             v-model="form.startDate"
             label="Date d'arrivée"
-            :disabled-dates="filteredBookedDates"
+            :disabled-dates="filteredCheckinDates"
           />
           <DatePicker
             v-model="form.endDate"
             label="Date de départ"
             :min-date="form.startDate"
-            :disabled-dates="filteredBookedDates"
+            :disabled-dates="filteredCheckoutDates"
           />
         </div>
         <p v-if="nightsCount > 0" class="date-nights-info">

@@ -660,7 +660,7 @@ export class BookingsService {
     return updated as BookingWithRelations;
   }
 
-  async getBookedDates(): Promise<string[]> {
+  async getBookedDates(): Promise<{ checkinDisabled: string[]; checkoutDisabled: string[] }> {
     const bookings = await this.prisma.booking.findMany({
       where: {
         status: { not: Status.CANCELLED },
@@ -671,17 +671,35 @@ export class BookingsService {
       },
     });
 
-    const dates: string[] = [];
+    const checkinSet = new Set<string>();
+    const checkoutSet = new Set<string>();
+
     for (const booking of bookings) {
-      const current = new Date(booking.startDate);
+      const start = new Date(booking.startDate);
       const end = new Date(booking.endDate);
 
+      // Dates désactivées pour le checkin : [start, end-1]
+      // On ne peut pas arriver un jour où un séjour est en cours
+      const current = new Date(start);
       while (current < end) {
-        dates.push(current.toISOString().split('T')[0]);
+        checkinSet.add(current.toISOString().split('T')[0]);
         current.setDate(current.getDate() + 1);
+      }
+
+      // Dates désactivées pour le checkout : (start, end]
+      // On ne peut pas partir un jour où un séjour est en cours,
+      // mais on peut partir le jour d'arrivée d'un autre séjour
+      const currentOut = new Date(start);
+      currentOut.setDate(currentOut.getDate() + 1);
+      while (currentOut <= end) {
+        checkoutSet.add(currentOut.toISOString().split('T')[0]);
+        currentOut.setDate(currentOut.getDate() + 1);
       }
     }
 
-    return [...new Set(dates)];
+    return {
+      checkinDisabled: [...checkinSet],
+      checkoutDisabled: [...checkoutSet],
+    };
   }
 }

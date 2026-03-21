@@ -279,6 +279,11 @@ export interface ConflictCheckResult {
   conflictDetail?: ConflictDetail;
 }
 
+export interface BookedDatesResult {
+  checkinDisabled: string[];
+  checkoutDisabled: string[];
+}
+
 export interface Settings {
   defaultPricePerNight: number;
 }
@@ -355,8 +360,8 @@ export const bookingsApi = {
     return data;
   },
 
-  async getBookedDates(): Promise<string[]> {
-    const { data } = await api.get<string[]>('/bookings/dates');
+  async getBookedDates(): Promise<BookedDatesResult> {
+    const { data } = await api.get<BookedDatesResult>('/bookings/dates');
     return data;
   },
 
