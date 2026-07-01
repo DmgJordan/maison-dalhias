@@ -294,7 +294,7 @@ export interface EmailLog {
   bookingId: string;
   recipientEmail: string;
   recipientName: string;
-  documentTypes: ('contract' | 'invoice')[];
+  documentTypes: ('contract' | 'invoice' | 'access')[];
   subject: string;
   personalMessage: string | null;
   resendMessageId: string | null;
@@ -313,6 +313,14 @@ export interface SendDocumentEmailRequest {
   recipientEmail: string;
   recipientName: string;
   personalMessage?: string;
+}
+
+export interface SendAccessEmailRequest {
+  bookingId: string;
+  recipientEmail: string;
+  recipientName: string;
+  subject: string;
+  body: string;
 }
 
 // Auth API
@@ -615,6 +623,11 @@ export const pdfApi = {
 export const emailApi = {
   async send(data: SendDocumentEmailRequest): Promise<EmailLog> {
     const { data: result } = await api.post<EmailLog>('/emails/send', data);
+    return result;
+  },
+
+  async sendAccess(data: SendAccessEmailRequest): Promise<EmailLog> {
+    const { data: result } = await api.post<EmailLog>('/emails/send-access', data);
     return result;
   },
 

@@ -8,10 +8,12 @@ defineProps<{
   canGenerateContract: boolean;
   canGenerateInvoice: boolean;
   canSendEmail: boolean;
+  canSendAccessEmail: boolean;
   contractDisabledReason: string | null;
   invoiceDisabledReason: string | null;
   contractEmailReason: string | null;
   invoiceEmailReason: string | null;
+  accessEmailReason: string | null;
   generatingContract: boolean;
   generatingInvoice: boolean;
   modifiedSinceLastSend: boolean;
@@ -28,6 +30,7 @@ const emit = defineEmits<{
   'send-contract-email': [];
   'send-invoice-email': [];
   'send-both-email': [];
+  'send-access-email': [];
   'dismiss-success': [];
   'toggle-show-all-emails': [];
   'resend-email': [emailLog: EmailLog];
@@ -85,7 +88,9 @@ const emit = defineEmits<{
           <strong>Documents :</strong>
           {{
             lastSentEmail.documentTypes
-              .map((t) => (t === 'contract' ? 'Contrat' : 'Facture'))
+              .map((t) =>
+                t === 'contract' ? 'Contrat' : t === 'invoice' ? 'Facture' : "Informations d'accès"
+              )
               .join(', ')
           }}
         </p>
@@ -159,9 +164,7 @@ const emit = defineEmits<{
             stroke="currentColor"
             stroke-width="2"
           >
-            <path
-              d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-            />
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
             <polyline points="22,6 12,13 2,6" />
           </svg>
           Envoyer par email
@@ -190,6 +193,14 @@ const emit = defineEmits<{
             :enabled="canSendEmail && canGenerateInvoice"
             variant="email"
             @click="emit('send-both-email')"
+          />
+          <DisabledActionRow
+            :icon="'<path d=&quot;M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z&quot; /><polyline points=&quot;22,6 12,13 2,6&quot; />'"
+            label="Informations d'accès"
+            :reason="accessEmailReason"
+            :enabled="canSendAccessEmail"
+            variant="email"
+            @click="emit('send-access-email')"
           />
         </div>
       </div>
@@ -237,7 +248,9 @@ const emit = defineEmits<{
   border-radius: 16px;
   padding: 20px;
   margin-bottom: 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.06),
+    0 4px 12px rgba(0, 0, 0, 0.04);
   border: 1px solid #ebebeb;
 }
 

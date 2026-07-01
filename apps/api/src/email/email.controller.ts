@@ -14,8 +14,11 @@ import { AdminGuard } from '../auth/guards/admin.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { BookingPriceComputeService } from '../bookings/booking-price-compute.service';
 import { PdfService } from '../pdf/pdf.service';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { EmailService } from './email.service';
 import { SendDocumentEmailDto } from './dto/send-document-email.dto';
+import { SendAccessEmailDto } from './dto/send-access-email.dto';
 import { buildEmailSubject } from './email.service';
 import { generateInvoiceNumber } from '../pdf/invoice-generator.service';
 import type { ContractGenerateData } from '../pdf/contract-generator.service';
@@ -257,6 +260,80 @@ export class EmailController {
         failureReason,
         contractSnapshotId,
         invoiceSnapshotId,
+      },
+      include: {
+        contractSnapshot: true,
+        invoiceSnapshot: true,
+      },
+    });
+
+    if (status === 'FAILED') {
+      throw new BadRequestException({
+        message: "L'envoi de l'email a échoué",
+        emailLog,
+      });
+    }
+
+    return emailLog;
+  }
+
+  @Post('send-access')
+  @UseGuards(JwtAuthGuard, AdminGuard, ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async sendAccessEmail(@Body() dto: SendAccessEmailDto): Promise<EmailLogWithSnapshots> {
+    // 1. Validate booking exists and is confirmed
+    const booking = await this.prisma.booking.findUnique({ where: { id: dto.bookingId } });
+    if (!booking) {
+      throw new BadRequestException('Réservation introuvable');
+    }
+    if (booking.status === 'DRAFT' || booking.status === 'CANCELLED') {
+      throw new BadRequestException(
+        "Les informations d'accès ne peuvent être envoyées que pour une réservation validée"
+      );
+    }
+
+    // 2. Load the static access plan PDF (bundled via nest-cli assets)
+    let planPdf: Buffer;
+    try {
+      planPdf = readFileSync(join(__dirname, 'assets', 'plan-acces-rouret.pdf'));
+    } catch {
+      throw new BadRequestException("Le plan d'accès est introuvable sur le serveur");
+    }
+
+    // 3. Send email (client as recipient, owner in CC)
+    let resendMessageId: string | undefined;
+    let status: 'SENT' | 'FAILED' = 'SENT';
+    let failureReason: string | undefined;
+
+    try {
+      const result = await this.emailService.sendAccessEmail({
+        recipientEmail: dto.recipientEmail,
+        recipientName: dto.recipientName,
+        subject: dto.subject,
+        body: dto.body,
+        planPdf,
+      });
+      resendMessageId = result.resendMessageId;
+    } catch (error) {
+      status = 'FAILED';
+      failureReason =
+        error instanceof Error ? `Erreur d'envoi: ${error.message}` : "Erreur d'envoi inconnue";
+    }
+
+    // 4. Create EmailLog (shared history with contract/invoice emails)
+    const emailLog = await this.prisma.emailLog.create({
+      data: {
+        bookingId: booking.id,
+        recipientEmail: dto.recipientEmail,
+        recipientName: dto.recipientName,
+        documentTypes: ['access'],
+        subject: dto.subject,
+        personalMessage: dto.body,
+        resendMessageId,
+        status,
+        sentAt: new Date(),
+        failedAt: status === 'FAILED' ? new Date() : undefined,
+        failureReason,
       },
       include: {
         contractSnapshot: true,

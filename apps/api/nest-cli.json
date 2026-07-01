@@ -6,7 +6,8 @@
     "deleteOutDir": true,
     "assets": [
       { "include": "pdf/assets/**/*", "outDir": "dist/src" },
-      { "include": "pdf/fonts/**/*", "outDir": "dist/src" }
+      { "include": "pdf/fonts/**/*", "outDir": "dist/src" },
+      { "include": "email/assets/**/*", "outDir": "dist/src" }
     ]
   }
 }

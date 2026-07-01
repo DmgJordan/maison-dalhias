@@ -25,6 +25,14 @@ export interface DocumentEmailResult {
   resendMessageId: string;
 }
 
+export interface AccessEmailParams {
+  recipientEmail: string;
+  recipientName: string;
+  subject: string;
+  body: string;
+  planPdf: Buffer;
+}
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
@@ -162,6 +170,37 @@ export class EmailService implements OnModuleInit {
       subject,
       html,
       attachments,
+    });
+
+    return { resendMessageId: result.data?.id ?? '' };
+  }
+
+  async sendAccessEmail(params: AccessEmailParams): Promise<DocumentEmailResult> {
+    const { recipientEmail, subject, body, planPdf } = params;
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #484848;">
+        <div style="background-color: #FF385C; padding: 20px; text-align: center;">
+          <h1 style="color: white; margin: 0; font-size: 24px;">Maison Dalhias 19</h1>
+        </div>
+        <div style="padding: 30px 20px; line-height: 1.6;">
+          ${escapeHtml(body).replace(/\n/g, '<br />')}
+        </div>
+        <div style="background-color: #f7f7f7; padding: 15px; text-align: center; font-size: 12px; color: #999;">
+          <p style="margin: 0;">Ce message a été envoyé depuis le système de gestion Maison Dalhias 19.</p>
+          <p style="margin: 8px 0 0 0;">Pour toute question, contactez-nous au +33 7 87 86 43 58.</p>
+        </div>
+      </div>
+    `;
+
+    // Le client est le destinataire principal, le propriétaire du site reçoit une copie
+    const result = await this.resend.emails.send({
+      from: this.senderEmail,
+      to: recipientEmail,
+      cc: this.contactEmail,
+      subject,
+      html,
+      attachments: [{ filename: 'plan-acces-rouret.pdf', content: planPdf }],
     });
 
     return { resendMessageId: result.data?.id ?? '' };

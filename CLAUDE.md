@@ -82,7 +82,7 @@ npm run db:generate             # Générer le client Prisma
 npm run db:migrate              # Appliquer les migrations
 npm run db:push                 # Pousser le schéma sans migration
 npm run db:studio               # Interface Prisma Studio
-npm run db:seed                 # Seeder admin + saisons par défaut
+npm run prisma:seed -w @maison-dalhias/api  # Seeder admin + saisons par défaut
 
 # Développement
 npm run dev:web                 # Frontend (http://localhost:5173)

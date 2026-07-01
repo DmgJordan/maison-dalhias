@@ -40,9 +40,16 @@ export function canSendEmail(booking: Booking): boolean {
   return !!booking.primaryClient?.email;
 }
 
+export function canSendAccessEmail(booking: Booking): boolean {
+  // « Confirmée » = réservation validée et active (au-delà du brouillon, non annulée)
+  return (
+    booking.status !== 'DRAFT' && booking.status !== 'CANCELLED' && !!booking.primaryClient?.email
+  );
+}
+
 export function getDisabledReason(
   booking: Booking,
-  action: 'contract' | 'invoice' | 'email'
+  action: 'contract' | 'invoice' | 'email' | 'access'
 ): string | null {
   switch (action) {
     case 'contract':
@@ -56,6 +63,11 @@ export function getDisabledReason(
     case 'email':
       if (canSendEmail(booking)) return null;
       return booking.primaryClient ? 'Adresse email du client requise' : 'Client non renseigné';
+    case 'access':
+      if (canSendAccessEmail(booking)) return null;
+      if (!booking.primaryClient) return 'Client non renseigné';
+      if (!booking.primaryClient.email) return 'Adresse email du client requise';
+      return 'Réservation à valider avant envoi des accès';
   }
 }
 

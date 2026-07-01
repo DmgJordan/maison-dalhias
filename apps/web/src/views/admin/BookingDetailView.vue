@@ -18,6 +18,7 @@ import BookingStatusBar from '../../components/admin/BookingStatusBar.vue';
 import BookingEditModal from '../../components/admin/BookingEditModal.vue';
 import QuickBookingEditModal from '../../components/admin/QuickBookingEditModal.vue';
 import EmailSendModal from '../../components/admin/EmailSendModal.vue';
+import AccessEmailModal from '../../components/admin/AccessEmailModal.vue';
 import ActionCard from '../../components/admin/ActionCard.vue';
 import BookingNotesSection from '../../components/admin/BookingNotesSection.vue';
 import BookingClientSection from '../../components/admin/BookingClientSection.vue';
@@ -46,6 +47,7 @@ const transitions = ref<TransitionsResponse | null>(null);
 // Email state
 const emailLogs = ref<EmailLog[]>([]);
 const showEmailModal = ref(false);
+const showAccessModal = ref(false);
 const emailModalDocTypes = ref<('contract' | 'invoice')[]>([]);
 const showSuccessScreen = ref(false);
 const lastSentEmail = ref<EmailLog | null>(null);
@@ -176,6 +178,10 @@ const canSendEmailComputed = computed((): boolean => {
   return booking.value ? capabilities.canSendEmail(booking.value) : false;
 });
 
+const canSendAccessEmailComputed = computed((): boolean => {
+  return booking.value ? capabilities.canSendAccessEmail(booking.value) : false;
+});
+
 const contractDisabledReason = computed((): string | null => {
   return booking.value ? capabilities.getDisabledReason(booking.value, 'contract') : null;
 });
@@ -200,6 +206,10 @@ const invoiceEmailReason = computed((): string | null => {
   if (!capabilities.canSendEmail(booking.value)) return emailDisabledReason.value;
   if (!capabilities.canGenerateInvoice(booking.value)) return invoiceDisabledReason.value;
   return null;
+});
+
+const accessEmailReason = computed((): string | null => {
+  return booking.value ? capabilities.getDisabledReason(booking.value, 'access') : null;
 });
 
 const formatShortDate = (dateString: string): string => {
@@ -382,8 +392,13 @@ const openEmailModal = (docTypes: ('contract' | 'invoice')[]): void => {
   showEmailModal.value = true;
 };
 
+const openAccessModal = (): void => {
+  showAccessModal.value = true;
+};
+
 const handleEmailSent = async (emailLog: EmailLog): Promise<void> => {
   showEmailModal.value = false;
+  showAccessModal.value = false;
   lastSentEmail.value = emailLog;
   showSuccessScreen.value = true;
   await fetchEmailHistory();
@@ -395,7 +410,13 @@ const dismissSuccessScreen = (): void => {
 };
 
 const handleResend = (emailLog: EmailLog): void => {
-  emailModalDocTypes.value = emailLog.documentTypes;
+  if (emailLog.documentTypes.includes('access')) {
+    showAccessModal.value = true;
+    return;
+  }
+  emailModalDocTypes.value = emailLog.documentTypes.filter(
+    (t): t is 'contract' | 'invoice' => t !== 'access'
+  );
   showEmailModal.value = true;
 };
 
@@ -482,12 +503,18 @@ onMounted(async () => {
         <div class="header-top">
           <div class="header-left">
             <h1 class="detail-title">
-              {{ displayName ?? `${formatShortDate(booking.startDate)} – ${formatShortDate(booking.endDate)}` }}
+              {{
+                displayName ??
+                `${formatShortDate(booking.startDate)} – ${formatShortDate(booking.endDate)}`
+              }}
             </h1>
             <p class="detail-subtitle">
               <span class="header-source">{{ sourceDisplayName }}</span>
               <span class="header-sep">·</span>
-              <span>{{ formatShortDate(booking.startDate) }} – {{ formatShortDate(booking.endDate) }}</span>
+              <span
+                >{{ formatShortDate(booking.startDate) }} –
+                {{ formatShortDate(booking.endDate) }}</span
+              >
               <span class="header-sep">·</span>
               <span>{{ nightsCount }} nuit{{ nightsCount > 1 ? 's' : '' }}</span>
             </p>
@@ -497,10 +524,7 @@ onMounted(async () => {
           </div>
         </div>
         <div class="header-status-bar">
-          <BookingStatusBar
-            :status="booking.status"
-            :booking-type="booking.bookingType"
-          />
+          <BookingStatusBar :status="booking.status" :booking-type="booking.bookingType" />
         </div>
       </div>
 
@@ -706,7 +730,9 @@ onMounted(async () => {
               @click="handleOpenEdit"
             />
             <ActionCard
-              v-if="!isFullyEnriched && (booking.status === 'DRAFT' || booking.status === 'VALIDATED')"
+              v-if="
+                !isFullyEnriched && (booking.status === 'DRAFT' || booking.status === 'VALIDATED')
+              "
               :icon="'<path d=&quot;M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z&quot; /><path d=&quot;M12 8v4&quot; /><path d=&quot;M12 16h.01&quot; />'"
               title="Compléter les informations"
               description="Ajouter client, tarification et options"
@@ -737,10 +763,12 @@ onMounted(async () => {
             :can-generate-contract="canGenerateContract"
             :can-generate-invoice="canGenerateInvoice"
             :can-send-email="canSendEmailComputed"
+            :can-send-access-email="canSendAccessEmailComputed"
             :contract-disabled-reason="contractDisabledReason"
             :invoice-disabled-reason="invoiceDisabledReason"
             :contract-email-reason="contractEmailReason"
             :invoice-email-reason="invoiceEmailReason"
+            :access-email-reason="accessEmailReason"
             :generating-contract="generatingContract"
             :generating-invoice="generatingInvoice"
             :modified-since-last-send="modifiedSinceLastSend"
@@ -754,6 +782,7 @@ onMounted(async () => {
             @send-contract-email="openEmailModal(['contract'])"
             @send-invoice-email="openEmailModal(['invoice'])"
             @send-both-email="openEmailModal(['contract', 'invoice'])"
+            @send-access-email="openAccessModal"
             @dismiss-success="dismissSuccessScreen"
             @toggle-show-all-emails="showAllEmails = true"
             @resend-email="handleResend"
@@ -811,6 +840,15 @@ onMounted(async () => {
       :initial-document-types="emailModalDocTypes"
       :show="showEmailModal"
       @close="showEmailModal = false"
+      @sent="handleEmailSent"
+    />
+
+    <!-- Modal d'envoi des informations d'accès -->
+    <AccessEmailModal
+      v-if="booking"
+      :booking="booking"
+      :show="showAccessModal"
+      @close="showAccessModal = false"
       @sent="handleEmailSent"
     />
   </div>
@@ -948,7 +986,9 @@ onMounted(async () => {
   border-radius: 16px;
   padding: 24px 24px 20px 28px;
   margin-bottom: 20px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.06),
+    0 4px 12px rgba(0, 0, 0, 0.04);
   border: 1px solid #ebebeb;
   border-left: 4px solid #d4d4d4;
 }
@@ -1031,7 +1071,9 @@ onMounted(async () => {
   border-radius: 16px;
   padding: 20px;
   margin-bottom: 16px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.06),
+    0 4px 12px rgba(0, 0, 0, 0.04);
   border: 1px solid #ebebeb;
 }
 

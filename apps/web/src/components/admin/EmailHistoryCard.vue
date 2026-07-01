@@ -30,6 +30,7 @@ function formatDateTime(dateStr: string): string {
 function getDocLabel(type: string): string {
   if (type === 'contract') return 'Contrat';
   if (type === 'invoice') return 'Facture';
+  if (type === 'access') return "Informations d'accès";
   return type;
 }
 </script>
