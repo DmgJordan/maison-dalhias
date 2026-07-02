@@ -1422,6 +1422,9 @@ onMounted(async () => {
     display: flex;
     flex-direction: column;
     gap: 16px;
+    /* Une piste 1fr ne rétrécit pas sous son min-content : un texte insécable
+       (aperçu d'email en nowrap) ferait exploser la colonne sans ce min-width */
+    min-width: 0;
   }
 
   .detail-section {
